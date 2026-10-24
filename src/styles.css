@@ -853,6 +853,43 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .forecast-tab { display: grid; gap: 14px; }
 .forecast-tab > p { margin: 0; }
 .forecast-tab section { display: grid; justify-items: start; gap: 4px; }
+
+/* Ma trận phân công (Assignment Matrix View) */
+.matrix-view { flex: 1; overflow: auto; background: var(--surface); padding: 8px; }
+.matrix-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.matrix-table th, .matrix-table td { border: 1px solid var(--grid); padding: 4px 8px; white-space: nowrap; }
+.matrix-table th { position: sticky; top: 0; background: var(--surface-sunken); font-weight: 600; text-align: center; z-index: 1; }
+.matrix-col-id { width: 36px; text-align: center; }
+.matrix-col-name { text-align: left; min-width: 200px; }
+.matrix-col-unassigned { text-align: center; min-width: 120px; }
+.matrix-col-total { text-align: right; min-width: 80px; }
+.matrix-role-group { background: var(--surface-chrome); border-bottom: 1px solid var(--border-strong); }
+.matrix-role-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.matrix-collapse-btn { font-size: 11px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); cursor: pointer; color: var(--text-secondary); }
+.matrix-collapse-btn:hover { background: var(--surface-hover); color: var(--text); }
+.matrix-row.summary { font-weight: 600; background: var(--surface-sunken); }
+.matrix-cell-id { text-align: center; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.matrix-cell-name { text-align: left; }
+.matrix-cell-unassigned { text-align: center; }
+.matrix-rule-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.matrix-empty-rule { color: var(--text-muted); font-size: 11px; }
+.matrix-cell-value { text-align: center; min-width: 80px; }
+.matrix-cell-value.editable { cursor: pointer; }
+.matrix-cell-value.editable:hover { background: var(--surface-hover); }
+.matrix-cell-value.assigned { background: rgba(59, 130, 246, 0.05); }
+.matrix-cell-content { display: flex; align-items: baseline; justify-content: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.matrix-units { font-weight: 600; color: var(--accent); }
+.matrix-work { font-size: 11px; color: var(--text-muted); }
+.matrix-summary-work { font-weight: 600; font-variant-numeric: tabular-nums; }
+.matrix-blank { color: var(--text-muted); opacity: 0.5; }
+.matrix-cell-value.editable:hover .matrix-blank { opacity: 1; color: var(--accent); }
+.matrix-cell-total { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+.matrix-edit-input { width: 70px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid var(--accent); border-radius: 3px; background: var(--surface); padding: 2px 4px; outline: none; }
+.matrix-foot-row { position: sticky; bottom: 0; background: var(--surface-sunken); font-weight: 600; border-top: 2px solid var(--border-strong); }
+.matrix-foot-label { text-align: right; padding-right: 12px; }
+.matrix-foot-unassigned { text-align: center; color: #d97706; }
+.matrix-foot-total { text-align: center; font-variant-numeric: tabular-nums; }
+.matrix-foot-grand-total { text-align: right; font-variant-numeric: tabular-nums; color: var(--accent); }
 .forecast-tab section .meta { margin: 0; }
 
 /* Dự báo: the finish forecast view. */

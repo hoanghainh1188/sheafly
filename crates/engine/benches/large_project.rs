@@ -386,6 +386,18 @@ fn import(tasks: u32) {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let numbers: Vec<usize> = args.iter().filter_map(|arg| arg.parse().ok()).collect();
+    if args.iter().any(|arg| arg == "matrix") {
+        let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
+        let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
+        let project = capacity(people, tasks, false, true, false, false);
+        timed("assignment_matrix người x việc (500 người, 5000 việc)", || {
+            sheafly_engine::assignment_matrix::assignment_matrix(&project, false)
+        });
+        timed("assignment_matrix vai trò x việc (500 người, 5000 việc)", || {
+            sheafly_engine::assignment_matrix::assignment_matrix(&project, true)
+        });
+        return;
+    }
     if args.iter().any(|arg| arg == "loadmap") {
         let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
         let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;

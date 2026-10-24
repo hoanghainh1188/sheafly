@@ -72,6 +72,7 @@ const VIEWS: Record<string, ViewId> = {
   "view-gantt": "gantt",
   "view-tracking": "tracking",
   "view-resources": "resources",
+  "view-matrix": "matrix",
   "view-usage": "usage",
   "view-load": "load",
   "view-forecast": "forecast",

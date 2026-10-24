@@ -1,8 +1,8 @@
-import { ChartColumnIncreasing, ChartGantt, Grid3x3, ListChecks, Network, Table2, Users, type LucideIcon } from "lucide-react";
+import { ChartColumnIncreasing, ChartGantt, Grid2x2, Grid3x3, ListChecks, Network, Table2, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
 import { distinctValues, formatFieldValue, valueKey } from "../fieldValues";
-import { useMessages } from "../i18n";
+import { getLang, useMessages } from "../i18n";
 import { lastFinish, type SpanEnd } from "../spanFit";
 import type { Project, Scale, ViewId } from "../types";
 import { fieldMode, fieldOfMode, type FilterMode, type GroupMode, type HighlightMode } from "../viewRows";
@@ -12,6 +12,7 @@ const VIEWS: { id: ViewId; Icon: LucideIcon }[] = [
   { id: "gantt", Icon: ChartGantt },
   { id: "tracking", Icon: ListChecks },
   { id: "resources", Icon: Users },
+  { id: "matrix", Icon: Grid2x2 },
   { id: "usage", Icon: Table2 },
   { id: "load", Icon: Grid3x3 },
   { id: "forecast", Icon: ChartColumnIncreasing },
@@ -47,6 +48,8 @@ interface Props {
   onGroup: (group: GroupMode) => void;
   highlight: HighlightMode;
   onHighlight: (highlight: HighlightMode) => void;
+  matrixGroup?: boolean;
+  onMatrixGroup?: (group: boolean) => void;
   networkSummaries: boolean;
   onNetworkSummaries: (show: boolean) => void;
   /** Whether the task sheet shows the interrupt flag as a column. */
@@ -75,7 +78,7 @@ interface Props {
 export function ViewBar(props: Props) {
   const { project, view } = props;
   const chart = view === "gantt" || view === "tracking";
-  const rowControls = project && (chart || view === "network");
+  const rowControls = project && (chart || view === "network" || view === "matrix");
   const filterField = project ? fieldOfMode(project, props.filter) : null;
   const filterValues = useMemo(
     () => (filterField && project ? distinctValues(filterField, project.tasks) : []),
@@ -211,7 +214,28 @@ export function ViewBar(props: Props) {
               ))}
             </select>
           )}
-          {view === "network" ? (
+          {view === "matrix" ? (
+            props.onMatrixGroup && (
+              <div className="segmented" role="group" aria-label={m.matrix}>
+                <button
+                  type="button"
+                  className={!props.matrixGroup ? "on" : ""}
+                  aria-pressed={!props.matrixGroup}
+                  onClick={() => props.onMatrixGroup?.(false)}
+                >
+                  {getLang() === "en" ? "Person × Task" : "Người × việc"}
+                </button>
+                <button
+                  type="button"
+                  className={props.matrixGroup ? "on" : ""}
+                  aria-pressed={props.matrixGroup}
+                  onClick={() => props.onMatrixGroup?.(true)}
+                >
+                  {getLang() === "en" ? "Role × Task (RACI)" : "Vai trò × việc"}
+                </button>
+              </div>
+            )
+          ) : view === "network" ? (
             <label className="view-control">
               <input
                 type="checkbox"
@@ -239,24 +263,26 @@ export function ViewBar(props: Props) {
               </select>
             </label>
           )}
-          <label className="view-control">
-            {m.highlight}
-            <select
-              aria-label={m.highlight}
-              value={props.highlight}
-              onChange={(event) => {
-                const next = event.target.value as HighlightMode;
-                props.onHighlight(next);
-                startSpan(next);
-              }}
-            >
-              <option value="none">{m.highlightNone}</option>
-              <option value="critical">{m.critical}</option>
-              <option value="late">{m.late}</option>
-              <option value="interrupts">{m.interrupts}</option>
-              <option value="span">{m.outsideSpan}</option>
-            </select>
-          </label>
+          {view !== "matrix" && (
+            <label className="view-control">
+              {m.highlight}
+              <select
+                aria-label={m.highlight}
+                value={props.highlight}
+                onChange={(event) => {
+                  const next = event.target.value as HighlightMode;
+                  props.onHighlight(next);
+                  startSpan(next);
+                }}
+              >
+                <option value="none">{m.highlightNone}</option>
+                <option value="critical">{m.critical}</option>
+                <option value="late">{m.late}</option>
+                <option value="interrupts">{m.interrupts}</option>
+                <option value="span">{m.outsideSpan}</option>
+              </select>
+            </label>
+          )}
           {(props.filter === "span" || props.highlight === "span") && (
             <SpanEndControl project={project} end={props.spanEnd} onEnd={props.onSpanEnd} />
           )}

@@ -995,7 +995,51 @@ export type FillField =
   | "work_range"
   | { field: number };
 
-export type ViewId = "gantt" | "tracking" | "resources" | "usage" | "load" | "forecast" | "network";
+export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "forecast" | "network";
+
+export interface MatrixCell {
+  assignment_uid?: number;
+  units: number;
+  work: number;
+}
+
+export interface MatrixColumn {
+  id: string;
+  label: string;
+  group: string;
+  resource_uid?: number;
+  total_work: number;
+}
+
+export interface MatrixRole {
+  name: string;
+  resource_uids: number[];
+  total_work: number;
+}
+
+export interface UnassignedTarget {
+  rule_index: number;
+  target: RuleTarget;
+}
+
+export interface MatrixRow {
+  task_uid: number;
+  task_id: number;
+  task_name: string;
+  outline_level: number;
+  summary: boolean;
+  cells: (MatrixCell | null)[];
+  role_cells: (MatrixCell | null)[];
+  unassigned?: UnassignedTarget;
+  total_work: number;
+}
+
+export interface AssignmentMatrix {
+  columns: MatrixColumn[];
+  roles: MatrixRole[];
+  rows: MatrixRow[];
+  total_work: number;
+}
 
 export interface NetworkOptions {
   include_summary: boolean;

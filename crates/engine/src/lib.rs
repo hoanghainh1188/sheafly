@@ -4,6 +4,7 @@
 //! Durations and lags are working minutes. Calendars convert between the two.
 //! The engine is the source of truth: the UI sends commands and renders the result.
 
+pub mod assignment_matrix;
 pub mod autosave;
 pub mod availability;
 pub mod calendar;
