@@ -1,4 +1,5 @@
 import type {
+  AssignmentMatrix,
   Command,
   FieldValue,
   ImportProblem,
@@ -43,6 +44,8 @@ class FakeBackend {
   forecast: Forecast | null = null;
   /** What `load_map` answers. */
   loadMap: LoadMap = { buckets: [], rows: [] };
+  /** What `assignment_matrix` answers. */
+  assignmentMatrix: AssignmentMatrix = { columns: [], roles: [], rows: [], total_work: 0 };
   /** What `check_import` answers. */
   importProblems: ImportProblem[] = [];
   /** What `tracker_pull` answers (null is a cancelled pull), and `tracker_test` calls the project. */
@@ -148,6 +151,8 @@ class FakeBackend {
         return structuredClone(this.suggestions);
       case "load_map":
         return structuredClone(this.loadMap);
+      case "assignment_matrix":
+        return structuredClone(this.assignmentMatrix);
       case "forecast":
         return structuredClone(this.forecast);
       case "preview_plan":

@@ -36,6 +36,7 @@ use sheafly_engine::suggest::{self, Suggestion};
 use sheafly_engine::command::{LevelingDelay, LevelingSplits};
 use sheafly_engine::import::{self, ImportColumn, ImportResource, ImportTable, ImportTask};
 use sheafly_engine::forecast::{self, Forecast};
+use sheafly_engine::assignment_matrix::{self, AssignmentMatrix};
 use sheafly_engine::load_map::{self, Bucket, LoadMap};
 use sheafly_engine::plan::{self, PlanPreview};
 use sheafly_engine::timeutil::parse_date_key;
@@ -606,6 +607,13 @@ fn load_map(state: State<'_, AppState>, from: String, to: String, bucket: Bucket
     let to = parse_date_key(&to).ok_or_else(bad)?;
     let project = lock(&state).project.clone();
     load_map::load_map(&project, from, to, bucket).map_err(engine_message(&state))
+}
+
+/// The assignment matrix: tasks x people (or roles), with units and work.
+#[tauri::command(async)]
+fn assignment_matrix(state: State<'_, AppState>, group: bool) -> Result<AssignmentMatrix, String> {
+    let project = lock(&state).project.clone();
+    Ok(assignment_matrix::assignment_matrix(&project, group))
 }
 
 /// The finish forecast over `iterations` runs of the project as it is now (the engine
@@ -1422,6 +1430,7 @@ pub fn run() {
             tracker_commands::tracker_push,
             preview_plan,
             load_map,
+            assignment_matrix,
             forecast,
             apply_plan,
             export_mspdi,

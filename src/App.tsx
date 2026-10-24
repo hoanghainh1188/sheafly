@@ -41,6 +41,7 @@ import { TrackerDialog } from "./components/tracker/TrackerDialog";
 import { TrackerPushDialog } from "./components/tracker/TrackerPushDialog";
 import { TrackerSettingsDialog } from "./components/tracker/TrackerSettingsDialog";
 import { ResourceSheet } from "./components/ResourceSheet";
+import { AssignmentMatrixView } from "./components/matrix/AssignmentMatrixView";
 import { SplitDialog } from "./components/SplitDialog";
 import { StatusBar } from "./components/StatusBar";
 import { TaskEditDialog } from "./components/TaskEditDialog";
@@ -140,6 +141,7 @@ export default function App() {
   const [filterValue, setFilterValue] = useState("");
   const [rowGroup, setRowGroup] = useState<GroupMode>("none");
   const [rowHighlight, setRowHighlight] = useState<HighlightMode>("none");
+  const [matrixGroup, setMatrixGroup] = useState(false);
   // Where the span of "Không vừa khoảng" ends; view state, not saved.
   const [spanEnd, setSpanEnd] = useState<SpanEnd>({ kind: "date", date: "" });
   // null: closed; 0: create a new series; otherwise the summary UID being edited.
@@ -585,6 +587,18 @@ export default function App() {
     [networkRows],
   );
 
+  const matrixRows = useMemo(
+    () =>
+      project && view === "matrix"
+        ? buildViewRows(project, rowFilter, filterResource, "none", "none", filterValue, spanEndInstant(project, spanEnd))
+        : [],
+    [project, view, rowFilter, filterResource, filterValue, spanEnd, lang],
+  );
+  const matrixVisible = useMemo(
+    () => (rowFilter === "none" ? null : new Set(matrixRows.flatMap((row) => (row.kind === "task" ? [row.task.uid] : [])))),
+    [matrixRows, rowFilter],
+  );
+
   // Layout comes from the engine, which also owns the schedule; refresh it after every change.
   useEffect(() => {
     if (view !== "network" || !snap || !inTauri()) return;
@@ -687,6 +701,8 @@ export default function App() {
         onGroup={setRowGroup}
         highlight={rowHighlight}
         onHighlight={setRowHighlight}
+        matrixGroup={matrixGroup}
+        onMatrixGroup={setMatrixGroup}
         networkSummaries={networkSummaries}
         onNetworkSummaries={setNetworkSummaries}
         interruptsColumn={interruptsColumn}
@@ -790,6 +806,20 @@ export default function App() {
                   // Based on the project calendar, so its holidays reach the resource.
                   void createCalendar(name, (id) => resourceCommand({ ...resource, calendar_id: id }), true, project.calendar_id);
                 }}
+              />
+            )}
+            {project && view === "matrix" && (
+              <AssignmentMatrixView
+                project={project}
+                group={matrixGroup}
+                visibleTaskUids={matrixVisible}
+                onAssign={(taskUid, resourceUid, units) =>
+                  void send({ type: "assign_resource", task_uid: taskUid, resource_uid: resourceUid, units })
+                }
+                onUpdate={(uid, units) =>
+                  void send({ type: "update_assignment", uid, units, work: null, overtime_work: null })
+                }
+                onRemove={(uid) => void send({ type: "remove_assignment", uid })}
               />
             )}
             {project && view === "usage" && <TaskUsage project={project} />}

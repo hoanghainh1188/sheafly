@@ -5,6 +5,7 @@ import { defineMessages, isLang, pick, type Lang } from "./i18n";
 import { SnapshotCache, type FullSnapshot, type SnapshotAnswer } from "./snapshotPatch";
 import { isThemeChoice, type ThemeChoice } from "./theme";
 import type {
+  AssignmentMatrix,
   Forecast,
   Command,
   ImportProblem,
@@ -146,6 +147,11 @@ export function suggestAssignments(): Promise<Suggestion[]> {
 /** Work and capacity by person from `from` to `to` ("YYYY-MM-DD", both included). */
 export function loadMap(from: string, to: string, bucket: LoadBucket): Promise<LoadMap> {
   return inOrder(() => invoke<LoadMap>("load_map", { from, to, bucket }));
+}
+
+/** The resource assignment matrix (by person or by role); a read, never logged. */
+export function assignmentMatrix(group: boolean): Promise<AssignmentMatrix> {
+  return inOrder(() => invoke<AssignmentMatrix>("assignment_matrix", { group }));
 }
 
 /**

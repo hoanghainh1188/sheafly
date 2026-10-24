@@ -329,6 +329,7 @@ pub const VIEW_MENU: &[Entry] = &[
     item("view-gantt", "Gantt", "Gantt Chart", None),
     item("view-tracking", "Gantt theo dõi", "Tracking Gantt", None),
     item("view-resources", "Bảng nguồn lực", "Resource Sheet", None),
+    item("view-matrix", "Ma trận phân công", "Assignment Matrix", None),
     item("view-usage", "Sử dụng công việc", "Task Usage", None),
     item("view-network", "Sơ đồ mạng", "Network Diagram", None),
     item("view-load", "Tải nguồn lực", "Resource Load", None),

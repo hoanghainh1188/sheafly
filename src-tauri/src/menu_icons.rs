@@ -35,6 +35,7 @@ pub const SYMBOLS: &[(&str, &str)] = &[
     ("view-gantt", "chart.bar.xaxis"),
     ("view-tracking", "checklist"),
     ("view-resources", "person.2"),
+    ("view-matrix", "rectangle.split.3x3"),
     ("view-usage", "tablecells"),
     ("view-network", "point.3.connected.trianglepath.dotted"),
     ("view-load", "square.grid.3x3"),
