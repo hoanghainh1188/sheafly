@@ -8,8 +8,12 @@
 //! resources, and projects from those stored baseline snapshots. Split gaps
 //! and non-working calendar hours are respected without needing timephased baseline
 //! bloat in storage.
+//!
+//! The days follow the task's calendar as it is now, not as it was when the baseline
+//! was set: a calendar edited afterwards moves baseline load between days (the total
+//! stays the baseline work). Microsoft Project keeps timephased baseline work instead.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::NaiveDate;
 
@@ -72,17 +76,13 @@ pub fn assignment_baseline_days(
     let (mut date, _) = civil(min_start);
     let (end_date, _) = civil(max_finish);
 
+    // Every day of the span, however long: a cap would drop the tail of the work.
     let mut day_minutes: Vec<(NaiveDate, i64)> = Vec::new();
-    for _ in 0..3660 {
-        let day_start = compose(date, 0);
-        let next = date.succ_opt().unwrap_or(date);
-        let day_end = compose(next, 0);
-
-        let minutes = split::working_within(calendar, &intervals, day_start, day_end);
+    while let Some(next) = date.succ_opt() {
+        let minutes = split::working_within(calendar, &intervals, compose(date, 0), compose(next, 0));
         if minutes > 0 {
             day_minutes.push((date, minutes));
         }
-
         if date >= end_date {
             break;
         }
@@ -115,29 +115,36 @@ pub fn assignment_baseline_days(
     result
 }
 
+/// The daily baseline load (working minutes) of every resource that has some, in one
+/// pass over the assignments. Charts over many people or periods (PR 5, PR 6) read this
+/// once and sum the ranges they need with [`sum_in_range`], instead of asking per person.
+pub fn baseline_load_by_resource(
+    project: &Project,
+    baseline_number: u8,
+) -> BTreeMap<u32, BTreeMap<NaiveDate, i64>> {
+    let mut by_resource: BTreeMap<u32, BTreeMap<NaiveDate, i64>> = BTreeMap::new();
+    for_each_baseline_day(project, baseline_number, |assignment, date, minutes| {
+        *by_resource
+            .entry(assignment.resource_uid)
+            .or_default()
+            .entry(date)
+            .or_insert(0) += minutes;
+    });
+    by_resource
+}
+
 /// Derives the daily baseline load (in working minutes) for a specific resource.
-///
-/// Sums the baseline working minutes from all assignments belonging to `resource_uid`.
 pub fn resource_baseline_load_by_day(
     project: &Project,
     resource_uid: u32,
     baseline_number: u8,
 ) -> BTreeMap<NaiveDate, i64> {
     let mut map: BTreeMap<NaiveDate, i64> = BTreeMap::new();
-
-    for assignment in &project.assignments {
-        if assignment.resource_uid != resource_uid {
-            continue;
-        }
-        let Some(task) = project.task(assignment.task_uid) else {
-            continue;
-        };
-
-        for (date, minutes) in assignment_baseline_days(project, task, assignment, baseline_number) {
+    for_each_baseline_day(project, baseline_number, |assignment, date, minutes| {
+        if assignment.resource_uid == resource_uid {
             *map.entry(date).or_insert(0) += minutes;
         }
-    }
-
+    });
     map
 }
 
@@ -147,18 +154,18 @@ pub fn project_baseline_load_by_day(
     baseline_number: u8,
 ) -> BTreeMap<NaiveDate, i64> {
     let mut map: BTreeMap<NaiveDate, i64> = BTreeMap::new();
-
-    for assignment in &project.assignments {
-        let Some(task) = project.task(assignment.task_uid) else {
-            continue;
-        };
-
-        for (date, minutes) in assignment_baseline_days(project, task, assignment, baseline_number) {
-            *map.entry(date).or_insert(0) += minutes;
-        }
-    }
-
+    for_each_baseline_day(project, baseline_number, |_, date, minutes| {
+        *map.entry(date).or_insert(0) += minutes;
+    });
     map
+}
+
+/// The minutes of a daily load within `[from, to]` (both included).
+pub fn sum_in_range(days: &BTreeMap<NaiveDate, i64>, from: NaiveDate, to: NaiveDate) -> i64 {
+    if from > to {
+        return 0;
+    }
+    days.range(from..=to).map(|(_, &m)| m).sum()
 }
 
 /// Computes the total baseline load (in working minutes) for a resource within `[from, to]`.
@@ -169,10 +176,7 @@ pub fn resource_baseline_load_in_range(
     from: NaiveDate,
     to: NaiveDate,
 ) -> i64 {
-    resource_baseline_load_by_day(project, resource_uid, baseline_number)
-        .range(from..=to)
-        .map(|(_, &m)| m)
-        .sum()
+    sum_in_range(&resource_baseline_load_by_day(project, resource_uid, baseline_number), from, to)
 }
 
 /// Computes the total project baseline load (in working minutes) within `[from, to]`.
@@ -182,8 +186,26 @@ pub fn project_baseline_load_in_range(
     from: NaiveDate,
     to: NaiveDate,
 ) -> i64 {
-    project_baseline_load_by_day(project, baseline_number)
-        .range(from..=to)
-        .map(|(_, &m)| m)
-        .sum()
+    sum_in_range(&project_baseline_load_by_day(project, baseline_number), from, to)
+}
+
+/// Calls `visit` with each day of each assignment's baseline load. Tasks are looked up
+/// through one index, so the cost grows with the assignments, not assignments × tasks.
+fn for_each_baseline_day(
+    project: &Project,
+    baseline_number: u8,
+    mut visit: impl FnMut(&Assignment, NaiveDate, i64),
+) {
+    let tasks: HashMap<u32, &Task> = project.tasks.iter().map(|task| (task.uid, task)).collect();
+    for assignment in &project.assignments {
+        if !assignment.baselines.iter().any(|b| b.number == baseline_number) {
+            continue;
+        }
+        let Some(task) = tasks.get(&assignment.task_uid) else {
+            continue;
+        };
+        for (date, minutes) in assignment_baseline_days(project, task, assignment, baseline_number) {
+            visit(assignment, date, minutes);
+        }
+    }
 }

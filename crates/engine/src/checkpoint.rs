@@ -20,7 +20,9 @@ use crate::model::Project;
 /// Revision 6: leveling breaks a tie on start and priority by the slack before
 /// leveling, not the slack as leveling goes (phase 18). Only files that logged the old
 /// `LevelResources` replay the heuristic, so only they can level differently.
-/// Revision 7: AssignmentBaseline { number, work } on assignments and baseline load derivation (PR 4, issue #150).
+/// Revision 7: `SetBaseline` also saves each assignment's work (`Assignment.baselines`,
+/// capacity plan PR 4). A checkpoint from revision 6 holds no assignment baselines for the
+/// same commands, so it must be replayed instead of reused.
 pub const ENGINE_REVISION: u32 = 7;
 
 /// A new checkpoint every this many commands while editing or replaying.

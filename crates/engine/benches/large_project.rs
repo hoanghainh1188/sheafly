@@ -399,6 +399,36 @@ fn main() {
         });
         return;
     }
+    if args.iter().any(|arg| arg == "baseline") {
+        let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
+        let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
+        let mut doc = Document::from_project(capacity(people, tasks, false, true, false, false));
+        doc.apply(Command::SetBaseline { number: 0 }).expect("baseline");
+        let project = &doc.project;
+        let (by_resource, _) = timed("baseline_load_by_resource (tất cả người)", || {
+            sheafly_engine::baseline_load::baseline_load_by_resource(project, 0)
+        });
+        let minutes: i64 = by_resource.values().flat_map(|days| days.values()).sum();
+        println!("{} người có tải baseline, {} giờ", by_resource.len(), minutes / 60);
+        timed("project_baseline_load_by_day", || {
+            sheafly_engine::baseline_load::project_baseline_load_by_day(project, 0)
+        });
+        let monday = NaiveDate::from_ymd_opt(2026, 1, 5).unwrap();
+        timed("sum_in_range 52 tuần cho mọi người", || {
+            by_resource
+                .values()
+                .map(|days| {
+                    (0..52)
+                        .map(|week| {
+                            let from = monday + chrono::Duration::weeks(week);
+                            sheafly_engine::baseline_load::sum_in_range(days, from, from + chrono::Duration::days(6))
+                        })
+                        .sum::<i64>()
+                })
+                .sum::<i64>()
+        });
+        return;
+    }
     if args.iter().any(|arg| arg == "loadmap") {
         let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
         let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;

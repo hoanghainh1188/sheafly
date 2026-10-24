@@ -1166,6 +1166,13 @@ fn write_assignment(xml: &mut String, project: &Project, assignment: &Assignment
     );
     el(xml, "Cost", &format_number(assignment.cost));
     mspdi_cost::write_assignment_costs(xml, assignment);
+    // The schema puts an assignment's baselines before its timephased data.
+    for baseline in &assignment.baselines {
+        xml.push_str("<Baseline>\n");
+        el(xml, "Number", &baseline.number.to_string());
+        el(xml, "Work", &format_duration_iso(baseline.work));
+        xml.push_str("</Baseline>\n");
+    }
     if let Some(task) = project.task(assignment.task_uid) {
         write_timephased(xml, project, task, assignment.uid, assignment.work);
         mspdi_progress::write_actual_timephased(
@@ -1175,12 +1182,6 @@ fn write_assignment(xml: &mut String, project: &Project, assignment: &Assignment
             assignment.uid,
             assignment.actual_work,
         );
-    }
-    for baseline in &assignment.baselines {
-        xml.push_str("<Baseline>\n");
-        el(xml, "Number", &baseline.number.to_string());
-        el(xml, "Work", &format_duration_iso(baseline.work));
-        xml.push_str("</Baseline>\n");
     }
     xml.push_str("</Assignment>\n");
 }
