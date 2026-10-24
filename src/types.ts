@@ -545,6 +545,11 @@ export interface AvailabilityPeriod {
   units: number;
 }
 
+export interface AssignmentBaseline {
+  number: number;
+  work: number;
+}
+
 export interface Assignment {
   uid: number;
   task_uid: number;
@@ -558,6 +563,8 @@ export interface Assignment {
   actual_cost: number;
   /** Hand-entered actual cost; counts only while costs are editable and the task has no entry. */
   manual_actual_cost: number | null;
+  /** Saved baselines for this assignment: baseline number and work. */
+  baselines?: AssignmentBaseline[];
 }
 
 export interface Overallocation {

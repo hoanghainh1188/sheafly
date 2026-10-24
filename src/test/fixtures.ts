@@ -110,6 +110,7 @@ export function makeAssignment(
     cost: 0,
     actual_cost: 0,
     manual_actual_cost: null,
+    baselines: [],
     ...overrides,
   };
 }

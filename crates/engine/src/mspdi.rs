@@ -7,7 +7,7 @@ use crate::availability::AvailabilityPeriod;
 use crate::calendar::{Calendar, CalendarBase, TimeRange, WorkWeek};
 use crate::error::EngineError;
 use crate::model::{
-    Accrual, Assignment, Baseline, ConstraintType, DepKind, Dependency, Project, Resource,
+    Accrual, Assignment, AssignmentBaseline, Baseline, ConstraintType, DepKind, Dependency, Project, Resource,
     ResourceKind, Task, TaskType,
 };
 use crate::mspdi_availability::{self, PeriodBuilder};
@@ -366,8 +366,15 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
                         }
                     }
                     "Baseline" => {
-                        if let (Some(task), Some(baseline)) = (task.as_mut(), baseline.take()) {
-                            task.baselines.push(baseline);
+                        if let Some(b) = baseline.take() {
+                            if let Some(task) = task.as_mut() {
+                                task.baselines.push(b);
+                            } else if let Some(assignment) = assignment.as_mut() {
+                                assignment.baselines.push(AssignmentBaseline {
+                                    number: b.number,
+                                    work: b.work,
+                                });
+                            }
                         }
                     }
                     "Task" => {
@@ -1169,6 +1176,12 @@ fn write_assignment(xml: &mut String, project: &Project, assignment: &Assignment
             assignment.actual_work,
         );
     }
+    for baseline in &assignment.baselines {
+        xml.push_str("<Baseline>\n");
+        el(xml, "Number", &baseline.number.to_string());
+        el(xml, "Work", &format_duration_iso(baseline.work));
+        xml.push_str("</Baseline>\n");
+    }
     xml.push_str("</Assignment>\n");
 }
 
@@ -1534,6 +1547,7 @@ struct AssignmentBuilder {
     overtime_work: i64,
     actual_cost: Option<f64>,
     periods: Vec<Period>,
+    baselines: Vec<AssignmentBaseline>,
 }
 
 /// One timephased work record of an assignment.
@@ -1559,6 +1573,7 @@ impl AssignmentBuilder {
             cost: 0.0,
             actual_cost: 0.0,
             manual_actual_cost: self.actual_cost,
+            baselines: self.baselines,
         }
     }
 }

@@ -15,7 +15,7 @@ use crate::sync::Resolution;
 use crate::level_order::{self, SortKey};
 use crate::level::level_project;
 use crate::model::{
-    Accrual, Baseline, ConstraintType, DepKind, Dependency, ForecastSettings, Project, Resource,
+    Accrual, AssignmentBaseline, Baseline, ConstraintType, DepKind, Dependency, ForecastSettings, Project, Resource,
     ResourceKind, Task, TaskType,
 };
 use crate::recurrence::{self, Recurrence, RecurrenceSpec};
@@ -1039,11 +1039,21 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
                     segments: task.segments.clone(),
                 });
             }
+            for assignment in &mut project.assignments {
+                assignment.baselines.retain(|baseline| baseline.number != number);
+                assignment.baselines.push(AssignmentBaseline {
+                    number,
+                    work: assignment.work,
+                });
+            }
         }
         Command::ClearBaseline { number } => {
             let number = (*number).min(10);
             for task in &mut project.tasks {
                 task.baselines.retain(|baseline| baseline.number != number);
+            }
+            for assignment in &mut project.assignments {
+                assignment.baselines.retain(|baseline| baseline.number != number);
             }
         }
         Command::LevelResources => level_project(project)?,

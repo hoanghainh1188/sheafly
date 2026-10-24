@@ -263,6 +263,7 @@ pub fn add_assignment(project: &mut Project, task_uid: u32, resource_uid: u32, u
         cost: 0.0,
         actual_cost: 0.0,
         manual_actual_cost: None,
+        baselines: Vec::new(),
     });
     // Adding another resource to an effort-driven fixed-duration task keeps
     // duration and total work, and shares that work across the new unit weights.
