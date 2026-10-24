@@ -7,6 +7,7 @@ mod jira;
 mod jira_connector;
 mod jira_fields;
 mod jira_push;
+mod license;
 mod delta;
 mod i18n;
 mod menu_icons;
@@ -89,6 +90,8 @@ struct AppState {
     push_base: Mutex<Option<tracker_commands::PushBase>>,
     /// The snapshot sent last, the base of the patch an edit, undo or redo answers with.
     delta: delta::Delta,
+    /// The Sheafly Pro license of this computer, checked offline.
+    license: license::LicenseState,
 }
 
 impl AppState {
@@ -96,6 +99,10 @@ impl AppState {
     /// language right away when nothing is remembered.
     fn new(autosave: Option<AutosaveSlot>, settings: Option<PathBuf>) -> Self {
         let lang = settings.as_deref().and_then(settings::read_language).unwrap_or_default();
+        // `license.key` sits beside `settings.json`.
+        let license = license::LicenseState::load(
+            settings.as_deref().and_then(|path| path.parent()).map(|dir| dir.join(license::FILE_NAME)),
+        );
         Self {
             doc: Mutex::new(Document::new_default()),
             dialog_open: Arc::new(AtomicBool::new(false)),
@@ -114,6 +121,7 @@ impl AppState {
             tracker_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             push_base: Mutex::new(None),
             delta: delta::Delta::default(),
+            license,
         }
     }
 }
@@ -1029,6 +1037,11 @@ fn about_metadata(app: &tauri::AppHandle, text: &i18n::Text) -> AboutMetadata<'s
     let version = app.package_info().version.to_string();
     // macOS shows `short_version` as the version and `version` as a build number in
     // parentheses, so set only one; Windows and Linux show `version`.
+    let licensed = app.try_state::<AppState>().and_then(|state| state.license.active());
+    let about = match licensed {
+        Some(license) => format!("{}\n\n{}", i18n::licensed_to(text, license.plan, &license.name), text.about_text),
+        None => text.about_text.to_string(),
+    };
     let (version, short_version) = if cfg!(target_os = "macos") {
         (None, Some(version))
     } else {
@@ -1038,8 +1051,8 @@ fn about_metadata(app: &tauri::AppHandle, text: &i18n::Text) -> AboutMetadata<'s
         name: Some("Sheafly".into()),
         version,
         short_version,
-        comments: Some(text.about_text.into()),
-        credits: Some(text.about_text.into()),
+        comments: Some(about.clone()),
+        credits: Some(about),
         copyright: Some(text.copyright.into()),
         license: Some("MIT".into()),
         ..Default::default()
@@ -1313,10 +1326,12 @@ pub fn run() {
             if let Some(path) = project_path_arg(command_line(), &current_dir()) {
                 state.pending_open.lock().unwrap_or_else(|err| err.into_inner()).push_back(path);
             }
-            let menu = build_menu(app.handle(), lang(&state), theme(&state), &recent_files(&state))?;
             let chosen_theme = theme(&state);
             let chosen_lang = lang(&state);
+            let recent = recent_files(&state);
+            // Managed first: the About item reads the license from the state.
             app.manage(state);
+            let menu = build_menu(app.handle(), chosen_lang, chosen_theme, &recent)?;
             app.set_menu(menu)?;
             menu_icons::apply(app.handle(), chosen_lang);
             apply_window_theme(app.handle(), chosen_theme);
@@ -1394,6 +1409,9 @@ pub fn run() {
             check_autosave,
             compact_history,
             get_language,
+            license::license_status,
+            license::license_install,
+            license::license_remove,
             set_language,
             get_theme,
             set_theme

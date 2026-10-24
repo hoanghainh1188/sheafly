@@ -3,6 +3,7 @@ import type {
   BurndownReport,
   Calendar,
   EvmMetrics,
+  LicenseView,
   Project,
   ProjectMetrics,
   ProjectStatistics,
@@ -247,4 +248,36 @@ export function makeStatistics(overrides: Partial<ProjectStatistics> = {}): Proj
     baseline: null,
     ...overrides,
   };
+}
+
+/** A license view as `license_status` answers; Free with no key unless overridden. */
+export function makeLicense(overrides: Partial<LicenseView> = {}): LicenseView {
+  return {
+    state: "none",
+    plan: null,
+    name: null,
+    email: null,
+    seats: null,
+    updates_until: null,
+    expires: null,
+    problem: null,
+    problem_day: null,
+    build_date: "2026-10-24",
+    features: [],
+    ...overrides,
+  };
+}
+
+/** An active Sheafly Pro license. */
+export function makeProLicense(overrides: Partial<LicenseView> = {}): LicenseView {
+  return makeLicense({
+    state: "active",
+    plan: "pro",
+    name: "Lan",
+    email: "lan@example.com",
+    seats: 1,
+    updates_until: "2027-10-24",
+    features: ["trackers"],
+    ...overrides,
+  });
 }

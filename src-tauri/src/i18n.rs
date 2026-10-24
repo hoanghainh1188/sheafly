@@ -47,6 +47,12 @@ pub struct Text {
     pub compact: &'static str,
     pub compact_title: &'static str,
     pub licenses_unavailable: &'static str,
+    // Sheafly Pro
+    pub license_not_removed: &'static str,
+    pub plan_pro: &'static str,
+    pub plan_business: &'static str,
+    pub plan_trial: &'static str,
+    pub licensed_to: &'static str,
 }
 
 pub static VI: Text = Text {
@@ -94,6 +100,11 @@ Giấy phép của mọi thành phần bên thứ ba: Trợ giúp → Giấy ph�
     compact: "Gộp",
     compact_title: "Gộp lịch sử hoàn tác",
     licenses_unavailable: "Không mở được danh sách giấy phép bên thứ ba.",
+    license_not_removed: "Không xóa được license trên máy này.",
+    plan_pro: "Sheafly Pro",
+    plan_business: "Sheafly Business",
+    plan_trial: "Dùng thử Sheafly Pro",
+    licensed_to: "cấp cho",
 };
 
 pub static EN: Text = Text {
@@ -141,10 +152,25 @@ Licenses of all third-party components: Help → Third-Party Licenses.",
     compact: "Compact",
     compact_title: "Compact Undo History",
     licenses_unavailable: "The third-party licenses could not be opened.",
+    license_not_removed: "The license could not be removed from this computer.",
+    plan_pro: "Sheafly Pro",
+    plan_business: "Sheafly Business",
+    plan_trial: "Sheafly Pro trial",
+    licensed_to: "licensed to",
 };
 
 pub fn text(lang: Lang) -> &'static Text {
     lang.pick(&VI, &EN)
+}
+
+/// The About panel's licence line: "Sheafly Pro, licensed to Lan".
+pub fn licensed_to(text: &Text, plan: sheafly_license::Plan, name: &str) -> String {
+    let plan = match plan {
+        sheafly_license::Plan::Pro => text.plan_pro,
+        sheafly_license::Plan::Business => text.plan_business,
+        sheafly_license::Plan::Trial => text.plan_trial,
+    };
+    format!("{plan}, {} {name}", text.licensed_to)
 }
 
 /// One entry of a menu built from a table.
@@ -245,14 +271,12 @@ pub const FILE_MENU: &[Entry] = &[
     ),
 ];
 
-/// The Help menu. The licenses item opens the file the installer ships
-/// (`THIRD_PARTY_LICENSES.txt`) in the system's text viewer.
-pub const HELP_MENU: &[Entry] = &[item(
-    "third-party-licenses",
-    "Giấy phép bên thứ ba",
-    "Third-Party Licenses",
-    None,
-)];
+/// The Help menu. License opens the frontend's license dialog; the licenses item opens the
+/// file the installer ships (`THIRD_PARTY_LICENSES.txt`) in the system's text viewer.
+pub const HELP_MENU: &[Entry] = &[
+    item("license", "License Sheafly Pro…", "Sheafly Pro License…", None),
+    item("third-party-licenses", "Giấy phép bên thứ ba", "Third-Party Licenses", None),
+];
 
 pub const EDIT_MENU: &[Entry] = &[
     item("undo", "Hoàn tác", "Undo", Some("CmdOrCtrl+Z")),
@@ -615,5 +639,7 @@ mod tests {
         assert!(autosave_offer(Lang::Vi, "Cầu", None).contains("dự án “Cầu” còn"));
         assert!(compact_not_needed(Lang::En, 1, 100).contains("only 1 step,"));
         assert!(compact_question(Lang::En, 20, 100).starts_with("Fold 20 older steps"));
+        assert_eq!(licensed_to(&EN, sheafly_license::Plan::Pro, "Lan"), "Sheafly Pro, licensed to Lan");
+        assert_eq!(licensed_to(&VI, sheafly_license::Plan::Trial, "Lan"), "Dùng thử Sheafly Pro, cấp cho Lan");
     }
 }

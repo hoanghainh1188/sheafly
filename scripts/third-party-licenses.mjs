@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = join(root, "src-tauri", "THIRD_PARTY_LICENSES.txt");
 const standardTexts = join(root, "scripts", "license-texts");
-const OWN_CRATES = new Set(["sheafly", "sheafly-engine"]);
+const OWN_CRATES = new Set(["sheafly", "sheafly-engine", "sheafly-license"]);
 // Standard texts (from SPDX license-list-data) in scripts/license-texts.
 const STANDARD_PREFERENCE = ["MIT", "Apache-2.0", "BSD-3-Clause", "MPL-2.0"];
 const LICENSE_FILE = /^(licen[cs]e|copying|notice|unlicense)([-._].*)?$/i;
