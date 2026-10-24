@@ -222,6 +222,7 @@ fn capacity(people: u32, tasks: u32, by_field: bool, leave: bool, interrupt: boo
             cost: 0.0,
             actual_cost: 0.0,
             manual_actual_cost: None,
+            baselines: Vec::new(),
         });
     }
     project.next_task_uid = tasks + 1;

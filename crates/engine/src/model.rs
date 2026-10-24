@@ -96,6 +96,12 @@ pub struct Baseline {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AssignmentBaseline {
+    pub number: u8,
+    pub work: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     pub uid: u32,
     pub id: u32,
@@ -366,6 +372,9 @@ pub struct Assignment {
     /// `Project::editable_actual_costs` is on and the task has no entry of its own.
     #[serde(default)]
     pub manual_actual_cost: Option<f64>,
+    /// Saved baselines for this assignment: baseline number and work in working minutes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub baselines: Vec<AssignmentBaseline>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

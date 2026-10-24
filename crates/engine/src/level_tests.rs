@@ -72,6 +72,7 @@ fn a_long_leave_takes_few_rounds() {
         cost: 0.0,
         actual_cost: 0.0,
         manual_actual_cost: None,
+        baselines: Vec::new(),
     });
     crate::schedule::schedule(&mut project).unwrap();
     ROUNDS.with(|count| count.set(0));

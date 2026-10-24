@@ -7,6 +7,7 @@
 pub mod assignment_matrix;
 pub mod autosave;
 pub mod availability;
+pub mod baseline_load;
 pub mod calendar;
 pub mod calendar_base;
 pub mod checkpoint;
