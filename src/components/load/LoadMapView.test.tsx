@@ -76,6 +76,17 @@ describe("LoadMapView", () => {
     expect(recorded.fills).toContain(LIGHT_CANVAS.loadLight);
   });
 
+  it("marks the Pro modes and leaves the person, day and week load free", () => {
+    renderView();
+    for (const name of ["Vai trò Pro", "Kỹ năng Pro", "Tháng Pro", "Biểu đồ cột Pro"]) {
+      expect(screen.getByRole("radio", { name: new RegExp(`^${name}$`, "i") })).toBeInTheDocument();
+    }
+    for (const name of ["Người", "Ngày", "Tuần"]) {
+      expect(screen.getByRole("radio", { name: new RegExp(`^${name}$`, "i") })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("combobox", { name: /Pro/ })).toBeInTheDocument();
+  });
+
   it("can switch period to days, weeks, or months", async () => {
     renderView();
     // Switch to days

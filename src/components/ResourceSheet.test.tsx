@@ -141,7 +141,7 @@ describe("ResourceSheet", () => {
     renderSheet([an, crane], over);
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
     expect(headers).toEqual([
-      "Tên", "Loại", "Vai trò", "Đơn vị tối đa", "Năng suất", "Lịch", "Giá chuẩn / giờ", "Giá tăng ca", "Chi phí mỗi lần", "Email", "Kỹ năng", "Quá tải", "",
+      "Tên", "Loại", "Vai trò", "Đơn vị tối đa", "Năng suất Pro", "Lịch", "Giá chuẩn / giờ", "Giá tăng ca", "Chi phí mỗi lần", "Email", "Kỹ năng", "Quá tải", "",
     ]);
     expect(screen.getByText("Có")).toBeInTheDocument();
     expect(screen.getByText("Không")).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe("ResourceSheet in English", () => {
     renderSheet([an, crane], over, "en");
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
     expect(headers).toEqual([
-      "Name", "Type", "Role", "Max units", "Productivity", "Calendar", "Std. rate / hr", "Ovt. rate", "Cost/use", "Email", "Skills", "Overallocated", "",
+      "Name", "Type", "Role", "Max units", "Productivity Pro", "Calendar", "Std. rate / hr", "Ovt. rate", "Cost/use", "Email", "Skills", "Overallocated", "",
     ]);
     expect(screen.getByText("Yes")).toBeInTheDocument();
     expect(screen.getByText("No")).toBeInTheDocument();

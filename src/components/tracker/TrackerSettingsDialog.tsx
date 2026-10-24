@@ -8,6 +8,7 @@ import { Button } from "../Button";
 import { Modal } from "../Modal";
 import { kindOf, toRows, toSettings, type Row } from "./syncSettings";
 import { trackerSettingsMessages } from "./TrackerSettingsDialog.i18n";
+import { ProBadge } from "../license/ProBadge";
 
 /** What each tracker reads a field from when nothing else is named. */
 const USUAL: Record<TrackerKind, Record<string, string>> = {
@@ -147,7 +148,17 @@ export function TrackerSettingsDialog({
   );
 
   return (
-    <Modal title={m.title} className="wide tracker-dialog" onClose={onClose} footer={footer}>
+    <Modal
+      title={
+        <>
+          {m.title}
+          <ProBadge />
+        </>
+      }
+      className="wide tracker-dialog"
+      onClose={onClose}
+      footer={footer}
+    >
       {!source ? (
         <p>{m.noSource}</p>
       ) : (

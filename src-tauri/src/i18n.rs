@@ -259,7 +259,7 @@ pub const FILE_MENU: &[Entry] = &[
         &[
             item("import-xml", "Nhập MSPDI…", "Import MSPDI…", None),
             item("import-table", "Nhập bảng (CSV, Excel)…", "Import Table (CSV, Excel)…", None),
-            item("pull-tracker", "Kéo từ task tracker…", "Pull from Task Tracker…", None),
+            item("pull-tracker", "Kéo từ task tracker (Pro)…", "Pull from Task Tracker (Pro)…", None),
         ],
     ),
     group(
@@ -269,7 +269,7 @@ pub const FILE_MENU: &[Entry] = &[
         &[
             item("export-xml", "Xuất MSPDI…", "Export MSPDI…", None),
             item("export-pdf", "Xuất PDF", "Export PDF", None),
-            item("push-tracker", "Đẩy ngày về task tracker…", "Push Dates to Task Tracker…", None),
+            item("push-tracker", "Đẩy ngày về task tracker (Pro)…", "Push Dates to Task Tracker (Pro)…", None),
         ],
     ),
 ];
@@ -329,7 +329,7 @@ pub const VIEW_MENU: &[Entry] = &[
     item("view-gantt", "Gantt", "Gantt Chart", None),
     item("view-tracking", "Gantt theo dõi", "Tracking Gantt", None),
     item("view-resources", "Bảng nguồn lực", "Resource Sheet", None),
-    item("view-matrix", "Ma trận phân công", "Assignment Matrix", None),
+    item("view-matrix", "Ma trận phân công (Pro)", "Assignment Matrix (Pro)", None),
     item("view-usage", "Sử dụng công việc", "Task Usage", None),
     item("view-network", "Sơ đồ mạng", "Network Diagram", None),
     item("view-load", "Tải nguồn lực", "Resource Load", None),
@@ -366,7 +366,7 @@ pub const PROJECT_MENU: &[Entry] = &[
             item("project-info", "Thông tin dự án…", "Project Information…", None),
             item("custom-fields", "Trường tùy chỉnh…", "Custom Fields…", None),
             item("working-time", "Lịch làm việc…", "Working Time…", None),
-            item("tracker-settings", "Đồng bộ task tracker…", "Task Tracker Sync…", None),
+            item("tracker-settings", "Đồng bộ task tracker (Pro)…", "Task Tracker Sync (Pro)…", None),
         ],
     ),
     Entry::Separator,

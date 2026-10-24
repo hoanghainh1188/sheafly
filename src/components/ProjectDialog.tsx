@@ -13,6 +13,7 @@ import { ForecastTab } from "./ForecastTab";
 import { LevelingTab } from "./LevelingTab";
 import { Modal } from "./Modal";
 import { projectDialogMessages } from "./ProjectDialog.i18n";
+import { ProBadge } from "./license/ProBadge";
 
 export type ProjectTab = "general" | "statistics" | "fields" | "leveling" | "forecast";
 type Tab = ProjectTab;
@@ -196,6 +197,7 @@ function GeneralTab({
           lockedTitle={p.focusNeedsPro}
           onCommit={(factor) => factor != null && void send({ type: "set_focus_factor", factor })}
         />
+        <ProBadge />
         {!capacityPro && <span className="meta">{p.focusNeedsPro}</span>}
       </div>
       <label>{m.costsGroup}</label>

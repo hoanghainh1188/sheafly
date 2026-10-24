@@ -7,6 +7,7 @@ import { formatFocus } from "../focusPercent";
 import { FocusInput } from "./FocusInput";
 import { MoneyInput } from "./MoneyInput";
 import { resourceSheetMessages } from "./ResourceSheet.i18n";
+import { ProBadge } from "./license/ProBadge";
 
 /** The engine's limit (`skill_levels::MAX_GROUP_CHARS`). */
 const MAX_GROUP = 100;
@@ -104,7 +105,10 @@ export function ResourceSheet({
             <th>{m.kind}</th>
             <th title={m.roleTip}>{m.role}</th>
             <th>{m.maxUnits}</th>
-            <th title={m.focusTip}>{m.focus}</th>
+            <th title={m.focusTip}>
+              {m.focus}
+              <ProBadge />
+            </th>
             <th>{m.calendar}</th>
             <th>{m.standardRate}</th>
             <th>{m.overtimeRate}</th>
