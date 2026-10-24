@@ -448,6 +448,26 @@ fn main() {
         });
         return;
     }
+    if args.iter().any(|arg| arg == "curves") {
+        let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
+        let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
+        let mut doc = Document::from_project(capacity(people, tasks, false, true, false, false));
+        doc.apply(Command::SetBaseline { number: 0 }).expect("baseline");
+        let project = &doc.project;
+        timed("curves cost tuần (500 người, 5000 việc)", || {
+            sheafly_engine::curves::curves(project, sheafly_engine::curves::CurveMeasure::Cost, Bucket::Week, sheafly_engine::curves::CurveFilter::Project, Some(0)).expect("curves")
+        });
+        timed("curves work ngày (500 người, 5000 việc)", || {
+            sheafly_engine::curves::curves(project, sheafly_engine::curves::CurveMeasure::Work, Bucket::Day, sheafly_engine::curves::CurveFilter::Project, Some(0)).expect("curves")
+        });
+        timed("curves progress tháng (500 người, 5000 việc)", || {
+            sheafly_engine::curves::curves(project, sheafly_engine::curves::CurveMeasure::Progress, Bucket::Month, sheafly_engine::curves::CurveFilter::Project, Some(0)).expect("curves")
+        });
+        timed("curves filter vai trò tháng (500 người, 5000 việc)", || {
+            sheafly_engine::curves::curves(project, sheafly_engine::curves::CurveMeasure::Work, Bucket::Month, sheafly_engine::curves::CurveFilter::Group { name: "Backend".into() }, Some(0)).expect("curves")
+        });
+        return;
+    }
     if args.iter().any(|arg| arg == "import") {
         import(numbers.first().copied().unwrap_or(5000).max(1) as u32);
         return;

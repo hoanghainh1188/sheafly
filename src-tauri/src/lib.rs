@@ -37,6 +37,7 @@ use sheafly_engine::command::{LevelingDelay, LevelingSplits};
 use sheafly_engine::import::{self, ImportColumn, ImportResource, ImportTable, ImportTask};
 use sheafly_engine::forecast::{self, Forecast};
 use sheafly_engine::assignment_matrix::{self, AssignmentMatrix};
+use sheafly_engine::curves::{self, CurveBucket, CurveFilter, CurveMeasure, CurvesReport};
 use sheafly_engine::load_map::{self, Bucket, LoadGroup, LoadMap};
 use sheafly_engine::plan::{self, PlanPreview};
 use sheafly_engine::timeutil::parse_date_key;
@@ -622,6 +623,20 @@ fn load_map(
 fn assignment_matrix(state: State<'_, AppState>, group: bool) -> Result<AssignmentMatrix, String> {
     let project = lock(&state).project.clone();
     Ok(assignment_matrix::assignment_matrix(&project, group))
+}
+
+/// Cumulative and periodic S-curves for Cost, Work, or Progress.
+#[tauri::command(async)]
+fn curves(
+    state: State<'_, AppState>,
+    measure: CurveMeasure,
+    bucket: CurveBucket,
+    filter: Option<CurveFilter>,
+    baseline: Option<u8>,
+) -> Result<CurvesReport, String> {
+    let project = lock(&state).project.clone();
+    let filter = filter.unwrap_or_default();
+    curves::curves(&project, measure, bucket, filter, baseline).map_err(engine_message(&state))
 }
 
 /// The finish forecast over `iterations` runs of the project as it is now (the engine
@@ -1438,6 +1453,7 @@ pub fn run() {
             tracker_commands::tracker_push,
             preview_plan,
             load_map,
+            curves,
             assignment_matrix,
             forecast,
             apply_plan,

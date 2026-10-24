@@ -39,6 +39,7 @@ pub const SYMBOLS: &[(&str, &str)] = &[
     ("view-usage", "tablecells"),
     ("view-network", "point.3.connected.trianglepath.dotted"),
     ("view-load", "square.grid.3x3"),
+    ("view-curves", "chart.xyaxis.line"),
     ("view-forecast", "chart.bar.xaxis.ascending"),
     ("view-evm", "chart.line.uptrend.xyaxis"),
     ("timescale", "calendar"),

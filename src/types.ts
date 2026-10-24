@@ -336,6 +336,49 @@ export interface LoadMap {
   rows: LoadRow[];
 }
 
+/** Mirror of `curves::CurveMeasure`. */
+export type CurveMeasure = "cost" | "work" | "progress";
+
+/** Mirror of `curves::CurveBucket`. */
+export type CurveBucket = "day" | "week" | "month";
+
+/** Mirror of `curves::CurveFilter`. */
+export type CurveFilter =
+  | { type: "project" }
+  | { type: "person"; uid: number }
+  | { type: "group"; name: string }
+  | { type: "skill"; id: number; min_level?: number };
+
+/** Mirror of `curves::CurvePoint`. */
+export interface CurvePoint {
+  date: number;
+  label: string;
+  baseline_period?: number | null;
+  scheduled_period: number;
+  actual_period?: number | null;
+  earned_period?: number | null;
+  baseline_cumulative?: number | null;
+  scheduled_cumulative: number;
+  actual_cumulative?: number | null;
+  earned_cumulative?: number | null;
+}
+
+/** Mirror of `curves::CurvesReport`. */
+export interface CurvesReport {
+  measure: CurveMeasure;
+  bucket: CurveBucket;
+  filter: CurveFilter;
+  baseline: number | null;
+  status_date: number | null;
+  baseline_finish: number | null;
+  scheduled_finish: number | null;
+  total_baseline: number | null;
+  total_scheduled: number;
+  total_actual: number | null;
+  total_earned?: number | null;
+  points: CurvePoint[];
+}
+
 /** Mirror of `forecast::Percentiles`: finish dates (ms) by which that share of runs had finished. */
 export interface Percentiles {
   p50: number;
@@ -1017,7 +1060,7 @@ export type FillField =
   | "work_range"
   | { field: number };
 
-export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "forecast" | "network";
+export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "curves" | "forecast" | "network";
 
 export interface MatrixCell {
   assignment_uid?: number;

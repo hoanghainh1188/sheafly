@@ -6,6 +6,10 @@ import { SnapshotCache, type FullSnapshot, type SnapshotAnswer } from "./snapsho
 import { isThemeChoice, type ThemeChoice } from "./theme";
 import type {
   AssignmentMatrix,
+  CurveBucket,
+  CurveFilter,
+  CurveMeasure,
+  CurvesReport,
   Forecast,
   Command,
   ImportProblem,
@@ -154,6 +158,16 @@ export function loadMap(
   baseline?: number,
 ): Promise<LoadMap> {
   return inOrder(() => invoke<LoadMap>("load_map", { from, to, bucket, group, baseline }));
+}
+
+/** Cumulative and periodic S-curves for Cost, Work, or Progress. */
+export function curves(
+  measure: CurveMeasure,
+  bucket: CurveBucket,
+  filter?: CurveFilter,
+  baseline?: number,
+): Promise<CurvesReport> {
+  return inOrder(() => invoke<CurvesReport>("curves", { measure, bucket, filter, baseline }));
 }
 
 /** The resource assignment matrix (by person or by role); a read, never logged. */

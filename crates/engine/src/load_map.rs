@@ -82,12 +82,12 @@ pub struct LoadMap {
     pub rows: Vec<LoadRow>,
 }
 
-struct Buckets {
-    first: NaiveDate,
-    last: NaiveDate,
-    count: usize,
-    keys: Vec<String>,
-    index_of: Box<dyn Fn(NaiveDate) -> Option<usize>>,
+pub(crate) struct Buckets {
+    pub(crate) first: NaiveDate,
+    pub(crate) last: NaiveDate,
+    pub(crate) count: usize,
+    pub(crate) keys: Vec<String>,
+    pub(crate) index_of: Box<dyn Fn(NaiveDate) -> Option<usize>>,
 }
 
 /// Work and capacity by resource, role or skill for the days `from` to `to` (both included),
@@ -115,7 +115,7 @@ pub fn load_map(
     }
 }
 
-fn compute_buckets(from: NaiveDate, to: NaiveDate, bucket: Bucket) -> Result<Buckets, EngineError> {
+pub(crate) fn compute_buckets(from: NaiveDate, to: NaiveDate, bucket: Bucket) -> Result<Buckets, EngineError> {
     match bucket {
         Bucket::Day => {
             let first = from;
