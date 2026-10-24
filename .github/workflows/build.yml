@@ -31,6 +31,10 @@ jobs:
             args: --target universal-apple-darwin
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
     runs-on: ${{ matrix.platform }}
+    env:
+      # 'true' when every Apple secret is set (docs/release-signing.md). Without them the macOS app keeps its
+      # ad-hoc signature, as in forks. Every job reads it so the release text is the same whichever creates it.
+      MACOS_SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_KEY != '' && secrets.APPLE_API_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,8 +74,54 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      # No developer certificate: the macOS app gets an ad-hoc signature (bundle.macOS.signingIdentity "-"),
-      # so Gatekeeper offers Open Anyway instead of calling it damaged. A draft release is only created for v* tags.
+      # The Tauri CLI reads the signing settings from the environment, and an empty variable still counts as set
+      # (it would replace the ad-hoc "-" identity with ""), so they are exported only when every secret is there.
+      # Some but not all of them fails the build instead of shipping an ad-hoc app by mistake. The .p8 key goes
+      # to a file only the runner user can read; secrets never reach the log (printf to files only).
+      - name: Prepare macOS signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          names="APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY APPLE_API_PRIVATE_KEY"
+          set_count=0
+          missing=""
+          for name in $names; do
+            if [ -n "${!name:-}" ]; then set_count=$((set_count + 1)); else missing="$missing $name"; fi
+          done
+          if [ "$MACOS_SIGNED" != "true" ]; then
+            if [ "$set_count" -gt 0 ]; then
+              echo "::error::Some Apple signing secrets are set but these are missing:$missing (see docs/release-signing.md)"
+              exit 1
+            fi
+            echo "No Apple signing secrets: the macOS app keeps its ad-hoc signature and is not notarized."
+            exit 0
+          fi
+          key_dir="$RUNNER_TEMP/apple-api-key"
+          mkdir -p "$key_dir"
+          chmod 700 "$key_dir"
+          key_path="$key_dir/AuthKey_${APPLE_API_KEY}.p8"
+          (umask 077 && printf '%s\n' "$APPLE_API_PRIVATE_KEY" > "$key_path")
+          delimiter="EOF_$(uuidgen)"
+          {
+            for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY; do
+              printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "${!name}" "$delimiter"
+            done
+            printf 'APPLE_API_KEY_PATH=%s\n' "$key_path"
+          } >> "$GITHUB_ENV"
+          echo "Signing with a Developer ID and notarizing with an App Store Connect API key."
+
+      # Without the Apple secrets the macOS app gets an ad-hoc signature (bundle.macOS.signingIdentity "-"),
+      # so Gatekeeper offers Open Anyway instead of calling it damaged. With them, APPLE_SIGNING_IDENTITY overrides
+      # that identity, the app is signed with the hardened runtime (Tauri's default) and notarized, and the ticket
+      # is stapled. A draft release is only created for v* tags.
       - name: Build bundles
         id: tauri
         uses: tauri-apps/tauri-action@v0
@@ -80,10 +130,57 @@ jobs:
         with:
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: Sheafly ${{ github.ref_name }}
-          releaseBody: Not signed with a developer certificate (macOS has an ad-hoc signature). See the assets below for each platform.
+          releaseBody: ${{ env.MACOS_SIGNED == 'true' && 'The macOS app is signed with a Developer ID and notarized by Apple. The Windows and Linux installers are not signed. See the assets below for each platform.' || 'Not signed with a developer certificate (macOS has an ad-hoc signature). See the assets below for each platform.' }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # lipo always (one app for both kinds of Mac); the signature, Gatekeeper and the stapled ticket only when
+      # the app was signed with a Developer ID.
+      - name: Check the macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmgs=(target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          if [ "${#dmgs[@]}" -ne 1 ] || [ ! -f "${dmgs[0]}" ]; then
+            echo "::error::Expected one universal .dmg, found: ${dmgs[*]}"
+            exit 1
+          fi
+          mount="$RUNNER_TEMP/sheafly-dmg"
+          hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mount" "${dmgs[0]}" > /dev/null
+          trap 'hdiutil detach "$mount" -force > /dev/null || true' EXIT
+          apps=("$mount"/*.app)
+          app="${apps[0]}"
+          if [ ! -d "$app" ]; then
+            echo "::error::No .app in ${dmgs[0]}"
+            exit 1
+          fi
+          exe=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
+          archs=$(lipo -archs "$app/Contents/MacOS/$exe")
+          echo "Architectures of $exe: $archs"
+          for arch in x86_64 arm64; do
+            if [[ " $archs " != *" $arch "* ]]; then
+              echo "::error::$exe has no $arch slice"
+              exit 1
+            fi
+          done
+          if [ "$MACOS_SIGNED" != "true" ]; then
+            echo "Not signed with a Developer ID: skipping codesign, spctl and stapler."
+            exit 0
+          fi
+          codesign --verify --strict --deep --verbose=2 "$app"
+          spctl -a -vv -t exec "$app" 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
+          if ! grep -q 'source=Notarized Developer ID' "$RUNNER_TEMP/spctl.txt"; then
+            echo "::error::Gatekeeper does not see a notarized Developer ID app"
+            exit 1
+          fi
+          xcrun stapler validate "$app"
+
+      - name: Remove the App Store Connect key
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/apple-api-key"
 
       - name: Upload bundles
         uses: actions/upload-artifact@v4
