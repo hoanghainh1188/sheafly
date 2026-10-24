@@ -1,6 +1,6 @@
 use sheafly_engine::baseline_load::{
-    assignment_baseline_days, project_baseline_load_in_range, resource_baseline_load_by_day,
-    resource_baseline_load_in_range,
+    assignment_baseline_days, baseline_load_by_resource, project_baseline_load_by_day,
+    project_baseline_load_in_range, resource_baseline_load_by_day, resource_baseline_load_in_range,
 };
 use sheafly_engine::checkpoint::ENGINE_REVISION;
 use sheafly_engine::command::Command;
@@ -9,8 +9,10 @@ use sheafly_engine::model::ResourceKind;
 use sheafly_engine::mspdi::{read_mspdi, write_mspdi};
 
 #[test]
-fn engine_revision_is_bumped_for_capacity_plan_pr4() {
-    assert_eq!(ENGINE_REVISION, 7);
+#[allow(clippy::assertions_on_constants)]
+fn engine_revision_is_at_least_the_one_that_added_assignment_baselines() {
+    // Checkpoints saved before revision 7 hold no assignment baselines, so they must not be reused.
+    assert!(ENGINE_REVISION >= 7);
 }
 
 #[test]
@@ -224,12 +226,19 @@ fn mspdi_round_trip_preserves_assignment_baselines() {
     .unwrap();
 
     doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    // Progress writes actual work as timephased data, which must follow the baseline.
+    doc.apply(Command::SetPercentComplete { uid: 1, percent: 50.0 }).unwrap();
 
     // Export to MSPDI XML
     let xml = write_mspdi(&doc.project).unwrap();
     assert!(xml.contains("<Assignment>"));
     assert!(xml.contains("<Baseline>"));
     assert!(xml.contains("<Number>0</Number>"));
+    // The schema puts an assignment's baselines before its timephased data.
+    let assignment_xml = &xml[xml.find("<Assignment>").unwrap()..xml.find("</Assignment>").unwrap()];
+    let baseline_at = assignment_xml.find("<Baseline>").expect("assignment baseline");
+    let timephased_at = assignment_xml.find("<TimephasedData>").expect("actual work");
+    assert!(baseline_at < timephased_at, "{assignment_xml}");
 
     // Import from MSPDI XML
     let imported = read_mspdi(&xml).unwrap();
@@ -237,4 +246,48 @@ fn mspdi_round_trip_preserves_assignment_baselines() {
     assert_eq!(imported.assignments[0].baselines.len(), 1);
     assert_eq!(imported.assignments[0].baselines[0].number, 0);
     assert_eq!(imported.assignments[0].baselines[0].work, 480);
+}
+
+fn one_person_on_one_task(minutes: i64) -> Document {
+    let mut doc = Document::new_default();
+    doc.apply(Command::AddResource {
+        name: "Chi".into(),
+        kind: ResourceKind::Person,
+    })
+    .unwrap();
+    doc.apply(Command::AddTask {
+        name: "Triển khai".into(),
+        after_uid: None,
+    })
+    .unwrap();
+    doc.apply(Command::AssignResource {
+        task_uid: 1,
+        resource_uid: 1,
+        units: 1.0,
+    })
+    .unwrap();
+    doc.apply(Command::SetDuration { uid: 1, minutes }).unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    doc
+}
+
+#[test]
+fn a_baseline_longer_than_ten_years_keeps_all_its_work() {
+    // Eleven years of working days.
+    let doc = one_person_on_one_task(11 * 261 * 480);
+    let assignment = &doc.project.assignments[0];
+    let days = assignment_baseline_days(&doc.project, &doc.project.tasks[0], assignment, 0);
+    let span = days.last().unwrap().0 - days.first().unwrap().0;
+    assert!(span.num_days() > 3660, "{span}");
+    assert_eq!(days.iter().map(|(_, w)| *w).sum::<i64>(), assignment.baselines[0].work);
+}
+
+#[test]
+fn the_load_of_every_resource_matches_asking_for_each_one() {
+    let doc = one_person_on_one_task(3 * 480);
+    let all = baseline_load_by_resource(&doc.project, 0);
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[&1], resource_baseline_load_by_day(&doc.project, 1, 0));
+    assert_eq!(all[&1], project_baseline_load_by_day(&doc.project, 0));
+    assert!(baseline_load_by_resource(&doc.project, 1).is_empty());
 }
