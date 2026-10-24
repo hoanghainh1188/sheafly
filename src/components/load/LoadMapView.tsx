@@ -7,6 +7,7 @@ import { canvasPalette, useResolvedTheme, type CanvasPalette } from "../../theme
 import type { LoadBucket, LoadCell, LoadGroup, LoadMap, Project } from "../../types";
 import { loadMapMessages } from "./LoadMapView.i18n";
 import { loadTone, type LoadTone } from "./loadTone";
+import { ProBadge } from "../license/ProBadge";
 
 const ROW = 24;
 // Wide enough for header size, so date headers never touch.
@@ -211,6 +212,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
                 }}
               />{" "}
               {mode === "person" ? m.groupPerson : mode === "role" ? m.groupRole : m.groupSkill}
+              {mode !== "person" && <ProBadge />}
             </label>
           ))}
         </fieldset>
@@ -264,6 +266,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
                 }}
               />{" "}
               {m[item]}
+              {item === "month" && <ProBadge />}
             </label>
           ))}
         </fieldset>
@@ -290,7 +293,8 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
 
         {/* Baseline Selector */}
         <label>
-          {m.baseline}{" "}
+          {m.baseline}
+          <ProBadge />
           <select
             value={baselineNumber ?? ""}
             onChange={(e) => setBaselineNumber(e.target.value === "" ? undefined : Number(e.target.value))}
@@ -319,6 +323,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
               onChange={() => setViewMode("histogram")}
             />{" "}
             {m.modeHistogram}
+            <ProBadge />
           </label>
         </fieldset>
 

@@ -104,6 +104,9 @@
   --tone-danger-bg: #fdecea;
   --tone-project: #6240b5;
   --tone-project-bg: #efeafb;
+  --pro-badge: #5b3aa8;
+  --pro-badge-bg: #efeafb;
+  --pro-badge-border: #cfc2f2;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
 }
@@ -187,6 +190,9 @@
   --tone-danger-bg: #3d1b19;
   --tone-project: #bba5ff;
   --tone-project-bg: #2a2242;
+  --pro-badge: #cdbcff;
+  --pro-badge-bg: #2a2242;
+  --pro-badge-border: #4a3c78;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
 }

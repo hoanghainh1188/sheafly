@@ -47,6 +47,7 @@ const TEXT_PAIRS: [string, string[]][] = [
   ["--over-text", ["--over-bg"]],
   ["--on-accent", ["--accent-strong"]],
   ["--tone-danger", ["--surface"]],
+  ["--pro-badge", ["--pro-badge-bg"]],
   ...["history", "create", "edit", "danger", "project", "report"].flatMap(
     (tone): [string, string[]][] => [
       [`--tone-${tone}`, [`--tone-${tone}-bg`]],

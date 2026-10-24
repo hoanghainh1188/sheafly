@@ -7,12 +7,13 @@ import { lastFinish, type SpanEnd } from "../spanFit";
 import type { Project, Scale, ViewId } from "../types";
 import { fieldMode, fieldOfMode, type FilterMode, type GroupMode, type HighlightMode } from "../viewRows";
 import { viewBarMessages } from "./ViewBar.i18n";
+import { ProBadge } from "./license/ProBadge";
 
-const VIEWS: { id: ViewId; Icon: LucideIcon }[] = [
+const VIEWS: { id: ViewId; Icon: LucideIcon; pro?: boolean }[] = [
   { id: "gantt", Icon: ChartGantt },
   { id: "tracking", Icon: ListChecks },
   { id: "resources", Icon: Users },
-  { id: "matrix", Icon: Grid2x2 },
+  { id: "matrix", Icon: Grid2x2, pro: true },
   { id: "usage", Icon: Table2 },
   { id: "load", Icon: Grid3x3 },
   { id: "forecast", Icon: ChartColumnIncreasing },
@@ -115,7 +116,7 @@ export function ViewBar(props: Props) {
   return (
     <div className="viewbar">
       <div ref={tabsRef} className="view-tabs" role="tablist" aria-label={m.views} onKeyDown={onTabKey}>
-        {VIEWS.map(({ id, Icon }) => (
+        {VIEWS.map(({ id, Icon, pro }) => (
           <button
             key={id}
             id={viewTabId(id)}
@@ -129,6 +130,7 @@ export function ViewBar(props: Props) {
           >
             <Icon aria-hidden="true" size={15} strokeWidth={1.9} />
             <span>{m[id]}</span>
+            {pro && <ProBadge />}
           </button>
         ))}
       </div>

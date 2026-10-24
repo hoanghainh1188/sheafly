@@ -16,6 +16,7 @@ import { Button } from "../Button";
 import { Modal } from "../Modal";
 import { TrackerPushPreview } from "./TrackerPushPreview";
 import { trackerPushMessages } from "./TrackerPushDialog.i18n";
+import { ProBadge } from "../license/ProBadge";
 
 type Stage =
   | { kind: "options" }
@@ -186,7 +187,17 @@ export function TrackerPushDialog({
   );
 
   return (
-    <Modal title={m.title} className="wide tracker-dialog" onClose={close} footer={footer}>
+    <Modal
+      title={
+        <>
+          {m.title}
+          <ProBadge />
+        </>
+      }
+      className="wide tracker-dialog"
+      onClose={close}
+      footer={footer}
+    >
       {!source ? (
         <p>{m.noSource}</p>
       ) : stage.kind === "preview" ? (

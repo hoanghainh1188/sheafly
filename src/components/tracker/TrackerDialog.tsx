@@ -21,6 +21,7 @@ import { choiceKey, TrackerConflicts } from "./TrackerConflicts";
 import { counts, TrackerPreview } from "./TrackerPreview";
 import { TrackerSetup } from "./TrackerSetup";
 import { complete, formFor, needsAccount, sameSource, sourceOf, type SourceForm } from "./trackerSource";
+import { ProBadge } from "../license/ProBadge";
 
 type Stage = { kind: "setup" } | { kind: "fetching"; progress: PullProgress | null } | { kind: "preview"; preview: PullPreview };
 
@@ -265,7 +266,17 @@ export function TrackerDialog({
   );
 
   return (
-    <Modal title={m.title} className="wide tracker-dialog" onClose={close} footer={footer}>
+    <Modal
+      title={
+        <>
+          {m.title}
+          <ProBadge />
+        </>
+      }
+      className="wide tracker-dialog"
+      onClose={close}
+      footer={footer}
+    >
       {stage.kind !== "preview" ? (
         <TrackerSetup
           form={form}
