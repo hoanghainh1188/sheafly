@@ -69,7 +69,7 @@ fn add_skill(doc: &mut Document, name: &str) -> u32 {
 }
 
 fn set_skills(doc: &mut Document, uid: u32, skills: Vec<u32>) -> Result<(), EngineError> {
-    apply(doc, Command::SetResourceSkills { uid, skills })
+    apply(doc, Command::SetResourceSkills { uid, skills, levels: Vec::new() })
 }
 
 fn add_field(doc: &mut Document, name: &str, kind: FieldKind) -> u32 {
@@ -121,7 +121,7 @@ fn to_person(conditions: Vec<Condition>, uid: u32) -> AssignmentRule {
 fn to_skill(conditions: Vec<Condition>, id: u32) -> AssignmentRule {
     AssignmentRule {
         conditions,
-        target: RuleTarget::Skill { id },
+        target: RuleTarget::Skill { id, min_level: None },
         units: 1.0,
     }
 }
@@ -319,7 +319,7 @@ fn rules_are_refused_for_each_reason() {
     for units in [0.0, -1.0, f64::NAN, f64::INFINITY, 1000.5] {
         let rule = AssignmentRule {
             conditions: vec![],
-            target: RuleTarget::Skill { id: skill },
+            target: RuleTarget::Skill { id: skill, min_level: None },
             units,
         };
         assert_eq!(reason(&mut doc, vec![rule]), Invalid::RuleUnits, "{units}");
@@ -344,7 +344,7 @@ fn rules_are_refused_for_each_reason() {
 
     let max = AssignmentRule {
         conditions: vec![],
-        target: RuleTarget::Skill { id: skill },
+        target: RuleTarget::Skill { id: skill, min_level: None },
         units: 1000.0,
     };
     set_rules(&mut doc, vec![max]).unwrap();
@@ -615,7 +615,7 @@ fn skills_and_rules_survive_a_file_and_old_projects_have_none() {
     let area = add_field(&mut doc, "Mảng", choice(&["Web"]));
     let rule = AssignmentRule {
         conditions: vec![condition(area, vec![text("Web")])],
-        target: RuleTarget::Skill { id: skill },
+        target: RuleTarget::Skill { id: skill, min_level: None },
         units: 0.25,
     };
     set_rules(&mut doc, vec![rule, to_person(vec![], 1)]).unwrap();
@@ -682,7 +682,7 @@ fn the_commands_read_the_shape_the_app_sends() {
         vec![
             AssignmentRule {
                 conditions: vec![condition(1, vec![text("Web"), FieldValue::Number(2.0)])],
-                target: RuleTarget::Skill { id: 3 },
+                target: RuleTarget::Skill { id: 3, min_level: None },
                 units: 0.5,
             },
             // Units default to one.

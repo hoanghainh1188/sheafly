@@ -763,10 +763,12 @@ export default function App() {
                 resources={project.resources}
                 calendars={project.calendars}
                 skills={project.skills}
+                skillLevels={project.skill_levels}
                 overallocations={project.overallocations}
                 onAdd={(kind) => send({ type: "add_resource", name: m.newResource(project.next_resource_uid), kind })}
                 onChange={(resource) => send(resourceCommand(resource))}
                 onChangeEmail={(uid, email) => send({ type: "set_resource_email", uid, email })}
+                onChangeGroup={(uid, group) => send({ type: "set_resource_group", uid, group })}
                 onDelete={(uid) => send({ type: "delete_resource", uid })}
                 onEditCalendar={(id) => void openWorkingTime(id)}
                 onEditAvailability={(uid) => void openAvailability(uid)}

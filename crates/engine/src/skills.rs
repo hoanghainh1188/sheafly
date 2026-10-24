@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{EngineError, Invalid};
 use crate::fields::{self, FieldKind, FieldValue};
 use crate::model::{Project, Task};
+use crate::skill_levels::{self, SkillLevelOf};
 
 /// Skills a project can have.
 pub const MAX_SKILLS: usize = 200;
@@ -66,9 +67,12 @@ pub enum RuleTarget {
     Resource {
         uid: u32,
     },
-    /// Everyone with the skill; suggestions rank them.
+    /// Everyone with the skill, at `min_level` or above when set (`skill_levels.rs`);
+    /// suggestions rank them.
     Skill {
         id: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        min_level: Option<u32>,
     },
 }
 
@@ -115,22 +119,25 @@ pub(crate) fn delete_skill(project: &mut Project, id: u32) -> Result<(), EngineE
     project.skills.remove(position);
     for resource in &mut project.resources {
         resource.skills.retain(|skill| *skill != id);
+        resource.skill_levels.remove(&id);
     }
     project
         .assignment_rules
-        .retain(|rule| rule.target != RuleTarget::Skill { id });
+        .retain(|rule| !matches!(rule.target, RuleTarget::Skill { id: skill, .. } if skill == id));
     Ok(())
 }
 
-/// Replace a resource's skills; kept sorted and without repeats.
+/// Replace a resource's skills and their levels; skills kept sorted and without repeats.
 pub(crate) fn set_resource_skills(
     project: &mut Project,
     uid: u32,
     skills: &[u32],
+    levels: &[SkillLevelOf],
 ) -> Result<(), EngineError> {
     if skills.iter().any(|id| position_of(project, *id).is_err()) {
         return Err(Invalid::NoSuchSkill.into());
     }
+    let levels = skill_levels::checked_resource_levels(project, skills, levels)?;
     let resource = project
         .resources
         .iter_mut()
@@ -140,6 +147,7 @@ pub(crate) fn set_resource_skills(
     skills.sort_unstable();
     skills.dedup();
     resource.skills = skills;
+    resource.skill_levels = levels;
     Ok(())
 }
 
@@ -199,8 +207,11 @@ fn checked_rule(project: &Project, rule: &AssignmentRule) -> Result<AssignmentRu
                 return Err(EngineError::ResourceNotFound);
             }
         }
-        RuleTarget::Skill { id } => {
+        RuleTarget::Skill { id, min_level } => {
             position_of(project, id)?;
+            if min_level.is_some_and(|level| skill_levels::rank(project, level).is_none()) {
+                return Err(Invalid::NoSuchSkillLevel.into());
+            }
         }
     }
     let units = rule.units;
@@ -288,10 +299,13 @@ fn position_of(project: &Project, id: u32) -> Result<usize, EngineError> {
 }
 
 /// A trimmed name no other skill has (letter case aside). A comma would split it in
-/// MSPDI's comma-separated list, so it is refused.
+/// MSPDI's comma-separated list and a colon would read as a level (`Skill:Level`), so
+/// both are refused.
 fn checked_name(project: &Project, own: Option<u32>, name: &str) -> Result<String, EngineError> {
     let name = name.trim();
-    if name.is_empty() || name.chars().count() > MAX_SKILL_NAME_CHARS || name.contains(',') {
+    if name.is_empty() || name.chars().count() > MAX_SKILL_NAME_CHARS || name.contains(',')
+        || name.contains(skill_levels::LEVEL_SEPARATOR)
+    {
         return Err(Invalid::SkillName.into());
     }
     let lower = name.to_lowercase();

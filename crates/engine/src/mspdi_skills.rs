@@ -6,13 +6,16 @@
 //! (`FieldID` 205520904, `pjCustomResourceText1` of `PjCustomField`) with the alias "Kỹ
 //! năng" when a resource has a skill. Import reads any resource text field whose alias is
 //! "Kỹ năng" or "Skills" (letter case aside), splits it at commas, and makes a skill of
-//! each name; other resource fields are left out as before. Rules are not written: they
-//! stay in `.sheafly` files.
+//! each name; other resource fields are left out as before. A skill with a level is written
+//! `Skill:Level` (`skill_levels.rs`); import adds the levels a file names to the scale in
+//! the order met, at the top, since MSPDI has no scale to give their order. Rules are not
+//! written: they stay in `.sheafly` files.
 
 use std::collections::BTreeMap;
 
 use crate::model::{Project, Resource};
 use crate::mspdi::escape_text;
+use crate::skill_levels::{self, LEVEL_SEPARATOR};
 use crate::skills::{self, SkillDef, MAX_SKILLS, MAX_SKILL_NAME_CHARS};
 
 /// `FieldID` of resource Text1, where skills are written.
@@ -55,11 +58,20 @@ pub(crate) fn write_value(xml: &mut String, project: &Project, resource: &Resour
     if resource.skills.is_empty() {
         return;
     }
-    let names: Vec<&str> = project
+    let names: Vec<String> = project
         .skills
         .iter()
         .filter(|skill| resource.skills.contains(&skill.id))
-        .map(|skill| skill.name.as_str())
+        .map(|skill| {
+            let level = resource
+                .skill_levels
+                .get(&skill.id)
+                .and_then(|level| project.skill_levels.iter().find(|known| known.id == *level));
+            match level {
+                Some(level) => format!("{}{LEVEL_SEPARATOR}{}", skill.name, level.name),
+                None => skill.name.clone(),
+            }
+        })
         .collect();
     xml.push_str("<ExtendedAttribute>\n");
     el(xml, "FieldID", &SKILLS_FIELD_ID.to_string());
@@ -152,8 +164,10 @@ impl SkillReader {
                 continue;
             }
             let mut skills: Vec<u32> = Vec::new();
-            for name in value.split(',') {
-                let name: String = name.trim().chars().take(MAX_SKILL_NAME_CHARS).collect();
+            let mut levels: Vec<(u32, u32)> = Vec::new();
+            for text in value.split(',') {
+                let (name, level) = skill_levels::split_level(text);
+                let name: String = name.chars().take(MAX_SKILL_NAME_CHARS).collect();
                 let name = name.trim();
                 if name.is_empty() {
                     continue;
@@ -168,6 +182,12 @@ impl SkillReader {
                     None => continue,
                 };
                 skills.push(id);
+                // A level the scale cannot take (a bad name, a full scale) is left out.
+                if let Some(level) =
+                    level.and_then(|level| skill_levels::level_id(project, level).ok())
+                {
+                    levels.push((id, level));
+                }
             }
             if let Some(resource) = project
                 .resources
@@ -177,6 +197,7 @@ impl SkillReader {
                 resource.skills.extend(skills);
                 resource.skills.sort_unstable();
                 resource.skills.dedup();
+                resource.skill_levels.extend(levels);
             }
         }
     }

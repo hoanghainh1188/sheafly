@@ -225,6 +225,28 @@ export interface Resource {
   skills: number[];
   /** Email address; absent when unknown. Unique in the project, letter case aside. */
   email?: string;
+  /** Role or team, a label; absent when none. */
+  group?: string;
+  /** The level of each skill that has one: skill id (as a key) → level id. */
+  skill_levels?: Record<string, number>;
+}
+
+/** Mirror of `skill_levels::SkillLevel`, one step of the project's scale. */
+export interface SkillLevel {
+  id: number;
+  name: string;
+}
+
+/** Mirror of `skill_levels::SkillLevelInput`: an existing level by id, or a new one. */
+export interface SkillLevelInput {
+  id?: number | null;
+  name: string;
+}
+
+/** Mirror of `skill_levels::SkillLevelOf`: the level a resource has in one skill. */
+export interface SkillLevelOf {
+  skill: number;
+  level: number;
 }
 
 /** Mirror of `skills::SkillDef`. */
@@ -240,7 +262,9 @@ export interface Condition {
 }
 
 /** Mirror of `skills::RuleTarget`: one person, or everyone with a skill. */
-export type RuleTarget = { type: "resource"; uid: number } | { type: "skill"; id: number };
+export type RuleTarget =
+  | { type: "resource"; uid: number }
+  | { type: "skill"; id: number; min_level?: number | null };
 
 /**
  * Mirror of `skills::AssignmentRule`: all conditions must hold (none matches every task);
@@ -361,7 +385,9 @@ export interface ImportResource {
   kind: ResourceKind;
   max_units?: number | null;
   standard_rate?: number | null;
+  /** Skill names, each optionally `Skill:Level`. */
   skills?: string[];
+  group?: string;
 }
 
 /** Mirror of `import::ImportAssignee`: a person by name, letter case aside. */
@@ -399,6 +425,7 @@ export type ImportColumn =
   | "max_units"
   | "rate"
   | "skills"
+  | "group"
   | "level"
   | "work"
   | "work_low"
@@ -575,6 +602,9 @@ export interface Project {
   /** Skills resources can have, in the order they were added. */
   skills: SkillDef[];
   next_skill_id: number;
+  /** Skill levels, lowest first; empty when levels are not used. */
+  skill_levels?: SkillLevel[];
+  next_skill_level_id?: number;
   /** Ordered rules from custom field values to a person or a skill. */
   assignment_rules: AssignmentRule[];
   /** How tasks' effort varies together in the finish forecast. */
@@ -901,7 +931,9 @@ export type Command =
   | { type: "add_skill"; name: string }
   | { type: "rename_skill"; id: number; name: string }
   | { type: "delete_skill"; id: number }
-  | { type: "set_resource_skills"; uid: number; skills: number[] }
+  | { type: "set_resource_skills"; uid: number; skills: number[]; levels?: SkillLevelOf[] }
+  | { type: "set_skill_levels"; levels: SkillLevelInput[] }
+  | { type: "set_resource_group"; uid: number; group: string }
   | { type: "set_assignment_rules"; rules: AssignmentRule[] }
   | { type: "assign_tasks"; assignments: TaskAssignment[] }
   | { type: "set_resource_email"; uid: number; email: string }

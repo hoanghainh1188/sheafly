@@ -272,6 +272,32 @@ function RuleCard({
             </optgroup>
           )}
         </select>
+        {rule.target.type === "skill" && (project.skill_levels ?? []).length > 0 && (
+          <>
+            <span className="rule-word" aria-hidden="true">
+              {r.atLeast}
+            </span>
+            <select
+              aria-label={r.minLevelOf(n)}
+              value={rule.target.min_level ?? ""}
+              onChange={(event) => {
+                const value = event.target.value;
+                onChange((current) =>
+                  current.target.type === "skill"
+                    ? { ...current, target: { type: "skill", id: current.target.id, min_level: value === "" ? null : Number(value) } }
+                    : current,
+                );
+              }}
+            >
+              <option value="">{r.anyLevel}</option>
+              {(project.skill_levels ?? []).map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <span className="rule-word">{r.units}</span>
         <span className="availability-units">
           <input

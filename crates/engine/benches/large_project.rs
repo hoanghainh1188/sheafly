@@ -300,7 +300,7 @@ fn suggestions(people: u32, tasks: u32) {
     project.assignment_rules = (1..=SKILLS)
         .map(|id| AssignmentRule {
             conditions: vec![Condition { field: 1, values: vec![FieldValue::Text(options[id as usize - 1].clone())] }],
-            target: RuleTarget::Skill { id },
+            target: RuleTarget::Skill { id, min_level: None },
             units: 1.0,
         })
         .collect();

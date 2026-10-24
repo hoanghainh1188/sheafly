@@ -39,6 +39,7 @@ export const importDialogMessages = defineMessages(
     max_units: "Đơn vị tối đa",
     rate: "Đơn giá",
     skills: "Kỹ năng",
+    group: "Vai trò",
     field: (name: string) => `Trường: ${name}`,
     problems: "Lỗi",
     problemAt: (line: number | null, column: string | null, message: string) =>
@@ -89,6 +90,7 @@ export const importDialogMessages = defineMessages(
     max_units: "Max units",
     rate: "Rate",
     skills: "Skills",
+    group: "Role",
     field: (name: string) => `Field: ${name}`,
     problems: "Problems",
     problemAt: (line: number | null, column: string | null, message: string) =>

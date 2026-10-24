@@ -227,7 +227,10 @@ function resourceRow(cells: string[], context: Context): ImportResource {
       if (value == null || value < 0) issue(context, column, m.rate);
       else resource.standard_rate = value;
     } else if (kind === "skills") {
+      // `Skill:Level` gives the level; the engine splits it.
       resource.skills = list(cell);
+    } else if (kind === "group") {
+      resource.group = cell.trim();
     }
   });
   return resource;
@@ -240,6 +243,7 @@ const ENGINE_COLUMNS: Record<string, string[]> = {
   max_units: ["max_units"],
   rate: ["rate"],
   skills: ["skills"],
+  group: ["group"],
   level: ["level"],
   work: ["work"],
   work_low: ["work_low"],

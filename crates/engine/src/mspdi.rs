@@ -1116,14 +1116,17 @@ fn write_resource(xml: &mut String, project: &Project, resource: &Resource) {
     el(xml, "UID", &resource.uid.to_string());
     el(xml, "Name", &escape(&resource.name));
     el(xml, "Type", "1");
-    el(
-        xml,
-        "Group",
+    // The group is the resource's role; without one it names the kind, as before roles,
+    // which is how an import tells machines from people.
+    let group = if resource.group.is_empty() {
         match resource.kind {
             ResourceKind::Person => "Người",
             ResourceKind::Machine => "Máy",
-        },
-    );
+        }
+    } else {
+        resource.group.as_str()
+    };
+    el(xml, "Group", &escape(group));
     if !resource.email.is_empty() {
         el(xml, "EmailAddress", &escape(&resource.email));
     }
@@ -1500,10 +1503,22 @@ impl ResourceBuilder {
             availability: Vec::new(),
             skills: Vec::new(),
             email: self.email,
+            group: role_of(&self.group),
+            skill_levels: BTreeMap::new(),
         };
         mspdi_availability::apply(&mut resource, self.periods, notes);
         resource
     }
+}
+
+/// The role a file's `<Group>` holds: none when it only names a kind.
+fn role_of(group: &str) -> String {
+    let group = group.trim();
+    let kind_only = ["người", "máy", "person", "machine"].contains(&group.to_lowercase().as_str());
+    if kind_only {
+        return String::new();
+    }
+    group.chars().take(crate::skill_levels::MAX_GROUP_CHARS).collect()
 }
 
 #[derive(Default)]

@@ -14,13 +14,14 @@
 //! tasks are not followed: the dates only rank people, and leveling after the assignments
 //! gives the real ones.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
 use crate::level::{levelable, Loads};
 use crate::level_order::{self, Parts};
 use crate::model::{ConstraintType, Project, Task};
+use crate::skill_levels;
 use crate::skills::{rule_for, RuleTarget};
 use crate::split;
 use crate::work::with_first_assignment;
@@ -84,12 +85,6 @@ pub fn suggest(project: &Project) -> Vec<Suggestion> {
         *assigned_work.entry(assignment.resource_uid).or_insert(0) += assignment.work;
         staffed.insert(assignment.task_uid);
     }
-    let mut with_skill: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
-    for resource in &project.resources {
-        for &id in &resource.skills {
-            with_skill.entry(id).or_default().push(resource.uid);
-        }
-    }
     let mut suggestions = Vec::new();
     for task in open_tasks(project, &staffed) {
         let Some(rule) = rule_for(project, task) else {
@@ -105,7 +100,12 @@ pub fn suggest(project: &Project) -> Vec<Suggestion> {
         let units = project.assignment_rules[rule].units;
         let candidates: Vec<u32> = match project.assignment_rules[rule].target {
             RuleTarget::Resource { uid } => vec![uid],
-            RuleTarget::Skill { id } => with_skill.get(&id).cloned().unwrap_or_default(),
+            RuleTarget::Skill { id, min_level } => project
+                .resources
+                .iter()
+                .filter(|resource| skill_levels::qualifies(project, resource, id, min_level))
+                .map(|resource| resource.uid)
+                .collect(),
         };
         let mut trial = task.clone();
         let ranked = rank(
@@ -369,7 +369,7 @@ mod tests {
             if random(2) == 0 {
                 skills.push(1 + random(3) as u32);
             }
-            apply(&mut doc, Command::SetResourceSkills { uid, skills });
+            apply(&mut doc, Command::SetResourceSkills { uid, skills, levels: Vec::new() });
             if random(4) == 0 {
                 let resource = doc.project.resources.last().expect("resource").clone();
                 apply(
@@ -483,13 +483,14 @@ mod tests {
                 }],
                 target: RuleTarget::Skill {
                     id: 1 + index as u32,
+                    min_level: None,
                 },
                 units: [1.0, 0.5, 2.0][random(3) as usize],
             })
             .collect();
         rules.push(AssignmentRule {
             conditions: vec![],
-            target: RuleTarget::Skill { id: 1 },
+            target: RuleTarget::Skill { id: 1, min_level: None },
             units: 1.0,
         });
         apply(&mut doc, Command::SetAssignmentRules { rules });

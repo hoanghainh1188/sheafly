@@ -91,6 +91,12 @@ pub enum Invalid {
     SkillNameTaken,
     NoSuchSkill,
     TooManySkills,
+    SkillLevelName,
+    SkillLevelNameTaken,
+    NoSuchSkillLevel,
+    TooManySkillLevels,
+    LevelWithoutSkill,
+    ResourceGroup,
     TooManyRules,
     TooManyConditions,
     RuleUnits,
@@ -370,8 +376,8 @@ impl Invalid {
                 "A resource can have at most 500 availability periods",
             ),
             Self::SkillName => fixed(
-                "Tên kỹ năng phải có từ 1 đến 50 ký tự và không có dấu phẩy",
-                "A skill name must have 1 to 50 characters and no comma",
+                "Tên kỹ năng phải có từ 1 đến 50 ký tự, không có dấu phẩy hay dấu hai chấm",
+                "A skill name must have 1 to 50 characters and no comma or colon",
             ),
             Self::SkillNameTaken => fixed(
                 "Đã có kỹ năng cùng tên",
@@ -381,6 +387,27 @@ impl Invalid {
             Self::TooManySkills => fixed(
                 "Dự án có tối đa 200 kỹ năng",
                 "A project can have at most 200 skills",
+            ),
+            Self::SkillLevelName => fixed(
+                "Tên cấp độ phải có từ 1 đến 30 ký tự, không có dấu phẩy hay dấu hai chấm",
+                "A level name must have 1 to 30 characters and no comma or colon",
+            ),
+            Self::SkillLevelNameTaken => fixed(
+                "Hai cấp độ không được trùng tên",
+                "Two levels cannot have the same name",
+            ),
+            Self::NoSuchSkillLevel => fixed("Không có cấp độ này", "That level does not exist"),
+            Self::TooManySkillLevels => fixed(
+                "Thang cấp độ có tối đa 20 bậc",
+                "A level scale can have at most 20 levels",
+            ),
+            Self::LevelWithoutSkill => fixed(
+                "Chỉ đặt cấp độ cho kỹ năng mà nguồn lực có",
+                "A level can only be set for a skill the resource has",
+            ),
+            Self::ResourceGroup => fixed(
+                "Vai trò có tối đa 100 ký tự",
+                "A role can have at most 100 characters",
             ),
             Self::TooManyRules => fixed(
                 "Dự án có tối đa 200 quy tắc giao việc",
@@ -642,6 +669,12 @@ mod tests {
             SkillNameTaken,
             NoSuchSkill,
             TooManySkills,
+            SkillLevelName,
+            SkillLevelNameTaken,
+            NoSuchSkillLevel,
+            TooManySkillLevels,
+            LevelWithoutSkill,
+            ResourceGroup,
             TooManyRules,
             TooManyConditions,
             RuleUnits,

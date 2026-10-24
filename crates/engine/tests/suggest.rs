@@ -67,7 +67,7 @@ fn skill_for(doc: &mut Document, people: &[u32]) -> u32 {
             .skills
             .clone();
         skills.push(id);
-        doc.apply(Command::SetResourceSkills { uid, skills })
+        doc.apply(Command::SetResourceSkills { uid, skills, levels: Vec::new() })
             .unwrap();
     }
     id
@@ -140,7 +140,7 @@ fn people_with_the_skill_are_ranked_by_who_finishes_first() {
     let skill = skill_for(&mut doc, &[1, 2]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     // Person 1 already has two days of work from the start.
     doc.apply(Command::SetDuration {
@@ -176,7 +176,7 @@ fn a_tie_goes_to_the_person_with_less_work_then_the_lower_uid() {
     let skill = skill_for(&mut doc, &[1, 2, 3]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     // Person 1 has work far ahead: free now, but more work than the others.
     doc.apply(Command::SetConstraint {
@@ -196,7 +196,7 @@ fn the_top_pick_takes_the_task_before_the_next_one_is_ranked() {
     let skill = skill_for(&mut doc, &[1, 2]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     let suggestions = suggest(&doc.project);
     let tops: Vec<(u32, u32, i64)> = suggestions
@@ -231,7 +231,7 @@ fn a_person_on_leave_comes_after_one_who_is_there() {
     let skill = skill_for(&mut doc, &[1, 2]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     let leave = AvailabilityPeriod {
         from: Some(date(0)),
@@ -387,7 +387,7 @@ fn tasks_without_a_suggestion_say_why() {
         vec![
             AssignmentRule {
                 conditions: vec![when("kho")],
-                target: RuleTarget::Skill { id: nobody },
+                target: RuleTarget::Skill { id: nobody, min_level: None },
                 units: 1.0,
             },
             AssignmentRule {
@@ -439,7 +439,7 @@ fn at_most_five_people_are_offered() {
     let skill = skill_for(&mut doc, &[1, 2, 3, 4, 5, 6, 7]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     // People 1 and 2 are busy, so the five offered are 3 to 7.
     for (task, person) in [(2, 1), (3, 2)] {
@@ -476,7 +476,7 @@ fn a_task_that_cannot_move_goes_only_to_people_free_at_its_dates() {
     let skill = skill_for(&mut doc, &[1, 2, 3]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     // Person 1 has task 1 on day 0; task 2 must start on day 0.
     assign(&mut doc, 1, 1);
@@ -569,7 +569,7 @@ fn work_with_no_working_time_fits_anyone_at_once() {
     let skill = skill_for(&mut doc, &[1, 2, 3, 4, 5, 6, 7, 8]);
     rules(
         &mut doc,
-        vec![everything_to(RuleTarget::Skill { id: skill }, 1.0)],
+        vec![everything_to(RuleTarget::Skill { id: skill, min_level: None }, 1.0)],
     );
     doc.apply(Command::SetTaskType {
         uid: 1,

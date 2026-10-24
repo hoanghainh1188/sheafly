@@ -19,6 +19,7 @@ use crate::model::{
 };
 use crate::recurrence::{self, Recurrence, RecurrenceSpec};
 use crate::schedule::normalize_outline;
+use crate::skill_levels::{self, SkillLevelInput, SkillLevelOf};
 use crate::skills::{self, AssignmentRule, TaskAssignment};
 use crate::source::{self, Source};
 use crate::split::{self, Split};
@@ -374,10 +375,22 @@ pub enum Command {
     DeleteSkill {
         id: u32,
     },
-    /// Replace a resource's skills.
+    /// Replace a resource's skills, with the level of each skill that has one (absent in
+    /// older logs).
     SetResourceSkills {
         uid: u32,
         skills: Vec<u32>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        levels: Vec<SkillLevelOf>,
+    },
+    /// Replace the scale of skill levels, lowest first (`skill_levels.rs`).
+    SetSkillLevels {
+        levels: Vec<SkillLevelInput>,
+    },
+    /// Set (or, empty, clear) a resource's group: its role or team.
+    SetResourceGroup {
+        uid: u32,
+        group: String,
     },
     /// Replace the ordered assignment rules. Only suggestions read them.
     SetAssignmentRules {
@@ -1129,9 +1142,11 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
         }
         Command::RenameSkill { id, name } => skills::rename_skill(project, *id, name)?,
         Command::DeleteSkill { id } => skills::delete_skill(project, *id)?,
-        Command::SetResourceSkills { uid, skills } => {
-            skills::set_resource_skills(project, *uid, skills)?
+        Command::SetResourceSkills { uid, skills, levels } => {
+            skills::set_resource_skills(project, *uid, skills, levels)?
         }
+        Command::SetSkillLevels { levels } => skill_levels::set_levels(project, levels)?,
+        Command::SetResourceGroup { uid, group } => skill_levels::set_group(project, *uid, group)?,
         Command::SetAssignmentRules { rules } => skills::set_rules(project, rules)?,
         Command::AssignTasks { assignments } => {
             if assignments.is_empty() {

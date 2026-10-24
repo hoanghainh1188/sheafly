@@ -16,6 +16,7 @@ function renderSheet(resources: Resource[], overallocations: Overallocation[] = 
     onEditCalendar: vi.fn(),
     onCreateCalendar: vi.fn(),
     onEditAvailability: vi.fn(),
+    onChangeGroup: vi.fn(),
   };
   render(
     <I18nProvider lang={lang}>
@@ -40,6 +41,19 @@ const crane = makeResource({ uid: 11, name: "Cẩu", kind: "machine" });
 const over: Overallocation[] = [{ resource_uid: 10, date: "2026-01-05", units: 1.5, max_units: 1 }];
 
 describe("ResourceSheet", () => {
+  it("edits a resource's role on leaving it and filters by role", async () => {
+    const { handlers, user } = renderSheet([makeResource({ uid: 12, name: "Bình", group: "Kiểm thử" }), an]);
+    const role = screen.getByRole("textbox", { name: "Vai trò của An" });
+    await user.type(role, "  Backend ");
+    await user.tab();
+    expect(handlers.onChangeGroup).toHaveBeenCalledWith(10, "Backend");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Vai trò" }), "Kiểm thử");
+    expect(screen.queryByRole("textbox", { name: "Vai trò của An" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Vai trò của Bình" })).toHaveValue("Kiểm thử");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Vai trò" }), "Chưa có vai trò");
+    expect(screen.getByRole("textbox", { name: "Vai trò của An" })).toBeInTheDocument();
+  });
+
   it("shows each resource's skills by name, in the project's order", () => {
     renderSheet([makeResource({ uid: 12, name: "Bình", skills: [1, 2] }), an]);
     expect(screen.getByRole("columnheader", { name: "Kỹ năng" })).toBeInTheDocument();
@@ -92,7 +106,7 @@ describe("ResourceSheet", () => {
     renderSheet([an, crane], over);
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
     expect(headers).toEqual([
-      "Tên", "Loại", "Đơn vị tối đa", "Lịch", "Giá chuẩn / giờ", "Giá tăng ca", "Chi phí mỗi lần", "Email", "Kỹ năng", "Quá tải", "",
+      "Tên", "Loại", "Vai trò", "Đơn vị tối đa", "Lịch", "Giá chuẩn / giờ", "Giá tăng ca", "Chi phí mỗi lần", "Email", "Kỹ năng", "Quá tải", "",
     ]);
     expect(screen.getByText("Có")).toBeInTheDocument();
     expect(screen.getByText("Không")).toBeInTheDocument();
@@ -106,7 +120,7 @@ describe("ResourceSheet", () => {
 
   it("sends the whole resource when a cell is committed", async () => {
     const { handlers, user } = renderSheet([an]);
-    const [name, units, rate, overtime, perUse] = screen.getAllByRole("textbox");
+    const [name, , units, rate, overtime, perUse] = screen.getAllByRole("textbox");
     await user.clear(name);
     await user.type(name, "Bình");
     await user.tab();
@@ -169,7 +183,7 @@ describe("ResourceSheet in English", () => {
     renderSheet([an, crane], over, "en");
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent);
     expect(headers).toEqual([
-      "Name", "Type", "Max units", "Calendar", "Std. rate / hr", "Ovt. rate", "Cost/use", "Email", "Skills", "Overallocated", "",
+      "Name", "Type", "Role", "Max units", "Calendar", "Std. rate / hr", "Ovt. rate", "Cost/use", "Email", "Skills", "Overallocated", "",
     ]);
     expect(screen.getByText("Yes")).toBeInTheDocument();
     expect(screen.getByText("No")).toBeInTheDocument();
