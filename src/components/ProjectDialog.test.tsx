@@ -6,12 +6,13 @@ import { at, makeProject, makeStatistics, standardCalendar } from "../test/fixtu
 import { I18nProvider } from "../i18n";
 import { ProjectDialog } from "./ProjectDialog";
 
-function renderDialog(editable: boolean) {
+function renderDialog(editable: boolean, capacityPro = true, focus_factor = 1) {
   const send = vi.fn().mockResolvedValue(undefined);
   render(
     <I18nProvider lang="vi">
       <ProjectDialog
-        project={makeProject({ editable_actual_costs: editable })}
+        project={makeProject({ editable_actual_costs: editable, focus_factor })}
+        capacityPro={capacityPro}
         changed={false}
         onSave={vi.fn()}
         onCancel={vi.fn()}
@@ -23,6 +24,45 @@ function renderDialog(editable: boolean) {
   );
   return send;
 }
+
+describe("ProjectDialog productivity", () => {
+  it("sets the useful productivity as a percentage and refuses what does not read", async () => {
+    const send = renderDialog(false);
+    const user = userEvent.setup();
+    const field = screen.getByRole("textbox", { name: "Năng suất hữu ích" });
+    expect(field).toHaveValue("100%");
+    await user.clear(field);
+    await user.type(field, "80");
+    await user.tab();
+    expect(send).toHaveBeenCalledWith({ type: "set_focus_factor", factor: 0.8 });
+    expect(field).toHaveValue("80%");
+    send.mockClear();
+    await user.clear(field);
+    await user.type(field, "40");
+    await user.tab();
+    expect(send).not.toHaveBeenCalled();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
+describe("ProjectDialog productivity without Sheafly Pro", () => {
+  it("shows the factor, refuses a new one and still sets it back to 100%", async () => {
+    const send = renderDialog(false, false, 0.8);
+    const user = userEvent.setup();
+    expect(screen.getByText("Cần Sheafly Pro để đổi; bản Free chỉ đặt lại được 100%")).toBeInTheDocument();
+    const field = screen.getByRole("textbox", { name: "Năng suất hữu ích" });
+    expect(field).toHaveValue("80%");
+    await user.clear(field);
+    await user.type(field, "70");
+    await user.tab();
+    expect(send).not.toHaveBeenCalled();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    await user.clear(field);
+    await user.type(field, "100");
+    await user.tab();
+    expect(send).toHaveBeenCalledWith({ type: "set_focus_factor", factor: 1 });
+  });
+});
 
 describe("ProjectDialog actual costs", () => {
   it("turns hand-entered actual costs on", async () => {

@@ -41,6 +41,7 @@ use sheafly_engine::plan::{self, PlanPreview};
 use sheafly_engine::timeutil::parse_date_key;
 use sheafly_engine::skills::TaskAssignment;
 use sheafly_engine::{Command, Document, EngineError, Lang, Snapshot};
+use sheafly_license::Feature;
 use tauri::menu::{AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime, State, WindowEvent};
@@ -243,6 +244,24 @@ fn ensure_no_dialog(state: &AppState) -> Result<(), String> {
         Err(i18n::text(lang(state)).dialog_busy.into())
     } else {
         Ok(())
+    }
+}
+
+/// The Pro feature a command sets, if any. Going back to the default stays free (a
+/// factor of 100 %, or none of a resource's own), so a file never holds data a Free app
+/// cannot undo; opening, replaying, undoing and saving never ask (the engine knows no plan).
+fn pro_feature(command: &Command) -> Option<Feature> {
+    match command {
+        Command::SetFocusFactor { factor } if *factor != 1.0 => Some(Feature::Capacity),
+        Command::SetResourceFocus { focus: Some(focus), .. } if *focus != 1.0 => Some(Feature::Capacity),
+        _ => None,
+    }
+}
+
+fn ensure_licensed(state: &AppState, command: &Command) -> Result<(), String> {
+    match pro_feature(command) {
+        Some(feature) if !state.license.grants(feature) => Err(i18n::text(lang(state)).needs_pro.into()),
+        _ => Ok(()),
     }
 }
 
@@ -649,6 +668,7 @@ fn apply_command(state: State<'_, AppState>, command: Command) -> Result<serde_j
     // flag is set, so an edit either lands before that read or is refused.
     let mut doc = lock(&state);
     ensure_no_dialog(&state)?;
+    ensure_licensed(&state, &command)?;
     let snapshot = doc.apply(command).map_err(engine_message(&state))?;
     mark_edited(&state);
     Ok(state.delta.patch(snapshot))
@@ -1456,6 +1476,18 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn setting_a_productivity_factor_needs_pro_but_going_back_to_full_does_not() {
+        let factor = |factor| Command::SetFocusFactor { factor };
+        let own = |focus| Command::SetResourceFocus { uid: 1, focus };
+        assert_eq!(pro_feature(&factor(0.8)), Some(Feature::Capacity));
+        assert_eq!(pro_feature(&own(Some(0.9))), Some(Feature::Capacity));
+        assert_eq!(pro_feature(&factor(1.0)), None);
+        assert_eq!(pro_feature(&own(Some(1.0))), None);
+        assert_eq!(pro_feature(&own(None)), None);
+        assert_eq!(pro_feature(&Command::RenameProject { name: "Cầu".into() }), None);
+    }
 
     #[test]
     fn finds_a_project_file_on_the_command_line() {

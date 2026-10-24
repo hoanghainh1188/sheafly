@@ -323,6 +323,10 @@ pub struct Resource {
     /// The level of each skill that has one: skill id → level id of `Project.skill_levels`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub skill_levels: BTreeMap<u32, u32>,
+    /// Share of time at work this resource gives to project work (`focus.rs`); `None`
+    /// follows the project's factor for people and 1.0 for machines.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus: Option<f64>,
 }
 
 impl Resource {
@@ -341,6 +345,7 @@ impl Resource {
             email: String::new(),
             group: String::new(),
             skill_levels: BTreeMap::new(),
+            focus: None,
         }
     }
 }
@@ -439,6 +444,10 @@ pub struct Project {
     /// How tasks' effort varies together in the finish forecast.
     #[serde(default)]
     pub forecast: ForecastSettings,
+    /// Share of time at work people give to project work (`focus.rs`), 0.5 to 1.0; it
+    /// slows the rate at which their work is done. 1.0 in files written before it existed.
+    #[serde(default = "crate::focus::full_focus")]
+    pub focus_factor: f64,
     /// The external task tracker this project is pulled from (`SetSource`). Written even
     /// when empty (as null), so a patch of the snapshot can clear it.
     #[serde(default)]
@@ -522,6 +531,7 @@ impl Project {
             next_skill_level_id: 1,
             assignment_rules: Vec::new(),
             forecast: ForecastSettings::default(),
+            focus_factor: crate::focus::full_focus(),
             source: None,
         }
     }

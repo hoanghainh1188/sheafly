@@ -40,6 +40,11 @@ export const resourceSheetMessages = defineMessages(
     roleFilter: "Vai trò",
     allRoles: "Tất cả",
     noRole: "Chưa có vai trò",
+    focus: "Năng suất",
+    focusTip: "Năng suất hữu ích riêng của nguồn lực, từ 50% đến 100%; để trống thì theo dự án (máy: 100%)",
+    focusOf: (name: string) => `Năng suất của ${name}`,
+    focusBad: "Gõ một tỉ lệ từ 50% đến 100%, hoặc để trống để theo dự án",
+    focusNeedsPro: "Cần Sheafly Pro để đặt năng suất riêng; bản Free chỉ xóa được (để trống)",
   },
   {
     addPerson: "Add person",
@@ -80,5 +85,10 @@ export const resourceSheetMessages = defineMessages(
     roleFilter: "Role",
     allRoles: "All",
     noRole: "No role",
+    focus: "Productivity",
+    focusTip: "The resource's own useful productivity, 50% to 100%; empty follows the project (equipment: 100%)",
+    focusOf: (name: string) => `Productivity of ${name}`,
+    focusBad: "Type a share from 50% to 100%, or leave it empty to follow the project",
+    focusNeedsPro: "An own productivity needs Sheafly Pro; Free can only clear it (leave it empty)",
   },
 );

@@ -229,6 +229,8 @@ export interface Resource {
   group?: string;
   /** The level of each skill that has one: skill id (as a key) → level id. */
   skill_levels?: Record<string, number>;
+  /** Own productivity factor (0.5–1); absent follows the project's for people, 1 for machines. */
+  focus?: number | null;
 }
 
 /** Mirror of `skill_levels::SkillLevel`, one step of the project's scale. */
@@ -609,6 +611,8 @@ export interface Project {
   assignment_rules: AssignmentRule[];
   /** How tasks' effort varies together in the finish forecast. */
   forecast: ForecastSettings;
+  /** Share of time at work people give to project work, 0.5–1; it slows their rate of work. */
+  focus_factor: number;
   /** The external task tracker the project is pulled from, if any. */
   source: Source | null;
 }
@@ -934,6 +938,8 @@ export type Command =
   | { type: "set_resource_skills"; uid: number; skills: number[]; levels?: SkillLevelOf[] }
   | { type: "set_skill_levels"; levels: SkillLevelInput[] }
   | { type: "set_resource_group"; uid: number; group: string }
+  | { type: "set_focus_factor"; factor: number }
+  | { type: "set_resource_focus"; uid: number; focus: number | null }
   | { type: "set_assignment_rules"; rules: AssignmentRule[] }
   | { type: "assign_tasks"; assignments: TaskAssignment[] }
   | { type: "set_resource_email"; uid: number; email: string }

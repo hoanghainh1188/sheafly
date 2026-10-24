@@ -97,6 +97,7 @@ pub enum Invalid {
     TooManySkillLevels,
     LevelWithoutSkill,
     ResourceGroup,
+    FocusFactor,
     TooManyRules,
     TooManyConditions,
     RuleUnits,
@@ -409,6 +410,10 @@ impl Invalid {
                 "Vai trò có tối đa 100 ký tự",
                 "A role can have at most 100 characters",
             ),
+            Self::FocusFactor => fixed(
+                "Năng suất hữu ích phải từ 50% đến 100%",
+                "Useful productivity must be from 50% to 100%",
+            ),
             Self::TooManyRules => fixed(
                 "Dự án có tối đa 200 quy tắc giao việc",
                 "A project can have at most 200 assignment rules",
@@ -675,6 +680,7 @@ mod tests {
             TooManySkillLevels,
             LevelWithoutSkill,
             ResourceGroup,
+            FocusFactor,
             TooManyRules,
             TooManyConditions,
             RuleUnits,

@@ -8,6 +8,7 @@ import type { Command, Project, ProjectStatistics, Snapshot } from "../types";
 import { Button } from "./Button";
 import { DateTimeField } from "./DateTimeField";
 import { FieldsTab } from "./FieldsTab";
+import { FocusInput } from "./FocusInput";
 import { ForecastTab } from "./ForecastTab";
 import { LevelingTab } from "./LevelingTab";
 import { Modal } from "./Modal";
@@ -32,6 +33,7 @@ export function ProjectDialog({
   onOpenWorkingTime,
   initialTab = "general",
   error = null,
+  capacityPro = true,
 }: {
   project: Project;
   /** Computed by the engine; null until loaded. */
@@ -41,6 +43,8 @@ export function ProjectDialog({
   onCancel: () => void;
   send: (command: Command) => Promise<Snapshot | void>;
   onOpenWorkingTime: () => void;
+  /** Whether Sheafly Pro unlocks the productivity factor; without it the field only resets. */
+  capacityPro?: boolean;
   /** The tab the dialog opens on (Dự án → Trường tùy chỉnh and Thứ tự cân bằng open on theirs). */
   initialTab?: Tab;
   /** The last edit the engine refused, shown in the footer since the banner is behind the dialog. */
@@ -106,7 +110,7 @@ export function ProjectDialog({
       </div>
       <div className="dialog-tabpanel" role="tabpanel" id="project-panel" aria-labelledby={`project-tab-${tab}`} tabIndex={0}>
         {tab === "general" ? (
-          <GeneralTab project={project} send={send} onOpenWorkingTime={onOpenWorkingTime} />
+          <GeneralTab project={project} send={send} onOpenWorkingTime={onOpenWorkingTime} capacityPro={capacityPro} />
         ) : tab === "fields" ? (
           <FieldsTab project={project} send={send} />
         ) : tab === "leveling" ? (
@@ -125,10 +129,12 @@ function GeneralTab({
   project,
   send,
   onOpenWorkingTime,
+  capacityPro,
 }: {
   project: Project;
   send: (command: Command) => Promise<Snapshot | void>;
   onOpenWorkingTime: () => void;
+  capacityPro: boolean;
 }) {
   const m = useMessages(appMessages);
   const p = useMessages(projectDialogMessages);
@@ -176,6 +182,21 @@ function GeneralTab({
         <Button Icon={CalendarDays} title={p.workingTimeTip} onClick={onOpenWorkingTime}>
           {p.workingTime}
         </Button>
+      </div>
+      <label htmlFor="project-focus" title={p.focusTip}>
+        {p.focus}
+      </label>
+      <div className="row">
+        <FocusInput
+          id="project-focus"
+          value={project.focus_factor ?? 1}
+          title={p.focusTip}
+          badTitle={p.focusBad}
+          locked={!capacityPro}
+          lockedTitle={p.focusNeedsPro}
+          onCommit={(factor) => factor != null && void send({ type: "set_focus_factor", factor })}
+        />
+        {!capacityPro && <span className="meta">{p.focusNeedsPro}</span>}
       </div>
       <label>{m.costsGroup}</label>
       <label className="check">

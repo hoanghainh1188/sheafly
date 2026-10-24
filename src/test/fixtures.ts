@@ -144,6 +144,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     next_skill_id: 1,
     assignment_rules: [],
     forecast: { field: null, group: "medium", common: "low" },
+    focus_factor: 1,
     source: null,
     ...overrides,
   };
@@ -277,7 +278,7 @@ export function makeProLicense(overrides: Partial<LicenseView> = {}): LicenseVie
     email: "lan@example.com",
     seats: 1,
     updates_until: "2027-10-24",
-    features: ["trackers"],
+    features: ["trackers", "capacity"],
     ...overrides,
   });
 }

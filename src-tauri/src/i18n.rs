@@ -53,6 +53,7 @@ pub struct Text {
     pub plan_business: &'static str,
     pub plan_trial: &'static str,
     pub licensed_to: &'static str,
+    pub needs_pro: &'static str,
 }
 
 pub static VI: Text = Text {
@@ -105,6 +106,7 @@ Giấy phép của mọi thành phần bên thứ ba: Trợ giúp → Giấy ph�
     plan_business: "Sheafly Business",
     plan_trial: "Dùng thử Sheafly Pro",
     licensed_to: "cấp cho",
+    needs_pro: "Cần Sheafly Pro để đổi năng suất hữu ích (Trợ giúp → License Sheafly Pro…).",
 };
 
 pub static EN: Text = Text {
@@ -157,6 +159,7 @@ Licenses of all third-party components: Help → Third-Party Licenses.",
     plan_business: "Sheafly Business",
     plan_trial: "Sheafly Pro trial",
     licensed_to: "licensed to",
+    needs_pro: "Changing the useful productivity needs Sheafly Pro (Help → Sheafly Pro License…).",
 };
 
 pub fn text(lang: Lang) -> &'static Text {

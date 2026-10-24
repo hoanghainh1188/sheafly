@@ -15,6 +15,7 @@ pub mod document;
 pub mod error;
 pub mod evm;
 pub mod fields;
+pub mod focus;
 pub mod forecast;
 mod graph;
 pub mod import;

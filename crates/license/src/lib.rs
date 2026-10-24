@@ -46,14 +46,17 @@ pub enum Plan {
 pub enum Feature {
     /// Pulling from and pushing to an external task tracker.
     Trackers,
+    /// Capacity planning: the productivity factor of the project and of each resource.
+    Capacity,
 }
 
 impl Feature {
-    pub const ALL: &'static [Feature] = &[Feature::Trackers];
+    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity];
 
     pub fn code(self) -> &'static str {
         match self {
             Feature::Trackers => "trackers",
+            Feature::Capacity => "capacity",
         }
     }
 

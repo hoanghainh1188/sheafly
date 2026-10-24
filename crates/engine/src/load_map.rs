@@ -105,6 +105,7 @@ pub fn load_map(project: &Project, from: NaiveDate, to: NaiveDate, bucket: Bucke
     }
     for (resource, row) in project.resources.iter().zip(&mut rows) {
         let calendar = project.resource_calendar(resource);
+        let focus = crate::focus::focus_of(project, resource);
         for offset in 0..days {
             let date = first + chrono::Duration::days(offset as i64);
             let working: i64 = calendar
@@ -113,7 +114,8 @@ pub fn load_map(project: &Project, from: NaiveDate, to: NaiveDate, bucket: Bucke
                 .map(|range| i64::from(range.end_minute) - i64::from(range.start_minute))
                 .sum();
             if working > 0 {
-                let capacity = (working as f64 * units_on(resource, date)).round() as i64;
+                // Only the useful share of the time counts (`focus.rs`).
+                let capacity = (working as f64 * units_on(resource, date) * focus).round() as i64;
                 row.cells[offset / length].capacity += capacity;
             }
         }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::model::{Accrual, Assignment, Project, Task, TaskType, UsageDay, UsageRow};
+use crate::focus;
 use crate::split;
 use crate::timeutil::{civil, compose, date_key};
 
@@ -15,8 +16,13 @@ fn scale(duration: i64, units: f64) -> i64 {
     (duration as f64 * units).round().max(0.0) as i64
 }
 
-/// Keep `work = duration × units` according to the task type.
+/// Keep `work = duration × units × focus` according to the task type (`focus.rs`).
 pub fn apply_change(project: &mut Project, task_uid: u32, changed: Changed) {
+    focus::with_rates(project, task_uid, |project| apply_change_at_rates(project, task_uid, changed));
+}
+
+/// Keep `work = duration × units` according to the task type, units being rates.
+fn apply_change_at_rates(project: &mut Project, task_uid: u32, changed: Changed) {
     let Some(index) = project.index_of(task_uid) else {
         return;
     };
@@ -273,7 +279,10 @@ pub fn add_assignment(project: &mut Project, task_uid: u32, resource_uid: u32, u
             .task(task_uid)
             .map(|task| task.duration)
             .unwrap_or(0);
-        if scale_units_to_work(project, task_uid, duration, carried_work) {
+        let kept = focus::with_rates(project, task_uid, |project| {
+            scale_units_to_work(project, task_uid, duration, carried_work)
+        });
+        if kept {
             return uid;
         }
     }
@@ -332,12 +341,16 @@ pub fn remove_assignment(project: &mut Project, assignment_uid: u32) -> bool {
         && preserved_work > 0
         && task_type == TaskType::FixedDuration
         && duration > 0
-        && scale_units_to_work(project, task_uid, duration, preserved_work)
+        && focus::with_rates(project, task_uid, |project| {
+            scale_units_to_work(project, task_uid, duration, preserved_work)
+        })
     {
         return true;
     }
     if effort && preserved_work > 0 {
-        spread_work(project, task_uid, preserved_work);
+        focus::with_rates(project, task_uid, |project| {
+            spread_work(project, task_uid, preserved_work)
+        });
         apply_change(project, task_uid, Changed::Work);
         return true;
     }
@@ -661,7 +674,12 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
             .iter()
             .map(|&position| &project.assignments[position])
             .collect();
-        let total_units: f64 = assignments.iter().map(|a| a.units).sum();
+        // Each assignment works at its rate, units × the resource's factor (`focus.rs`).
+        let rates: Vec<f64> = assignments
+            .iter()
+            .map(|a| a.units * focus::focus_of_uid(project, a.resource_uid))
+            .collect();
+        let total_units: f64 = rates.iter().sum();
         let mut task_days: Vec<UsageDay> = Vec::new();
         // Split gaps carry no work, so only the segments are distributed.
         let intervals = split::work_intervals(task);
@@ -675,12 +693,9 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
                 let minutes = split::working_within(cal, &intervals, day_start, day_end);
                 if minutes > 0 {
                     let hours = if assignments.is_empty() {
-                        minutes as f64 / 60.0
+                        minutes as f64 / 60.0 * project.focus_factor
                     } else {
-                        assignments
-                            .iter()
-                            .map(|a| minutes as f64 / 60.0 * a.units)
-                            .sum()
+                        rates.iter().map(|rate| minutes as f64 / 60.0 * rate).sum()
                     };
                     task_days.push(UsageDay {
                         date: date_key(date),
@@ -700,7 +715,7 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
             label: task.name.clone(),
             days: task_days.clone(),
         });
-        for assignment in assignments {
+        for (assignment, rate) in assignments.into_iter().zip(rates) {
             let resource_name = project
                 .resources
                 .iter()
@@ -721,7 +736,7 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
                                 0.0
                             }
                         };
-                        duration_hours * assignment.units
+                        duration_hours * rate
                     },
                 })
                 .collect();

@@ -84,7 +84,8 @@ fn write_unassigned_splits(xml: &mut String, project: &Project) {
         el(xml, "UID", &next_uid.to_string());
         el(xml, "TaskUID", &task.uid.to_string());
         el(xml, "ResourceUID", "-65535");
-        el(xml, "Units", "1");
+        // Microsoft Project has no productivity factor: units at the rate give its dates.
+        el(xml, "Units", &format_number(project.focus_factor));
         el(xml, "Work", &format_duration_iso(task.work));
         write_timephased(xml, project, task, next_uid, task.work);
         mspdi_progress::write_actual_timephased(xml, project, task, next_uid, task.actual_work);
@@ -1148,7 +1149,8 @@ fn write_assignment(xml: &mut String, project: &Project, assignment: &Assignment
     el(xml, "UID", &assignment.uid.to_string());
     el(xml, "TaskUID", &assignment.task_uid.to_string());
     el(xml, "ResourceUID", &assignment.resource_uid.to_string());
-    el(xml, "Units", &format_number(assignment.units));
+    let rate = assignment.units * crate::focus::focus_of_uid(project, assignment.resource_uid);
+    el(xml, "Units", &format_number(rate));
     el(xml, "Work", &format_duration_iso(assignment.work));
     el(
         xml,
@@ -1505,6 +1507,7 @@ impl ResourceBuilder {
             email: self.email,
             group: role_of(&self.group),
             skill_levels: BTreeMap::new(),
+            focus: None,
         };
         mspdi_availability::apply(&mut resource, self.periods, notes);
         resource
