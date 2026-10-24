@@ -845,6 +845,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Baseline tải (21 PR 4) | lưu Free, xem `capacity` | `SetBaseline` ghi `AssignmentBaseline` trên mọi bản; đọc: lệnh Tauri trả tải baseline |
 | Biểu đồ tải theo kỳ, theo vai trò/kỹ năng (21 PR 5) | `capacity` | đọc: chế độ mới của `load_map` (tháng, gộp, baseline); màn Tải theo người/ngày/tuần như hiện nay vẫn Free |
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
+| Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (issue #100; chốt Pro 24/10/2026, chưa có pha) | `Feature` riêng (tên đặt khi thiết kế) | chưa thiết kế; theo nguyên tắc trên: gate đọc ở lệnh Tauri gọi mô hình, áp dụng đề xuất là lệnh thường nên không chặn |
 | Sau này: nhiều dự án dùng chung kho nguồn lực, báo cáo tùy biến/xuất Excel, đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
