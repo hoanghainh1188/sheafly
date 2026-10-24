@@ -3,6 +3,8 @@ import { useMessages } from "../i18n";
 import { useState } from "react";
 
 import type { Calendar, Overallocation, Resource, ResourceKind, SkillDef, SkillLevel } from "../types";
+import { formatFocus } from "../focusPercent";
+import { FocusInput } from "./FocusInput";
 import { MoneyInput } from "./MoneyInput";
 import { resourceSheetMessages } from "./ResourceSheet.i18n";
 
@@ -17,12 +19,18 @@ interface Props {
   /** The project's scale of skill levels; a skill with a level shows as “Skill (Level)”. */
   skillLevels?: SkillLevel[];
   overallocations: Overallocation[];
+  /** The project's productivity factor, shown where a resource follows it. */
+  focusFactor?: number;
+  /** Whether Sheafly Pro unlocks own factors; without it a factor can only be cleared. */
+  capacityPro?: boolean;
   onAdd: (kind: ResourceKind) => void;
   onChange: (resource: Resource) => void;
   /** Set (or, empty, clear) the email address that matches people at an external tracker. */
   onChangeEmail: (uid: number, email: string) => void;
   /** Set (or, empty, clear) the resource's role or team. */
   onChangeGroup: (uid: number, group: string) => void;
+  /** Set (or, `null`, clear) the resource's own productivity factor. */
+  onChangeFocus: (uid: number, focus: number | null) => void;
   onDelete: (uid: number) => void;
   onEditCalendar: (calendarId: number) => void;
   onCreateCalendar: (resource: Resource) => void;
@@ -36,10 +44,13 @@ export function ResourceSheet({
   skills,
   skillLevels = [],
   overallocations,
+  focusFactor = 1,
+  capacityPro = true,
   onAdd,
   onChange,
   onChangeEmail,
   onChangeGroup,
+  onChangeFocus,
   onDelete,
   onEditCalendar,
   onCreateCalendar,
@@ -93,6 +104,7 @@ export function ResourceSheet({
             <th>{m.kind}</th>
             <th title={m.roleTip}>{m.role}</th>
             <th>{m.maxUnits}</th>
+            <th title={m.focusTip}>{m.focus}</th>
             <th>{m.calendar}</th>
             <th>{m.standardRate}</th>
             <th>{m.overtimeRate}</th>
@@ -160,6 +172,20 @@ export function ResourceSheet({
                     {m.availability}
                   </button>
                 </div>
+              </td>
+              <td>
+                <FocusInput
+                  ariaLabel={m.focusOf(resource.name)}
+                  value={resource.focus ?? null}
+                  // A person follows the project's factor, a machine works all of its time.
+                  placeholder={formatFocus(resource.kind === "person" ? focusFactor : 1)}
+                  title={m.focusTip}
+                  badTitle={m.focusBad}
+                  allowEmpty
+                  locked={!capacityPro}
+                  lockedTitle={m.focusNeedsPro}
+                  onCommit={(focus) => onChangeFocus(resource.uid, focus)}
+                />
               </td>
               <td>
                 <div className="calendar-cell">
@@ -232,7 +258,7 @@ export function ResourceSheet({
           ))}
           {resources.length === 0 && (
             <tr>
-              <td colSpan={12} className="empty">{m.empty}</td>
+              <td colSpan={13} className="empty">{m.empty}</td>
             </tr>
           )}
         </tbody>

@@ -9,6 +9,11 @@ export const projectDialogMessages = defineMessages(
     leveling: "Cân bằng",
     forecast: "Dự báo",
     projectCalendar: "Lịch dự án",
+    focus: "Năng suất hữu ích",
+    focusTip:
+      "Phần thời gian có mặt dành cho việc dự án (trừ việc riêng, mệt mỏi, chờ đợi), từ 50% đến 100%. Công việc của mỗi người làm chậm lại theo tỉ lệ này: 48 giờ công ở 80% mất 60 giờ làm việc.",
+    focusBad: "Gõ một tỉ lệ từ 50% đến 100%",
+    focusNeedsPro: "Cần Sheafly Pro để đổi; bản Free chỉ đặt lại được 100%",
     workingTime: "Lịch làm việc…",
     workingTimeTip: "Lưu thông tin dự án rồi mở hộp thoại sửa lịch làm việc",
     noStatistics: "Đang tải số liệu…",
@@ -33,6 +38,11 @@ export const projectDialogMessages = defineMessages(
     leveling: "Leveling",
     forecast: "Forecast",
     projectCalendar: "Project calendar",
+    focus: "Useful productivity",
+    focusTip:
+      "The share of time at work that goes to project work (less personal time, fatigue and delays), 50% to 100%. Each person's work goes slower by this share: 48 hours of work at 80% take 60 working hours.",
+    focusBad: "Type a share from 50% to 100%",
+    focusNeedsPro: "Changing it needs Sheafly Pro; Free can only set it back to 100%",
     workingTime: "Working time…",
     workingTimeTip: "Save the project information and open the working time dialog",
     noStatistics: "Loading statistics…",

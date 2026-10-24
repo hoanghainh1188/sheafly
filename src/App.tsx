@@ -7,6 +7,7 @@ import {
   checkAutosave,
   errorMessage,
   inTauri,
+  licenseStatus,
   loadMetrics,
   loadNetworkLayout,
   loadState,
@@ -58,7 +59,7 @@ import { pick, useLang, useMessages, useSetLang } from "./i18n";
 import { buildGanttPdf, pdfSuggestedName } from "./ganttPdf";
 import { handleMenuAction } from "./menuActions";
 import { buildNetworkPdf } from "./networkPdf";
-import type { Command, FillField, ImportSheet, NetworkLayout, PlanPreview, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
+import type { Command, FillField, ImportSheet, LicenseView, NetworkLayout, PlanPreview, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
 import {
   commitFocusedField,
   isEditableTarget,
@@ -113,6 +114,12 @@ export default function App() {
   const [infoTab, setInfoTab] = useState<ProjectTab>("general");
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [licenseOpen, setLicenseOpen] = useState(false);
+  // What this computer's license unlocks; the backend checks again on every gated command.
+  const [license, setLicense] = useState<LicenseView | null>(null);
+  useEffect(() => {
+    if (inTauri()) void licenseStatus().then(setLicense, () => setLicense(null));
+  }, []);
+  const capacityPro = license?.features.includes("capacity") ?? false;
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
   const [workingTime, setWorkingTime] = useState<{ id: number; start: number } | null>(null);
   // The resource Khả dụng is open for and the history cursor to roll back to.
@@ -767,11 +774,14 @@ export default function App() {
                 calendars={project.calendars}
                 skills={project.skills}
                 skillLevels={project.skill_levels}
+                focusFactor={project.focus_factor}
+                capacityPro={capacityPro}
                 overallocations={project.overallocations}
                 onAdd={(kind) => send({ type: "add_resource", name: m.newResource(project.next_resource_uid), kind })}
                 onChange={(resource) => send(resourceCommand(resource))}
                 onChangeEmail={(uid, email) => send({ type: "set_resource_email", uid, email })}
                 onChangeGroup={(uid, group) => send({ type: "set_resource_group", uid, group })}
+                onChangeFocus={(uid, focus) => send({ type: "set_resource_focus", uid, focus })}
                 onDelete={(uid) => send({ type: "delete_resource", uid })}
                 onEditCalendar={(id) => void openWorkingTime(id)}
                 onEditAvailability={(uid) => void openAvailability(uid)}
@@ -856,6 +866,7 @@ export default function App() {
           changed={(snap?.history_cursor ?? 0) !== infoStart}
           initialTab={infoTab}
           error={dialogError}
+          capacityPro={capacityPro}
           onSave={() => {
             commitFocusedField();
             setInfoStart(null);
@@ -1018,7 +1029,7 @@ export default function App() {
           onClear={(number) => send({ type: "clear_baseline", number })}
         />
       )}
-      {licenseOpen && <LicenseDialog onClose={() => setLicenseOpen(false)} />}
+      {licenseOpen && <LicenseDialog onClose={() => setLicenseOpen(false)} onChange={setLicense} />}
     </div>
   );
 }

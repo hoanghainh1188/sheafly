@@ -24,6 +24,7 @@ use crate::model::{ConstraintType, Project, Task};
 use crate::skill_levels;
 use crate::skills::{rule_for, RuleTarget};
 use crate::split;
+use crate::focus::focus_of_uid;
 use crate::work::with_first_assignment;
 
 /// People offered for one task at most.
@@ -122,9 +123,11 @@ pub fn suggest(project: &Project) -> Vec<Suggestion> {
             (None, false) => Some(NoPick::NoRoom),
         };
         if let Some(top) = ranked.first() {
-            // A task that cannot move is already dated as its pick.
             if levelable(&trial) {
                 date(project, &mut trial, top.pick.start, top.duration);
+            } else {
+                // Its dates are its own; only the pick's duration can change them.
+                date_pinned(project, &mut trial, top.duration);
             }
             loads.add(project, &trial, top.pick.resource_uid, units);
             *assigned_work.entry(top.pick.resource_uid).or_insert(0) += top.work;
@@ -200,15 +203,21 @@ fn rank(
     candidates: &[u32],
     units: f64,
 ) -> Vec<Ranked> {
-    let (duration, work) = with_first_assignment(trial, units);
+    // Each candidate works at their own rate (`focus.rs`), so durations differ.
+    let base = trial.clone();
+    let sized = |uid: u32| with_first_assignment(&base, units * focus_of_uid(project, uid));
     let start = trial.start;
     let load_of = |uid: u32| assigned_work.get(&uid).copied().unwrap_or(0);
     if !levelable(trial) {
-        date_pinned(project, trial, duration);
-        let mut kept: Vec<Ranked> = candidates
-            .iter()
-            .filter(|&&uid| loads.fits_at(project, trial, uid, units))
-            .map(|&uid| Ranked {
+        let mut kept: Vec<Ranked> = Vec::new();
+        for &uid in candidates {
+            let (duration, work) = sized(uid);
+            *trial = base.clone();
+            date_pinned(project, trial, duration);
+            if !loads.fits_at(project, trial, uid, units) {
+                continue;
+            }
+            kept.push(Ranked {
                 pick: Pick {
                     resource_uid: uid,
                     start: trial.start,
@@ -217,24 +226,24 @@ fn rank(
                 work,
                 duration,
                 load: load_of(uid),
-            })
-            .collect();
+            });
+        }
+        *trial = base.clone();
         kept.sort_unstable_by_key(Ranked::key);
         kept.truncate(MAX_PICKS);
         return kept;
     }
-    date(project, trial, start, duration);
-    let unloaded = trial.finish;
-    let no_work = trial.finish <= trial.start;
     let mut order: Vec<(i64, i64, u32)> = candidates
         .iter()
         .map(|&uid| {
-            if !no_work {
+            let (duration, _) = sized(uid);
+            date(project, trial, start, duration);
+            // Work with no working time fits anywhere at once: its finish is its bound.
+            if trial.finish > trial.start {
                 let room = loads.earliest_room(project, uid, units, start);
                 date(project, trial, room, duration);
             }
-            let bound = if no_work { unloaded } else { trial.finish };
-            (bound, load_of(uid), uid)
+            (trial.finish, load_of(uid), uid)
         })
         .collect();
     order.sort_unstable();
@@ -243,7 +252,9 @@ fn rank(
         if kept.len() >= MAX_PICKS && kept[MAX_PICKS - 1].key() < (bound, load, uid) && may_stop() {
             break;
         }
+        let (duration, work) = sized(uid);
         trial.start = start;
+        date(project, trial, start, duration);
         let Some(fit) = loads.fit(project, trial, uid, units) else {
             continue;
         };

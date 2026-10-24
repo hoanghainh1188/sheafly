@@ -5,6 +5,7 @@ use crate::calendar::{Calendar, TimeRange, WorkWeek};
 use crate::calendar_base;
 use crate::clipboard::{self, FillField, TaskClipboard};
 use crate::error::{EngineError, Invalid};
+use crate::focus;
 use crate::fields::{self, FieldKind, FieldValue, OptionRename};
 use crate::import::{self, ImportResource, ImportTask};
 use crate::plan;
@@ -391,6 +392,16 @@ pub enum Command {
     SetResourceGroup {
         uid: u32,
         group: String,
+    },
+    /// Set the share of time at work people give to project work (`focus.rs`).
+    SetFocusFactor {
+        factor: f64,
+    },
+    /// Set (or, `None`, clear) a resource's own productivity factor.
+    SetResourceFocus {
+        uid: u32,
+        #[serde(default)]
+        focus: Option<f64>,
     },
     /// Replace the ordered assignment rules. Only suggestions read them.
     SetAssignmentRules {
@@ -889,6 +900,7 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
                 .iter_mut()
                 .find(|resource| resource.uid == *uid)
                 .ok_or(EngineError::ResourceNotFound)?;
+            let kind_changed = resource.kind != *kind;
             resource.name = name.clone();
             resource.kind = *kind;
             resource.max_units = (*max_units).max(0.0);
@@ -896,6 +908,10 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
             resource.standard_rate = *standard_rate;
             resource.overtime_rate = *overtime_rate;
             resource.cost_per_use = *cost_per_use;
+            // The kind decides whether the project's factor applies.
+            if kind_changed && resource.focus.is_none() && project.focus_factor != 1.0 {
+                focus::reapply_resource(project, *uid);
+            }
         }
         Command::DeleteResource { uid } => {
             project.resources.retain(|resource| resource.uid != *uid);
@@ -1147,6 +1163,8 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
         }
         Command::SetSkillLevels { levels } => skill_levels::set_levels(project, levels)?,
         Command::SetResourceGroup { uid, group } => skill_levels::set_group(project, *uid, group)?,
+        Command::SetFocusFactor { factor } => focus::set_project_focus(project, *factor)?,
+        Command::SetResourceFocus { uid, focus } => focus::set_resource_focus(project, *uid, *focus)?,
         Command::SetAssignmentRules { rules } => skills::set_rules(project, rules)?,
         Command::AssignTasks { assignments } => {
             if assignments.is_empty() {
