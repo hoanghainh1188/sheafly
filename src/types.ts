@@ -1122,3 +1122,38 @@ export interface ProjectMetrics {
   statistics: ProjectStatistics;
 }
 export type Scale = "day" | "week" | "month";
+
+/** The plan of a Sheafly Pro license (`sheafly_license::Plan`). */
+export type LicensePlan = "pro" | "business" | "trial";
+
+/** Why a key does not unlock Pro on this build (`Problem::code`, or `not_saved`). */
+export type LicenseProblem =
+  | "malformed"
+  | "newer_format"
+  | "unknown_key"
+  | "bad_signature"
+  | "revoked"
+  | "expired"
+  | "updates_ended"
+  | "not_saved";
+
+/** The license of this computer, as `license_status` reports it (`license::LicenseView`). */
+export interface LicenseView {
+  /** `none`: Free, no key; `active`: Pro on this build; `inactive`: a key that does not work here. */
+  state: "none" | "active" | "inactive";
+  plan: LicensePlan | null;
+  name: string | null;
+  email: string | null;
+  seats: number | null;
+  /** Releases made up to this day ("2027-10-24") are covered. */
+  updates_until: string | null;
+  /** The last day of a trial. */
+  expires: string | null;
+  problem: LicenseProblem | null;
+  /** The day the problem is about: the end of a trial or of updates. */
+  problem_day: string | null;
+  /** The day this build was made. */
+  build_date: string;
+  /** Feature codes unlocked on this build, e.g. "trackers". */
+  features: string[];
+}

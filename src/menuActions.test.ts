@@ -30,6 +30,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     openTrackerSettings: vi.fn(),
     openWorkingTime: vi.fn(),
     openBaseline: vi.fn(),
+    openLicense: vi.fn(),
     openRecurring: vi.fn(),
     openSplit: vi.fn(),
     changeLang: vi.fn(),
@@ -233,5 +234,13 @@ describe("custom fields", () => {
     const ctx = context({ selection: [1, 2, 3], fillField: { field: 4 } });
     handleMenuAction("fill-down", ctx);
     expect(ctx.send).toHaveBeenCalledWith({ type: "fill_down", from_uid: 1, to_uids: [2, 3], field: { field: 4 } });
+  });
+});
+
+describe("Help menu", () => {
+  it("opens the license dialog", () => {
+    const ctx = context();
+    handleMenuAction("license", ctx);
+    expect(ctx.openLicense).toHaveBeenCalled();
   });
 });

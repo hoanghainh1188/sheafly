@@ -11,6 +11,7 @@ import type {
   ImportResource,
   ImportSheet,
   ImportTask,
+  LicenseView,
   LoadBucket,
   LoadMap,
   NetworkLayout,
@@ -64,6 +65,33 @@ export function errorMessage(error: unknown): string {
   if (typeof error === "string") return error;
   if (error instanceof Error) return error.message;
   return pick(apiMessages).failed;
+}
+
+/** The Sheafly Pro license of this computer. */
+export function licenseStatus(): Promise<LicenseView> {
+  return invoke<LicenseView>("license_status");
+}
+
+/**
+ * Enter a license key. `ok` when it unlocks Pro on this build and was saved; otherwise the
+ * view says why, and the key saved before (if any) stays.
+ */
+export async function licenseInstall(key: string): Promise<{ ok: boolean; view: LicenseView }> {
+  try {
+    return { ok: true, view: await invoke<LicenseView>("license_install", { key }) };
+  } catch (refused) {
+    if (isLicenseView(refused)) return { ok: false, view: refused };
+    throw refused;
+  }
+}
+
+function isLicenseView(value: unknown): value is LicenseView {
+  return typeof value === "object" && value !== null && "state" in value && "build_date" in value;
+}
+
+/** Forget the key on this computer; Sheafly goes back to Free. */
+export function licenseRemove(): Promise<LicenseView> {
+  return invoke<LicenseView>("license_remove");
 }
 
 /** The language the user chose in the menu, or null to follow the system. */
