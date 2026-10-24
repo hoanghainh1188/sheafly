@@ -75,6 +75,7 @@ const VIEWS: Record<string, ViewId> = {
   "view-matrix": "matrix",
   "view-usage": "usage",
   "view-load": "load",
+  "view-curves": "curves",
   "view-forecast": "forecast",
   "view-network": "network",
 };

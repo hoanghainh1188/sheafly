@@ -13,6 +13,7 @@ pub mod calendar_base;
 pub mod checkpoint;
 pub mod clipboard;
 pub mod command;
+pub mod curves;
 pub mod document;
 pub mod error;
 pub mod evm;

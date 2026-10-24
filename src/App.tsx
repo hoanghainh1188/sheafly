@@ -53,6 +53,7 @@ import { readShare, saveShare } from "./components/split/sheetShare";
 import { TaskSheet } from "./components/TaskSheet";
 import { TaskUsage } from "./components/TaskUsage";
 import { LoadMapView } from "./components/load/LoadMapView";
+import { CurvesView } from "./components/curves/CurvesView";
 import { Toolbar } from "./components/Toolbar";
 import { VIEW_PANEL_ID, ViewBar, viewTabId } from "./components/ViewBar";
 import { instantToDateKey, normalizePredecessorText, todayInstant } from "./format";
@@ -833,6 +834,7 @@ export default function App() {
                 }}
               />
             )}
+            {project && view === "curves" && <CurvesView project={project} />}
             {project && view === "forecast" && (
               <ForecastView
                 project={project}

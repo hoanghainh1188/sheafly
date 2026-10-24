@@ -1,6 +1,7 @@
 import type {
   AssignmentMatrix,
   Command,
+  CurvesReport,
   FieldValue,
   ImportProblem,
   ImportSheet,
@@ -46,6 +47,21 @@ class FakeBackend {
   loadMap: LoadMap = { buckets: [], rows: [] };
   /** What `assignment_matrix` answers. */
   assignmentMatrix: AssignmentMatrix = { columns: [], roles: [], rows: [], total_work: 0 };
+  /** What `curves` answers. */
+  curvesReport: CurvesReport = {
+    measure: "cost",
+    bucket: "week",
+    filter: { type: "project" },
+    baseline: null,
+    status_date: null,
+    baseline_finish: null,
+    scheduled_finish: null,
+    total_baseline: 0,
+    total_scheduled: 0,
+    total_actual: 0,
+    total_earned: 0,
+    points: [],
+  };
   /** What `check_import` answers. */
   importProblems: ImportProblem[] = [];
   /** What `tracker_pull` answers (null is a cancelled pull), and `tracker_test` calls the project. */
@@ -81,6 +97,21 @@ class FakeBackend {
     this.importProblems = [];
     this.planPreview = null;
     this.loadMap = { buckets: [], rows: [] };
+    this.assignmentMatrix = { columns: [], roles: [], rows: [], total_work: 0 };
+    this.curvesReport = {
+      measure: "cost",
+      bucket: "week",
+      filter: { type: "project" },
+      baseline: null,
+      status_date: null,
+      baseline_finish: null,
+      scheduled_finish: null,
+      total_baseline: 0,
+      total_scheduled: 0,
+      total_actual: 0,
+      total_earned: 0,
+      points: [],
+    };
     this.table = null;
     this.pullPreview = null;
     this.pullChanges = null;
@@ -153,6 +184,8 @@ class FakeBackend {
         return structuredClone(this.loadMap);
       case "assignment_matrix":
         return structuredClone(this.assignmentMatrix);
+      case "curves":
+        return structuredClone(this.curvesReport);
       case "forecast":
         return structuredClone(this.forecast);
       case "preview_plan":

@@ -333,6 +333,7 @@ pub const VIEW_MENU: &[Entry] = &[
     item("view-usage", "Sử dụng công việc", "Task Usage", None),
     item("view-network", "Sơ đồ mạng", "Network Diagram", None),
     item("view-load", "Tải nguồn lực", "Resource Load", None),
+    item("view-curves", "Đường cong S", "S-Curves", None),
     item("view-forecast", "Dự báo ngày kết thúc", "Finish Forecast", None),
     item(
         "view-evm",
