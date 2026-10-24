@@ -11,9 +11,10 @@ export type LoadTone = "off" | "free" | "light" | "full" | "over";
 export const FULL_FROM = 0.8;
 
 export function loadTone(cell: LoadCell): LoadTone {
-  if (cell.capacity <= 0) return cell.work > 0 ? "over" : "off";
-  if (cell.work <= 0) return "free";
-  const share = cell.work / cell.capacity;
+  const demand = cell.work + (cell.unassigned ?? 0);
+  if (cell.capacity <= 0) return demand > 0 ? "over" : "off";
+  if (demand <= 0) return "free";
+  const share = demand / cell.capacity;
   if (share > 1) return "over";
   return share >= FULL_FROM ? "full" : "light";
 }

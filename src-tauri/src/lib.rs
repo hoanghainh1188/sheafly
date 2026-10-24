@@ -37,7 +37,7 @@ use sheafly_engine::command::{LevelingDelay, LevelingSplits};
 use sheafly_engine::import::{self, ImportColumn, ImportResource, ImportTable, ImportTask};
 use sheafly_engine::forecast::{self, Forecast};
 use sheafly_engine::assignment_matrix::{self, AssignmentMatrix};
-use sheafly_engine::load_map::{self, Bucket, LoadMap};
+use sheafly_engine::load_map::{self, Bucket, LoadGroup, LoadMap};
 use sheafly_engine::plan::{self, PlanPreview};
 use sheafly_engine::timeutil::parse_date_key;
 use sheafly_engine::skills::TaskAssignment;
@@ -599,14 +599,22 @@ fn check_import(
         .collect()
 }
 
-/// Work and capacity by person for the days `from` to `to` (`YYYY-MM-DD`), by day or week.
+/// Work and capacity by person, role or skill for the days `from` to `to` (`YYYY-MM-DD`), by day, week, or month.
 #[tauri::command(async)]
-fn load_map(state: State<'_, AppState>, from: String, to: String, bucket: Bucket) -> Result<LoadMap, String> {
+fn load_map(
+    state: State<'_, AppState>,
+    from: String,
+    to: String,
+    bucket: Bucket,
+    group: Option<LoadGroup>,
+    baseline: Option<u8>,
+) -> Result<LoadMap, String> {
     let bad = || EngineError::from(sheafly_engine::Invalid::BadDate).message(lang(&state));
     let from = parse_date_key(&from).ok_or_else(bad)?;
     let to = parse_date_key(&to).ok_or_else(bad)?;
     let project = lock(&state).project.clone();
-    load_map::load_map(&project, from, to, bucket).map_err(engine_message(&state))
+    let group = group.unwrap_or_default();
+    load_map::load_map(&project, from, to, bucket, group, baseline).map_err(engine_message(&state))
 }
 
 /// The assignment matrix: tasks x people (or roles), with units and work.

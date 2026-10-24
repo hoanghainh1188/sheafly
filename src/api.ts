@@ -14,6 +14,7 @@ import type {
   ImportTask,
   LicenseView,
   LoadBucket,
+  LoadGroup,
   LoadMap,
   NetworkLayout,
   NetworkOptions,
@@ -144,9 +145,15 @@ export function suggestAssignments(): Promise<Suggestion[]> {
   return inOrder(() => invoke<Suggestion[]>("suggest_assignments"));
 }
 
-/** Work and capacity by person from `from` to `to` ("YYYY-MM-DD", both included). */
-export function loadMap(from: string, to: string, bucket: LoadBucket): Promise<LoadMap> {
-  return inOrder(() => invoke<LoadMap>("load_map", { from, to, bucket }));
+/** Work and capacity by person, role or skill from `from` to `to` ("YYYY-MM-DD", both included). */
+export function loadMap(
+  from: string,
+  to: string,
+  bucket: LoadBucket,
+  group?: LoadGroup,
+  baseline?: number,
+): Promise<LoadMap> {
+  return inOrder(() => invoke<LoadMap>("load_map", { from, to, bucket, group, baseline }));
 }
 
 /** The resource assignment matrix (by person or by role); a read, never logged. */

@@ -4,7 +4,7 @@
 use chrono::{Datelike, NaiveDate};
 
 use sheafly_engine::command::Command;
-use sheafly_engine::load_map::{load_map, Bucket};
+use sheafly_engine::load_map::{load_map, Bucket, LoadGroup};
 use sheafly_engine::model::{ResourceKind, Task, TaskType};
 use sheafly_engine::mspdi::{read_mspdi, write_mspdi};
 use sheafly_engine::skills::{AssignmentRule, RuleTarget};
@@ -251,7 +251,7 @@ fn usage_and_the_load_map_count_useful_hours() {
     assert!((total - 32.0).abs() < 1e-9);
 
     // A full-time person at 80 % is fully loaded by 6.4 hours a day.
-    let map = load_map(&doc.project, monday(), monday(), Bucket::Day).unwrap();
+    let map = load_map(&doc.project, monday(), monday(), Bucket::Day, LoadGroup::Person, None).unwrap();
     assert_eq!(map.rows[0].cells[0].work, 384);
     assert_eq!(map.rows[0].cells[0].capacity, 384);
 }

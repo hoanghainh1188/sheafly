@@ -307,18 +307,33 @@ export interface TaskAssignment {
 }
 
 /** Mirror of `load_map::Bucket`. */
-export type LoadBucket = "day" | "week";
+export type LoadBucket = "day" | "week" | "month";
+
+/** Mirror of `load_map::LoadGroup`. */
+export type LoadGroup =
+  | { type: "person" }
+  | { type: "group" }
+  | { type: "skill"; id: number; min_level?: number };
 
 /** Mirror of `load_map::LoadCell`: working minutes of work and of capacity. */
 export interface LoadCell {
   work: number;
+  unassigned?: number;
   capacity: number;
+  baseline?: number;
+}
+
+/** Mirror of `load_map::LoadRow`. */
+export interface LoadRow {
+  resource_uid?: number;
+  label: string;
+  cells: LoadCell[];
 }
 
 /** Mirror of `load_map::LoadMap`: `buckets` are the first day of each, "YYYY-MM-DD". */
 export interface LoadMap {
   buckets: string[];
-  rows: { resource_uid: number; cells: LoadCell[] }[];
+  rows: LoadRow[];
 }
 
 /** Mirror of `forecast::Percentiles`: finish dates (ms) by which that share of runs had finished. */
