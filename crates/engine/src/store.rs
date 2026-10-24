@@ -35,8 +35,11 @@ use crate::recovery::{self, Damage, OpenReport, Recovery};
 /// `RecordPush` and the pushed days of a task's link (a push to the tracker) are version 18, and `ApplyPull`'s `resolutions` with the `base` of a task's link (three-way
 /// sync, conflicts) version 19, and a source's `sync` settings (per-field direction and conflict policy,
 /// constants) version 20, and the planned days (`PullTask::planned_*`, `PushChange::start_field`/`due_field`,
-/// `PushedEntry::planned_*`) version 21, and the Jira tracker kind and a pulled assignee's name (`PullTask::assignee_name`) version 22. None of them changes how older commands schedule.
-pub const FORMAT_VERSION: u32 = 22;
+/// `PushedEntry::planned_*`) version 21, and the Jira tracker kind and a pulled assignee's name (`PullTask::assignee_name`) version 22, and
+/// skill levels and resource groups (`SetSkillLevels`, `SetResourceGroup`, the levels of
+/// `SetResourceSkills`, a rule's `min_level`) version 23. None of them changes how older
+/// commands schedule.
+pub const FORMAT_VERSION: u32 = 23;
 
 /// Checkpoints a file keeps below the cursor, besides the one at the cursor. Each is
 /// a whole scheduled project (about 1 MB for 1,000 tasks), so only a few nearby ones.

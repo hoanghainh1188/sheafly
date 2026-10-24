@@ -103,6 +103,8 @@ fn small_fields(project: &Project) -> Project {
         leveling_order: project.leveling_order.clone(),
         skills: project.skills.clone(),
         next_skill_id: project.next_skill_id,
+        skill_levels: project.skill_levels.clone(),
+        next_skill_level_id: project.next_skill_level_id,
         assignment_rules: project.assignment_rules.clone(),
         forecast: project.forecast.clone(),
         source: project.source.clone(),

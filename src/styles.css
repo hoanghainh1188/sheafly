@@ -505,7 +505,8 @@ body.pane-resizing { cursor: col-resize; user-select: none; }
   color: var(--text-secondary);
 }
 .resource-sheet, .usage { flex: 1; overflow: auto; background: var(--surface); padding: 8px; }
-.resource-tools { display: flex; gap: 6px; margin-bottom: 8px; }
+.resource-tools { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+.resource-role-filter { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--text-muted); }
 table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid var(--grid); padding: 4px 6px; text-align: left; white-space: nowrap; }
 th { position: sticky; top: 0; background: var(--surface-sunken); }

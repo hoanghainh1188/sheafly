@@ -42,6 +42,7 @@ pub mod recovery;
 pub mod recurrence;
 mod ripple;
 pub mod schedule;
+pub mod skill_levels;
 pub mod skills;
 pub mod source;
 pub mod split;

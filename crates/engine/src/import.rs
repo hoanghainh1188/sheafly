@@ -25,6 +25,7 @@ use crate::fields::{self, FieldValue};
 use crate::lang::Lang;
 use crate::model::{ConstraintType, Dependency, DepKind, Project, Resource, ResourceKind, Task, TaskType};
 use crate::schedule::{normalize_outline, schedule};
+use crate::skill_levels;
 use crate::skills;
 use crate::work;
 
@@ -41,9 +42,13 @@ pub struct ImportResource {
     pub max_units: Option<f64>,
     #[serde(default)]
     pub standard_rate: Option<f64>,
-    /// Skill names; those the project lacks are added to it.
+    /// Skill names, each with an optional level as `Skill:Level`; skills and levels the
+    /// project lacks are added to it (a new level at the top of the scale).
     #[serde(default)]
     pub skills: Vec<String>,
+    /// Role or team; empty for none.
+    #[serde(default)]
+    pub group: String,
 }
 
 impl Default for ImportResource {
@@ -54,6 +59,7 @@ impl Default for ImportResource {
             max_units: None,
             standard_rate: None,
             skills: Vec::new(),
+            group: String::new(),
         }
     }
 }
@@ -119,6 +125,7 @@ pub enum ImportColumn {
     MaxUnits,
     Rate,
     Skills,
+    Group,
     Level,
     Work,
     WorkLow,
@@ -261,7 +268,14 @@ fn add_resources(project: &mut Project, rows: &[ImportResource], errors: &mut Ve
                 continue;
             }
         }
-        let skill_ids = match skill_ids(project, &input.skills) {
+        let group = match skill_levels::checked_group(&input.group) {
+            Ok(group) => group,
+            Err(error) => {
+                errors.push(row_error(table, row, ImportColumn::Group, error));
+                continue;
+            }
+        };
+        let (skill_ids, levels) = match skill_ids(project, &input.skills) {
             Ok(ids) => ids,
             Err(error) => {
                 errors.push(row_error(table, row, ImportColumn::Skills, error));
@@ -273,15 +287,23 @@ fn add_resources(project: &mut Project, rows: &[ImportResource], errors: &mut Ve
         resource.max_units = input.max_units.unwrap_or(resource.max_units);
         resource.standard_rate = input.standard_rate.unwrap_or(resource.standard_rate);
         resource.skills = skill_ids;
+        resource.skill_levels = levels;
+        resource.group = group;
         project.resources.push(resource);
     }
 }
 
-/// The ids of the skills `names`, adding those the project lacks.
-fn skill_ids(project: &mut Project, names: &[String]) -> Result<Vec<u32>, EngineError> {
+/// The ids of the skills `names` (`Skill` or `Skill:Level`) and their levels, adding the
+/// skills and levels the project lacks.
+fn skill_ids(
+    project: &mut Project,
+    names: &[String],
+) -> Result<(Vec<u32>, BTreeMap<u32, u32>), EngineError> {
     let mut ids = Vec::new();
-    for name in names {
-        let lower = name.trim().to_lowercase();
+    let mut levels = BTreeMap::new();
+    for text in names {
+        let (name, level) = skill_levels::split_level(text);
+        let lower = name.to_lowercase();
         let existing = project
             .skills
             .iter()
@@ -292,10 +314,13 @@ fn skill_ids(project: &mut Project, names: &[String]) -> Result<Vec<u32>, Engine
             None => skills::add_skill(project, name)?,
         };
         ids.push(id);
+        if let Some(level) = level {
+            levels.insert(id, skill_levels::level_id(project, level)?);
+        }
     }
     ids.sort_unstable();
     ids.dedup();
-    Ok(ids)
+    Ok((ids, levels))
 }
 
 fn add_tasks(

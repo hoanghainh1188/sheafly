@@ -7,6 +7,7 @@ use crate::calendar::Calendar;
 use crate::fields::{FieldDef, FieldValue};
 use crate::level_order::SortKey;
 use crate::recurrence::Recurrence;
+use crate::skill_levels::SkillLevel;
 use crate::skills::{AssignmentRule, SkillDef};
 use crate::source::{ExternalLink, Source};
 use crate::split::{Segment, Split};
@@ -316,6 +317,12 @@ pub struct Resource {
     /// pulled from a tracker goes to the person whose email its assignee has.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub email: String,
+    /// Role or team, a label (`skill_levels.rs`); empty when none. MSPDI `<Group>`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+    /// The level of each skill that has one: skill id → level id of `Project.skill_levels`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub skill_levels: BTreeMap<u32, u32>,
 }
 
 impl Resource {
@@ -332,6 +339,8 @@ impl Resource {
             availability: Vec::new(),
             skills: Vec::new(),
             email: String::new(),
+            group: String::new(),
+            skill_levels: BTreeMap::new(),
         }
     }
 }
@@ -417,6 +426,12 @@ pub struct Project {
     /// written before it existed: the next id is then one past the largest.
     #[serde(default)]
     pub next_skill_id: u32,
+    /// Skill levels, lowest first (`skill_levels.rs`); empty when levels are not used.
+    #[serde(default)]
+    pub skill_levels: Vec<SkillLevel>,
+    /// The id the next level gets; ids are never reused, like skill ids.
+    #[serde(default)]
+    pub next_skill_level_id: u32,
     /// Ordered rules from custom field values to a person or a skill; the first that
     /// matches a task is used. Only suggestions read them.
     #[serde(default)]
@@ -503,6 +518,8 @@ impl Project {
             leveling_order: Vec::new(),
             skills: Vec::new(),
             next_skill_id: 1,
+            skill_levels: Vec::new(),
+            next_skill_level_id: 1,
             assignment_rules: Vec::new(),
             forecast: ForecastSettings::default(),
             source: None,

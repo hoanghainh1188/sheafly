@@ -89,6 +89,66 @@ describe("SkillsTab", () => {
     expect(send).toHaveBeenNthCalledWith(2, { type: "set_resource_skills", uid: 10, skills: [2] });
   });
 
+  it("edits the scale of levels, keeping each level by its id", async () => {
+    const levels = [
+      { id: 1, name: "Junior" },
+      { id: 2, name: "Senior" },
+    ];
+    const { send, user } = renderTab(makeProject({ ...team(), skill_levels: levels }));
+    expect(screen.getByRole("list", { name: "Các cấp độ, từ thấp đến cao" })).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Cấp độ mới" }), "Mid{Enter}");
+    expect(send).toHaveBeenLastCalledWith({
+      type: "set_skill_levels",
+      levels: [...levels, { id: null, name: "Mid" }],
+    });
+    await user.click(screen.getByRole("button", { name: "Đưa Senior lên thấp hơn" }));
+    // Each change builds on the scale sent last, Mid included, before the engine answers.
+    const mid = { id: null, name: "Mid" };
+    expect(send).toHaveBeenLastCalledWith({ type: "set_skill_levels", levels: [levels[1], levels[0], mid] });
+    await user.click(screen.getByRole("button", { name: "Xóa cấp độ Junior" }));
+    expect(send).toHaveBeenLastCalledWith({ type: "set_skill_levels", levels: [levels[1], mid] });
+  });
+
+  it("refuses a level name with a colon before sending it", async () => {
+    const { send, user } = renderTab(team());
+    await user.type(screen.getByRole("textbox", { name: "Cấp độ mới" }), "A:B");
+    expect(screen.getByRole("button", { name: "Thêm cấp độ" })).toBeDisabled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("chooses each person's level per skill once the project has a scale", async () => {
+    const project = makeProject({
+      skills: SKILLS,
+      skill_levels: [
+        { id: 1, name: "Junior" },
+        { id: 2, name: "Senior" },
+      ],
+      resources: [makeResource({ uid: 10, name: "An", skills: [1, 2], skill_levels: { "1": 2 } })],
+    });
+    const { send, user } = renderTab(project);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    const design = screen.getByRole("combobox", { name: "Cấp độ Thiết kế của An" });
+    expect(design).toHaveValue("2");
+    expect(screen.getByRole("combobox", { name: "Cấp độ Kiểm thử của An" })).toHaveValue("any");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Cấp độ Kiểm thử của An" }), "Junior");
+    expect(send).toHaveBeenLastCalledWith({
+      type: "set_resource_skills",
+      uid: 10,
+      skills: [1, 2],
+      levels: [
+        { skill: 1, level: 2 },
+        { skill: 2, level: 1 },
+      ],
+    });
+    await user.selectOptions(design, "—");
+    expect(send).toHaveBeenLastCalledWith({
+      type: "set_resource_skills",
+      uid: 10,
+      skills: [2],
+      levels: [{ skill: 2, level: 1 }],
+    });
+  });
+
   it("speaks English", () => {
     renderTab(team(), undefined, "en");
     expect(screen.getByRole("table", { name: "Who has which skill" })).toBeInTheDocument();

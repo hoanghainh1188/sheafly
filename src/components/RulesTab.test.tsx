@@ -47,6 +47,26 @@ describe("RulesTab", () => {
     });
   });
 
+  it("asks for a minimum level once the project has a scale", async () => {
+    const project = makeProject({
+      ...team([WEB_TO_DESIGN]),
+      skill_levels: [
+        { id: 4, name: "Junior" },
+        { id: 5, name: "Senior" },
+      ],
+    });
+    const { send, user } = renderTab(project);
+    const level = screen.getByRole("combobox", { name: "Cấp tối thiểu, quy tắc 1" });
+    expect(level).toHaveValue("");
+    await user.selectOptions(level, "Senior");
+    expect(sent(send)[0].target).toEqual({ type: "skill", id: 1, min_level: 5 });
+  });
+
+  it("asks for no level when the project has no scale", () => {
+    renderTab(team([WEB_TO_DESIGN]));
+    expect(screen.queryByRole("combobox", { name: "Cấp tối thiểu, quy tắc 1" })).not.toBeInTheDocument();
+  });
+
   it("cannot add a rule with nobody to point at", () => {
     renderTab(makeProject());
     expect(screen.getByRole("button", { name: "Thêm quy tắc" })).toBeDisabled();

@@ -20,7 +20,7 @@ export const TASK_COLUMNS = [
   "units",
   "after",
 ] as const;
-export const RESOURCE_COLUMNS = ["name", "kind", "max_units", "rate", "skills"] as const;
+export const RESOURCE_COLUMNS = ["name", "kind", "max_units", "rate", "skills", "group"] as const;
 
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 export type ResourceColumn = (typeof RESOURCE_COLUMNS)[number];
@@ -61,6 +61,7 @@ const RESOURCE_HEADERS: Record<ResourceColumn, string[]> = {
   max_units: ["don vi toi da", "toi da", "nang luc", "max units", "maximum units", "capacity"],
   rate: ["don gia", "gia", "luong gio", "rate", "standard rate", "cost"],
   skills: ["ky nang", "skills", "skill"],
+  group: ["vai tro", "nhom", "chuc danh", "role", "group", "team"],
 };
 
 /** Lower case without accents (đ as d) or extra spaces, so headers match however typed. */
