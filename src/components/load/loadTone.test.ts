@@ -11,5 +11,7 @@ describe("loadTone", () => {
     expect(loadTone({ work: 480, capacity: 480 })).toBe("full");
     expect(loadTone({ work: 481, capacity: 480 })).toBe("over");
     expect(loadTone({ work: 60, capacity: 0 })).toBe("over");
+    expect(loadTone({ work: 240, unassigned: 240, capacity: 480 })).toBe("full");
+    expect(loadTone({ work: 240, unassigned: 250, capacity: 480 })).toBe("over");
   });
 });

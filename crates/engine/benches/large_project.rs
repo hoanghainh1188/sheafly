@@ -36,7 +36,7 @@ use sheafly_engine::forecast::{forecast, forecast_with_threads};
 use sheafly_engine::import::{check_import, ImportAssignee, ImportResource, ImportTask};
 use sheafly_engine::level::level_project;
 use sheafly_engine::level_order::{Criterion, SortKey};
-use sheafly_engine::load_map::{load_map, Bucket};
+use sheafly_engine::load_map::{load_map, Bucket, LoadGroup};
 use sheafly_engine::model::{Assignment, ConstraintType, DepKind, Dependency, Resource, ResourceKind, Task, TaskType};
 use sheafly_engine::skills::{AssignmentRule, Condition, RuleTarget, SkillDef};
 use sheafly_engine::suggest::suggest;
@@ -435,10 +435,16 @@ fn main() {
         let project = capacity(people, tasks, false, true, false, false);
         let monday = NaiveDate::from_ymd_opt(2026, 1, 5).unwrap();
         timed("load_map 52 tuần", || {
-            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Week).expect("load map")
+            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Week, LoadGroup::Person, None).expect("load map")
         });
         timed("load_map 84 ngày", || {
-            load_map(&project, monday, monday + chrono::Duration::days(83), Bucket::Day).expect("load map")
+            load_map(&project, monday, monday + chrono::Duration::days(83), Bucket::Day, LoadGroup::Person, None).expect("load map")
+        });
+        timed("load_map 12 tháng", || {
+            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Person, None).expect("load map")
+        });
+        timed("load_map vai trò 12 tháng", || {
+            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Group, None).expect("load map")
         });
         return;
     }
