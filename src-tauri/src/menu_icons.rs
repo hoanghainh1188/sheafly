@@ -60,6 +60,7 @@ pub const SYMBOLS: &[(&str, &str)] = &[
     ("tracking", "chart.bar.doc.horizontal"),
     ("reschedule-uncompleted", "calendar.badge.clock"),
     ("compact-history", "archivebox"),
+    ("license", "key"),
     ("third-party-licenses", "doc.plaintext"),
 ];
 

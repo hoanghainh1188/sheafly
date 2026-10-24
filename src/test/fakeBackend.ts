@@ -3,6 +3,7 @@ import type {
   FieldValue,
   ImportProblem,
   ImportSheet,
+  LicenseView,
   LoadMap,
   PlanPreview,
   NetworkLayout,
@@ -18,7 +19,7 @@ import type {
   PushPreview,
   PushReport,
 } from "../types";
-import { makeMetrics, makeResource, makeSnapshot, makeTask } from "./fixtures";
+import { makeLicense, makeMetrics, makeProLicense, makeResource, makeSnapshot, makeTask } from "./fixtures";
 
 export interface InvokeCall {
   cmd: string;
@@ -61,6 +62,10 @@ class FakeBackend {
   language: string | null = null;
   /** The remembered theme (`get_theme`). */
   theme = "system";
+  /** This computer's license (`license_status`). */
+  license: LicenseView = makeLicense();
+  /** What `license_install` refuses with; null accepts any key as an active Pro license. */
+  licenseRefusal: LicenseView | null = null;
   private failures = new Map<string, unknown>();
   private holds = new Map<string, Promise<void>>();
 
@@ -84,6 +89,8 @@ class FakeBackend {
     this.autosave = null;
     this.language = null;
     this.theme = "system";
+    this.license = makeLicense();
+    this.licenseRefusal = null;
   }
 
   /** The next call to `cmd` waits until the returned function runs, like a slow Rust command. */
@@ -161,6 +168,15 @@ class FakeBackend {
       }
       case "check_import":
         return structuredClone(this.importProblems);
+      case "license_status":
+        return structuredClone(this.license);
+      case "license_install":
+        if (this.licenseRefusal) throw structuredClone(this.licenseRefusal);
+        this.license = makeProLicense();
+        return structuredClone(this.license);
+      case "license_remove":
+        this.license = makeLicense();
+        return structuredClone(this.license);
       case "tracker_has_key":
         return this.trackerKeys.has(args?.site as string);
       case "tracker_save_key":

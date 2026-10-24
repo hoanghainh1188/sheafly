@@ -816,6 +816,15 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .import-preview td.bad { color: var(--critical-text); background: var(--tone-danger-bg); }
 .import-preview tbody th { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .import-problems { margin: 0; padding-left: 18px; max-height: 20vh; overflow: auto; }
+/* Trợ giúp → License Sheafly Pro. */
+.license-dialog { display: grid; gap: 12px; }
+.license-dialog label { display: grid; gap: 3px; }
+.license-dialog textarea { min-width: 0; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+.license-summary { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-chrome); }
+.license-summary.active { border-color: var(--accent); }
+.license-summary h3 { margin: 0; font-size: 15px; }
+.license-summary p { margin: 0; }
+.license-actions { display: flex; justify-content: flex-end; }
 .tracker-setup { display: grid; gap: 10px; }
 .tracker-setup label { display: grid; gap: 3px; }
 .tracker-setup input:not([type="checkbox"]) { min-width: 0; }

@@ -18,6 +18,9 @@ jobs:
       - name: Test scheduling engine
         run: cargo test -p sheafly-engine
 
+      - name: Test license keys
+        run: cargo test -p sheafly-license && cargo test -p sheafly-license --release --test license
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9

@@ -51,6 +51,8 @@ export interface MenuContext {
   openTrackerPush: () => void;
   /** Dự án → Đồng bộ task tracker: how each field syncs. */
   openTrackerSettings: () => void;
+  /** Trợ giúp → License Sheafly Pro. */
+  openLicense: () => void;
   /** Lịch làm việc, on the project calendar. */
   openWorkingTime: () => void;
   openBaseline: () => void;
@@ -188,6 +190,9 @@ function viewAction(id: string, ctx: MenuContext): boolean {
       return true;
     case "working-time":
       ctx.openWorkingTime();
+      return true;
+    case "license":
+      ctx.openLicense();
       return true;
     case "lang-vi":
     case "lang-en":
