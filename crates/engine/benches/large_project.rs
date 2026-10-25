@@ -468,6 +468,12 @@ fn main() {
         });
         return;
     }
+    if args.iter().any(|arg| arg == "summary") {
+        let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
+        let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
+        project_summaries(people, tasks);
+        return;
+    }
     if args.iter().any(|arg| arg == "import") {
         import(numbers.first().copied().unwrap_or(5000).max(1) as u32);
         return;
@@ -596,4 +602,37 @@ fn finish_forecast(people: u32, tasks: u32, runs: u32) {
         hours(result.finish.p80),
         hours(result.finish.p90)
     );
+}
+
+/// The AI project summary on the linked capacity project, once leveled and once with the
+/// leveling cleared so people are overloaded: cut to the default limit, masked, and whole.
+fn project_summaries(people: u32, tasks: u32) {
+    use sheafly_engine::summary::{project_summary, SummaryOptions};
+    let mut doc = Document::from_project(capacity(people, tasks, false, true, false, true));
+    for (label, clear) in [("đã cân bằng", false), ("quá tải", true)] {
+        if clear {
+            doc.apply(Command::ClearLeveling).expect("clear leveling");
+        }
+        let project = &doc.project;
+        println!("{label}: {} khoảng quá tải", project.overallocations.len());
+        let (cut, _) = timed("project_summary (giới hạn)", || {
+            project_summary(project, &SummaryOptions::default())
+        });
+        let json = serde_json::to_string(&cut).expect("json");
+        println!(
+            "{:<28} {:>10} việc, {} người, {:.1} KB",
+            "giữ lại",
+            cut.tasks.len(),
+            cut.resources.len(),
+            json.len() as f64 / 1024.0
+        );
+        timed("project_summary (ẩn tên)", || {
+            project_summary(project, &SummaryOptions { mask: true, ..SummaryOptions::default() })
+        });
+        let (whole, _) = timed("project_summary (không cắt)", || {
+            project_summary(project, &SummaryOptions { max_chars: usize::MAX, ..SummaryOptions::default() })
+        });
+        let json = serde_json::to_string(&whole).expect("json");
+        println!("{:<28} {:>10.1} KB", "summary đầy đủ", json.len() as f64 / 1024.0);
+    }
 }
