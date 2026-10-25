@@ -18,6 +18,9 @@ jobs:
       - name: Test scheduling engine
         run: cargo test -p sheafly-engine
 
+      - name: Test reports (Excel workbook)
+        run: cargo test -p sheafly-report
+
       - name: Test license keys
         run: cargo test -p sheafly-license && cargo test -p sheafly-license --release --test license
 

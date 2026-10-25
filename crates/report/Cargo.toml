@@ -1,0 +1,16 @@
+[package]
+name = "sheafly-report"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Sheafly reports: the multi-sheet Excel workbook, built from what the engine computes"
+publish = false
+
+[dependencies]
+sheafly-engine = { path = "../engine" }
+rust_xlsxwriter = "0.99.1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# The tests read the workbook back.
+calamine = { version = "0.36.1", features = ["dates"] }

@@ -56,6 +56,7 @@ pub struct Text {
     pub plan_trial: &'static str,
     pub licensed_to: &'static str,
     pub needs_pro: &'static str,
+    pub needs_pro_reporting: &'static str,
 }
 
 pub static VI: Text = Text {
@@ -111,6 +112,7 @@ Giấy phép của mọi thành phần bên thứ ba: Trợ giúp → Giấy ph�
     plan_trial: "Dùng thử Sheafly Pro",
     licensed_to: "cấp cho",
     needs_pro: "Cần Sheafly Pro để đổi năng suất hữu ích (Trợ giúp → License Sheafly Pro…).",
+    needs_pro_reporting: "Cần Sheafly Pro để xuất bảng tính Excel (Trợ giúp → License Sheafly Pro…).",
 };
 
 pub static EN: Text = Text {
@@ -166,6 +168,7 @@ Licenses of all third-party components: Help → Third-Party Licenses.",
     plan_trial: "Sheafly Pro trial",
     licensed_to: "licensed to",
     needs_pro: "Changing the useful productivity needs Sheafly Pro (Help → Sheafly Pro License…).",
+    needs_pro_reporting: "Exporting an Excel workbook needs Sheafly Pro (Help → Sheafly Pro License…).",
 };
 
 pub fn text(lang: Lang) -> &'static Text {
@@ -274,7 +277,7 @@ pub const FILE_MENU: &[Entry] = &[
         "Export",
         &[
             item("export-xml", "Xuất MSPDI…", "Export MSPDI…", None),
-            item("export-excel", "Xuất Excel…", "Export Excel…", None),
+            item("export-excel", "Xuất Excel (Pro)…", "Export Excel (Pro)…", None),
             item("export-pdf", "Xuất PDF", "Export PDF", None),
             item("push-tracker", "Đẩy ngày về task tracker (Pro)…", "Push Dates to Task Tracker (Pro)…", None),
         ],
