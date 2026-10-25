@@ -337,6 +337,10 @@ export function exportMspdi(): Promise<void> {
   return afterQueued(() => invoke<void>("export_mspdi"));
 }
 
+export function exportExcel(): Promise<void> {
+  return afterQueued(() => invoke<void>("export_excel"));
+}
+
 export function savePdf(bytes: Uint8Array, fileName: string): Promise<void> {
   return invoke<void>("save_pdf", { bytes: Array.from(bytes), fileName });
 }

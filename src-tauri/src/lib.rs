@@ -15,6 +15,7 @@ mod settings;
 mod table;
 mod tracker;
 mod tracker_commands;
+pub mod excel;
 
 use settings::Theme;
 
@@ -1055,6 +1056,38 @@ async fn export_mspdi(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
 }
 
 #[tauri::command]
+async fn export_excel(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    if !state.license.grants(Feature::Reporting) {
+        return Err(i18n::text(lang(&state)).needs_pro.into());
+    }
+    let Some(_permit) = begin_dialog(&state) else {
+        return Ok(());
+    };
+    let text = i18n::text(lang(&state));
+    let picked = await_save(
+        app.dialog()
+            .file()
+            .add_filter("Excel", &["xlsx"])
+            .set_title(text.export_excel_title)
+            .set_file_name(text.export_excel_file),
+    )
+    .await;
+    let Some(path) = picked.and_then(path_from_dialog) else {
+        return Ok(());
+    };
+    let path = ensure_suffix(path, ".xlsx");
+    let (project, l) = {
+        let doc = lock(&state);
+        (doc.project.clone(), lang(&state))
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        excel::export_excel_workbook(&project, &path, l)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn save_pdf(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
@@ -1460,6 +1493,7 @@ pub fn run() {
             forecast,
             apply_plan,
             export_mspdi,
+            export_excel,
             save_pdf,
             check_autosave,
             compact_history,

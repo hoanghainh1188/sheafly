@@ -32,6 +32,7 @@ calamine = { version = "0.36.1", features = ["dates"] }
 chrono = { version = "0.4.45", default-features = false }
 ureq = { version = "3.4.2", features = ["json"] }
 keyring = "4.2.0"
+rust_xlsxwriter = "0.99.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"
@@ -39,6 +40,5 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSString"] }
 
 [dev-dependencies]
-rust_xlsxwriter = "0.99.1"
 # The license tests sign keys with the development key.
 sheafly-license = { path = "../crates/license", features = ["issue"] }

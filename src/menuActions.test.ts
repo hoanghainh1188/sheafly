@@ -116,10 +116,10 @@ describe("handleMenuAction", () => {
 
   it("runs file commands through the file dialog and recent files by index", () => {
     const ctx = context();
-    for (const id of ["new", "open", "save", "save-as", "import-xml", "export-xml", "compact-history", "recent:3"]) {
+    for (const id of ["new", "open", "save", "save-as", "import-xml", "export-xml", "export-excel", "compact-history", "recent:3"]) {
       handleMenuAction(id, ctx);
     }
-    expect(ctx.startFileDialog).toHaveBeenCalledTimes(8);
+    expect(ctx.startFileDialog).toHaveBeenCalledTimes(9);
   });
 
   it("opens the table import", () => {

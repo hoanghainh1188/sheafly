@@ -39,6 +39,8 @@ pub struct Text {
     pub plan_outdated: &'static str,
     pub export_mspdi_title: &'static str,
     pub export_mspdi_file: &'static str,
+    pub export_excel_title: &'static str,
+    pub export_excel_file: &'static str,
     pub export_pdf_title: &'static str,
     pub empty_pdf: &'static str,
     pub restore: &'static str,
@@ -93,6 +95,8 @@ Giấy phép của mọi thành phần bên thứ ba: Trợ giúp → Giấy ph�
     plan_outdated: "Dự án đã thay đổi từ lúc xem trước. Hãy xem lại kế hoạch.",
     export_mspdi_title: "Xuất MSPDI",
     export_mspdi_file: "du-an.xml",
+    export_excel_title: "Xuất bảng tính Excel",
+    export_excel_file: "du-an.xlsx",
     export_pdf_title: "Xuất PDF",
     empty_pdf: "PDF trống",
     restore: "Khôi phục",
@@ -146,6 +150,8 @@ Licenses of all third-party components: Help → Third-Party Licenses.",
     plan_outdated: "The project changed since the preview. Review the plan again.",
     export_mspdi_title: "Export MSPDI",
     export_mspdi_file: "project.xml",
+    export_excel_title: "Export Excel Workbook",
+    export_excel_file: "project.xlsx",
     export_pdf_title: "Export PDF",
     empty_pdf: "The PDF is empty",
     restore: "Restore",
@@ -268,6 +274,7 @@ pub const FILE_MENU: &[Entry] = &[
         "Export",
         &[
             item("export-xml", "Xuất MSPDI…", "Export MSPDI…", None),
+            item("export-excel", "Xuất Excel…", "Export Excel…", None),
             item("export-pdf", "Xuất PDF", "Export PDF", None),
             item("push-tracker", "Đẩy ngày về task tracker (Pro)…", "Push Dates to Task Tracker (Pro)…", None),
         ],
@@ -616,6 +623,7 @@ mod tests {
             (VI.about_text, EN.about_text),
             (VI.copyright, EN.copyright),
             (VI.export_mspdi_file, EN.export_mspdi_file),
+            (VI.export_excel_file, EN.export_excel_file),
         ];
         for (vi, en) in pairs {
             assert!(!vi.is_empty() && !en.is_empty());

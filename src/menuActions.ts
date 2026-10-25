@@ -1,6 +1,7 @@
 import {
   compactHistory,
   copyTasks,
+  exportExcel,
   exportMspdi,
   importMspdi,
   newProject,
@@ -115,6 +116,11 @@ function documentAction(id: string, ctx: MenuContext): boolean {
     case "export-xml":
       ctx.startFileDialog(async () => {
         await exportMspdi();
+      });
+      return true;
+    case "export-excel":
+      ctx.startFileDialog(async () => {
+        await exportExcel();
       });
       return true;
     case "export-pdf":
