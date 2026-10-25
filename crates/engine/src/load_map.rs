@@ -9,13 +9,13 @@
 //! they have that day (`availability::units_on`: max units, or a period's) and focus factor,
 //! the same capacity overallocation and leveling read. Both are in working minutes.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::availability::units_on;
-use crate::baseline_load::resource_baseline_load_by_day;
+use crate::baseline_load::baseline_load_by_resource;
 use crate::error::{EngineError, Invalid};
 use crate::model::{Project, Task};
 use crate::skill_levels::{qualifies, rank};
@@ -82,6 +82,9 @@ pub struct LoadMap {
     pub rows: Vec<LoadRow>,
 }
 
+/// The baseline load of every person by day, from [`baseline_load_by_resource`].
+type BaselineLoad = BTreeMap<u32, BTreeMap<NaiveDate, i64>>;
+
 pub(crate) struct Buckets {
     pub(crate) first: NaiveDate,
     pub(crate) last: NaiveDate,
@@ -105,6 +108,9 @@ pub fn load_map(
     }
 
     let buckets = compute_buckets(from, to, bucket)?;
+    // One pass over the assignments for every person, not one per person.
+    let baseline = baseline.map(|number| baseline_load_by_resource(project, number));
+    let baseline = baseline.as_ref();
 
     match group {
         LoadGroup::Person => build_person_rows(project, &buckets, baseline),
@@ -199,7 +205,7 @@ pub(crate) fn compute_buckets(from: NaiveDate, to: NaiveDate, bucket: Bucket) ->
 fn build_person_rows(
     project: &Project,
     buckets: &Buckets,
-    baseline: Option<u8>,
+    baseline: Option<&BaselineLoad>,
 ) -> Result<LoadMap, EngineError> {
     let positions: HashMap<u32, usize> = project
         .resources
@@ -223,7 +229,7 @@ fn build_person_rows(
     for (resource, row) in project.resources.iter().zip(&mut rows) {
         add_resource_capacity(project, resource, buckets.first, buckets.last, &buckets.index_of, &mut row.cells);
         if let Some(b) = baseline {
-            add_resource_baseline(project, resource.uid, b, &buckets.index_of, &mut row.cells);
+            add_resource_baseline(b, resource.uid, buckets, &mut row.cells);
         }
     }
 
@@ -233,7 +239,7 @@ fn build_person_rows(
 fn build_role_rows(
     project: &Project,
     buckets: &Buckets,
-    baseline: Option<u8>,
+    baseline: Option<&BaselineLoad>,
 ) -> Result<LoadMap, EngineError> {
     let mut roles: Vec<String> = Vec::new();
     for r in &project.resources {
@@ -269,7 +275,7 @@ fn build_role_rows(
         if let Some(&row_idx) = resource_to_row.get(&resource.uid) {
             add_resource_capacity(project, resource, buckets.first, buckets.last, &buckets.index_of, &mut rows[row_idx].cells);
             if let Some(b) = baseline {
-                add_resource_baseline(project, resource.uid, b, &buckets.index_of, &mut rows[row_idx].cells);
+                add_resource_baseline(b, resource.uid, buckets, &mut rows[row_idx].cells);
             }
         }
     }
@@ -282,7 +288,7 @@ fn build_skill_rows(
     buckets: &Buckets,
     skill_id: u32,
     min_level: Option<u32>,
-    baseline: Option<u8>,
+    baseline: Option<&BaselineLoad>,
 ) -> Result<LoadMap, EngineError> {
     let skill = match project.skills.iter().find(|s| s.id == skill_id) {
         Some(s) => s,
@@ -298,10 +304,16 @@ fn build_skill_rows(
     // Summary row for the skill itself
     let mut skill_cells = vec![LoadCell::default(); buckets.count];
 
-    // Compute unassigned demand for this skill
+    // Unassigned demand for this skill: the leaves suggestions would offer, so work already
+    // started or finished is not counted as still waiting for someone.
     let staffed: HashSet<u32> = project.assignments.iter().map(|a| a.task_uid).collect();
     for task in &project.tasks {
-        if task.summary || staffed.contains(&task.uid) || task.work <= 0 {
+        if task.summary
+            || staffed.contains(&task.uid)
+            || task.work <= 0
+            || task.actual_start.is_some()
+            || task.percent_complete > 0.0
+        {
             continue;
         }
         if let Some(rule_idx) = rule_for(project, task) {
@@ -351,7 +363,7 @@ fn build_skill_rows(
     for (m, row) in members.iter().zip(&mut member_rows) {
         add_resource_capacity(project, m, buckets.first, buckets.last, &buckets.index_of, &mut row.cells);
         if let Some(b) = baseline {
-            add_resource_baseline(project, m.uid, b, &buckets.index_of, &mut row.cells);
+            add_resource_baseline(b, m.uid, buckets, &mut row.cells);
         }
     }
 
@@ -427,18 +439,17 @@ fn add_resource_capacity(
 }
 
 fn add_resource_baseline(
-    project: &Project,
+    baseline: &BaselineLoad,
     resource_uid: u32,
-    baseline_number: u8,
-    index_of: &impl Fn(NaiveDate) -> Option<usize>,
+    buckets: &Buckets,
     cells: &mut [LoadCell],
 ) {
-    let daily = resource_baseline_load_by_day(project, resource_uid, baseline_number);
-    for (date, mins) in daily {
-        if let Some(index) = index_of(date) {
-            if index < cells.len() {
-                cells[index].baseline = Some(cells[index].baseline.unwrap_or(0) + mins);
-            }
+    let Some(days) = baseline.get(&resource_uid) else {
+        return;
+    };
+    for (&date, &mins) in days.range(buckets.first..=buckets.last) {
+        if let Some(cell) = (buckets.index_of)(date).and_then(|index| cells.get_mut(index)) {
+            *cell.baseline.get_or_insert(0) += mins;
         }
     }
 }
