@@ -44,6 +44,7 @@ pub mod mspdi_report;
 mod mspdi_workweeks;
 pub mod network;
 pub mod plan;
+pub mod proposal;
 pub mod pull;
 pub mod push;
 pub mod recovery;

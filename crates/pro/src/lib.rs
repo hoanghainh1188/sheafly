@@ -1,7 +1,7 @@
 //! Stub of the Sheafly Pro modules (plan part 20G).
 //!
 //! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, the AI
-//! recommendations of sheafly-pro#1, and later ones) are
+//! recommendations of sheafly-pro#1 (kinds 1 and 2), and later ones) are
 //! closed source, in the private repository `sheafly-pro`. This crate has the same public
 //! functions and the same dependencies, so the app builds from this repository alone;
 //! each function answers that this build has no Pro modules. Release builds copy the
@@ -9,7 +9,7 @@
 //! whenever the private crate gains one, and keep the shared computations in the engine.
 
 use serde_json::Value;
-use sheafly_engine::advice::AdviceStep;
+use sheafly_engine::advice::{AdviceStep, Fixes};
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -54,6 +54,28 @@ pub fn risks_next(
     Err(unavailable(lang))
 }
 
+/// The first request to fix overallocation and missed deadlines (sheafly-pro#1, kind 2). The
+/// stub has none.
+pub fn fixes_request(_summary: &ProjectSummary, _model: &str, lang: Lang) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// Read a reply to a request to fix the project. The stub has none.
+pub fn fixes_next(
+    _body: &Value,
+    _reply: &Value,
+    _project: &Project,
+    _mask: bool,
+    lang: Lang,
+) -> Result<AdviceStep<Fixes>, String> {
+    Err(unavailable(lang))
+}
+
+/// The body asking once more for the proposals the engine refused. The stub has none.
+pub fn fixes_retry(_body: &Value, _reply: &Value, _refused: &[(String, String)], lang: Lang) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +93,8 @@ mod tests {
         assert_eq!(risks_request(&summary, "m", Lang::En), Err(unavailable(Lang::En)));
         let empty = serde_json::json!({});
         assert_eq!(risks_next(&empty, &empty, &doc.project, false, Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(fixes_request(&summary, "m", Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(fixes_next(&empty, &empty, &doc.project, false, Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(fixes_retry(&empty, &empty, &[], Lang::En), Err(unavailable(Lang::En)));
     }
 }

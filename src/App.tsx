@@ -925,6 +925,7 @@ export default function App() {
             onOpenLicense={() => setLicenseOpen(true)}
             onOpenSettings={() => setAiSettingsOpen(true)}
             onPickTask={selectOne}
+            onApplied={(next) => void run(async () => next)}
             onClose={() => setAiOpen(false)}
           />
         )}

@@ -1016,7 +1016,8 @@ export type Command =
   | { type: "apply_pull"; rows: PullTask[]; pulled_at: number; resolutions?: Resolution[] }
   | { type: "record_push"; entries: PushedEntry[] }
   | { type: "import_rows"; after_uid: number | null; resources: ImportResource[]; tasks: ImportTask[] }
-  | { type: "apply_plan"; assignments: TaskAssignment[]; delays: LevelingDelay[]; splits: LevelingSplits[] };
+  | { type: "apply_plan"; assignments: TaskAssignment[]; delays: LevelingDelay[]; splits: LevelingSplits[] }
+  | { type: "apply_proposal"; commands: Command[] };
 
 /** Mirror of `clipboard::TaskCopy`: one copied task, its level relative to the copy. */
 export interface TaskCopy {
@@ -1301,6 +1302,62 @@ export interface RiskReport {
   truncated: boolean;
   omitted_tasks: number;
   omitted_resources: number;
+}
+
+/** What an AI proposal sets out to improve (`advice::Goal`). */
+export type ProposalGoal = { kind: "deadline"; task: number } | { kind: "overallocation"; resource: number } | { kind: "finish" };
+
+/** A change the AI proposes (`advice::Proposal`); the engine tries it before anyone applies it. */
+export interface Proposal {
+  id: string;
+  goal: ProposalGoal;
+  commands: Command[];
+  /** Level the people after the commands; the trial turns it into `apply_leveling`. */
+  level: boolean;
+  /** Why, with tasks as `T42` and people as `R7`. */
+  reason: string;
+}
+
+/** What `ai_fixes` answers (`ai_commands::FixReport`): proposals not tried yet. */
+export interface FixReport {
+  proposals: Proposal[];
+  /** Why there is no proposal, when there is none. */
+  note: string;
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+  truncated: boolean;
+  omitted_tasks: number;
+  omitted_resources: number;
+}
+
+/** The four measures of a trial (`proposal::Measures`). */
+export interface ProposalMeasures {
+  finish: number;
+  late: number;
+  /** Work above what people have, in working minutes. */
+  over_minutes: number;
+  critical: number;
+}
+
+export type ProposalMeasure = "finish" | "late" | "overallocation" | "critical";
+
+export type ProposalVerdict = "improved" | "trade_off" | "worse";
+
+/** What a proposal would do, measured by the engine on a copy (`proposal::ProposalTrial`). */
+export interface ProposalTrial {
+  /** What applying sends: the proposal's commands, then the leveling the trial computed. */
+  commands: Command[];
+  assignments: TaskAssignment[];
+  moves: PlanMove[];
+  late: number[];
+  overallocated: number[];
+  before: ProposalMeasures;
+  after: ProposalMeasures;
+  target_before: number;
+  target_after: number;
+  verdict: ProposalVerdict;
+  worse: ProposalMeasure[];
 }
 
 /** The license of this computer, as `license_status` reports it (`license::LicenseView`). */

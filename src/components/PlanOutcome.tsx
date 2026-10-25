@@ -5,6 +5,9 @@ import { useMessages } from "../i18n";
 import type { PlanPreview, Project } from "../types";
 import { assignPreviewMessages } from "./AssignPreviewDialog.i18n";
 
+/** What a plan or an AI proposal's trial would do (both come from the engine). */
+type PlanResult = Pick<PlanPreview, "assignments" | "moves" | "late" | "overallocated">;
+
 /** Moved tasks listed before the rest are counted. */
 const LISTED_MOVES = 200;
 
@@ -13,7 +16,7 @@ const LISTED_MOVES = 200;
  * ones that would end after their deadline, and the people leveling cannot relieve. The
  * engine computed it all (`preview_plan`); this only shows it.
  */
-export function PlanOutcome({ project, plan }: { project: Project; plan: PlanPreview }) {
+export function PlanOutcome({ project, plan }: { project: Project; plan: PlanResult }) {
   const p = useMessages(assignPreviewMessages);
   const [person, setPerson] = useState<number | null>(null);
   const tasks = useMemo(() => new Map(project.tasks.map((task) => [task.uid, task])), [project.tasks]);

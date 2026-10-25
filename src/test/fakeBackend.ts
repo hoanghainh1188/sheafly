@@ -2,6 +2,9 @@ import type {
   AiCheck,
   AiSettings,
   RiskReport,
+  FixReport,
+  Proposal,
+  ProposalTrial,
   AssignmentMatrix,
   Command,
   CurvesReport,
@@ -85,6 +88,11 @@ class FakeBackend {
   aiCheck: AiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
   /** What `ai_risks` answers (null is a stopped request). */
   aiRisks: RiskReport | null = emptyRiskReport();
+  /** What `ai_fixes` answers (null is a stopped request). */
+  aiFixes: FixReport | null = emptyFixReport();
+  /** What `ai_trial` answers by proposal id: a trial, or the engine's refusal as text. By
+   * default an improvement whose commands are the proposal's. */
+  aiTrials: Record<string, ProposalTrial | string> = {};
   /** What `pick_table` answers (null is a cancelled dialog); `read_table_sheet` reads it too. */
   table: ImportSheet | null = null;
   /** What `check_autosave` restores; null when there is no autosave. */
@@ -134,6 +142,8 @@ class FakeBackend {
     this.aiKey = false;
     this.aiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
     this.aiRisks = emptyRiskReport();
+    this.aiFixes = emptyFixReport();
+    this.aiTrials = {};
     this.failures.clear();
     this.holds.clear();
     this.autosave = null;
@@ -254,6 +264,17 @@ class FakeBackend {
         return structuredClone(this.aiCheck);
       case "ai_risks":
         return structuredClone(this.aiRisks);
+      case "ai_fixes":
+        return structuredClone(this.aiFixes);
+      case "ai_trial": {
+        const proposal = args?.proposal as Proposal;
+        const answer = this.aiTrials[proposal.id] ?? improvedTrial(proposal);
+        if (typeof answer === "string") throw answer;
+        return structuredClone(answer);
+      }
+      case "ai_apply":
+        this.apply({ type: "apply_proposal", commands: args?.commands as Command[] });
+        return structuredClone(this.snapshot);
       case "ai_cancel":
         return undefined;
       case "tracker_has_key":
@@ -676,6 +697,9 @@ class FakeBackend {
         if (project.editable_actual_costs && command.cost != null) task.actual_cost = command.cost;
         return;
       }
+      case "apply_proposal":
+        for (const inner of command.commands) this.apply(inner);
+        return;
       default:
         // Other commands are only recorded; tests assert on the payload.
         return;
@@ -691,6 +715,28 @@ function setValue(task: Task, fieldId: number, value: FieldValue | null): void {
 
 function emptyRiskReport(): RiskReport {
   return { cards: [], input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
+}
+
+function emptyFixReport(): FixReport {
+  return { proposals: [], note: "", input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
+}
+
+/** A trial that finds the proposal better on every count and changes no date. */
+function improvedTrial(proposal: Proposal): ProposalTrial {
+  const before = { finish: 0, late: 1, over_minutes: 480, critical: 2 };
+  return {
+    commands: proposal.commands,
+    assignments: [],
+    moves: [],
+    late: [],
+    overallocated: [],
+    before,
+    after: { ...before, late: 0, over_minutes: 0 },
+    target_before: 480,
+    target_after: 0,
+    verdict: "improved",
+    worse: [],
+  };
 }
 
 function defaultAiSettings(): AiSettings {

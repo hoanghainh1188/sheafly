@@ -39,7 +39,7 @@ function enable() {
 }
 
 function open(overrides: Partial<{ aiPro: boolean; project: Project }> = {}) {
-  const handlers = { onOpenLicense: vi.fn(), onOpenSettings: vi.fn(), onPickTask: vi.fn(), onClose: vi.fn() };
+  const handlers = { onOpenLicense: vi.fn(), onOpenSettings: vi.fn(), onPickTask: vi.fn(), onApplied: vi.fn(), onClose: vi.fn() };
   const view = render(
     <RecommendationsPanel project={overrides.project ?? project} aiPro={overrides.aiPro ?? true} settingsKey={0} {...handlers} />,
   );
@@ -147,7 +147,7 @@ describe("RecommendationsPanel", () => {
     fakeBackend.aiRisks = { ...report, requests: 1, truncated: false };
     render(
       <I18nProvider lang="en">
-        <RecommendationsPanel project={project} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onClose={vi.fn()} />
+        <RecommendationsPanel project={project} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onApplied={vi.fn()} onClose={vi.fn()} />
       </I18nProvider>,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Explain risks" }));

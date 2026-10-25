@@ -3,8 +3,11 @@
 //! crate (`scripts/check-stub.py` compares them), so each CI compiles it against its own
 //! crate and a signature that drifts fails to build. Add a line with every new function.
 
+// Spelling every type out is the point of this file.
+#![allow(clippy::type_complexity)]
+
 use serde_json::Value;
-use sheafly_engine::advice::AdviceStep;
+use sheafly_engine::advice::{AdviceStep, Fixes};
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -18,4 +21,7 @@ fn the_public_functions_keep_their_types() {
     let _: fn(&Project, Lang) -> Result<HealthReport, String> = sheafly_pro::schedule_health;
     let _: fn(&ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::risks_request;
     let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep, String> = sheafly_pro::risks_next;
+    let _: fn(&ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::fixes_request;
+    let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep<Fixes>, String> = sheafly_pro::fixes_next;
+    let _: fn(&Value, &Value, &[(String, String)], Lang) -> Result<Value, String> = sheafly_pro::fixes_retry;
 }

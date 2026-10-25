@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use sheafly_engine::advice::{AdviceStep, RiskCard, MAX_TOOL_ROUNDS};
+use sheafly_engine::advice::{AdviceStep, Fixes, MAX_TOOL_ROUNDS};
 use sheafly_engine::Lang;
 
 use crate::settings::AiSettings;
@@ -266,14 +266,18 @@ pub fn check(api: &dyn AiApi, model: &str) -> Result<AiCheck, AiError> {
     }
 }
 
-/// What one recommendation request found, and what it cost.
-#[derive(Debug, PartialEq, Eq, Serialize)]
-pub struct AdviceRun {
-    pub cards: Vec<RiskCard>,
+/// What one recommendation request found (`T`: the risk cards, or the proposals), and what
+/// it cost.
+#[derive(Debug, PartialEq)]
+pub struct AdviceRun<T> {
+    pub answer: T,
     /// Input tokens of every request, the cached prefix included.
     pub input_tokens: u64,
     pub output_tokens: u64,
     pub requests: u32,
+    /// The last body sent and its reply, for a retry that continues the conversation.
+    pub body: Value,
+    pub reply: Value,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -295,15 +299,15 @@ fn tokens(reply: &Value) -> (u64, u64) {
 }
 
 /// One recommendation request: send `first`, hand each reply to `next` (the Pro crate's
-/// reading) and send the body it asks for, until it has the cards. `cancel` is checked
+/// reading) and send the body it asks for, until it has the answer. `cancel` is checked
 /// before every request; at most one more request than `MAX_TOOL_ROUNDS` goes out, since
 /// the reading forces the answer after the last tool round.
-pub fn run_advice(
+pub fn run_advice<T>(
     api: &dyn AiApi,
     first: Value,
-    next: impl Fn(&Value, &Value) -> Result<AdviceStep, String>,
+    next: impl Fn(&Value, &Value) -> Result<AdviceStep<T>, String>,
     cancel: &AtomicBool,
-) -> Result<AdviceRun, RunError> {
+) -> Result<AdviceRun<T>, RunError> {
     let (mut body, mut input_tokens, mut output_tokens) = (first, 0, 0);
     for requests in 1..=MAX_TOOL_ROUNDS as u32 + 1 {
         if cancel.load(Ordering::Relaxed) {
@@ -314,16 +318,72 @@ pub fn run_advice(
         input_tokens += input;
         output_tokens += output;
         match next(&body, &reply).map_err(RunError::Reply)? {
-            AdviceStep::Done(cards) => return Ok(AdviceRun { cards, input_tokens, output_tokens, requests }),
+            AdviceStep::Done(answer) => {
+                return Ok(AdviceRun { answer, input_tokens, output_tokens, requests, body, reply })
+            }
             AdviceStep::Ask(more) => body = more,
         }
     }
     Err(RunError::Ai(AiError::BadResponse))
 }
 
+/// What a request to fix the project found (kind 2), after the one retry, and what it cost.
+#[derive(Debug, PartialEq)]
+pub struct FixRun {
+    pub fixes: Fixes,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub requests: u32,
+}
+
+/// A request to fix the project (kind 2, phase 22 PR D): `run_advice` until the model
+/// proposes, then `refuses` (the engine's trial) on every proposal. When the engine refuses
+/// some, `retry` builds the body that sends its words back, once (decision D5); the
+/// proposals of that answer replace the refused ones. A retry that fails, or that proposes
+/// nothing, keeps the refused proposals, so the user sees what the engine said. Stopping
+/// during the retry stops the whole request.
+pub fn run_fixes(
+    api: &dyn AiApi,
+    first: Value,
+    next: impl Fn(&Value, &Value) -> Result<AdviceStep<Fixes>, String>,
+    retry: impl Fn(&Value, &Value, &[(String, String)]) -> Result<Value, String>,
+    refuses: impl Fn(&sheafly_engine::advice::Proposal) -> Option<String>,
+    cancel: &AtomicBool,
+) -> Result<FixRun, RunError> {
+    let run = run_advice(api, first, &next, cancel)?;
+    let mut done = FixRun { fixes: run.answer, input_tokens: run.input_tokens, output_tokens: run.output_tokens, requests: run.requests };
+    let refused: Vec<(String, String)> = done
+        .fixes
+        .proposals
+        .iter()
+        .filter_map(|proposal| refuses(proposal).map(|message| (proposal.id.clone(), message)))
+        .collect();
+    if refused.is_empty() {
+        return Ok(done);
+    }
+    let Ok(body) = retry(&run.body, &run.reply, &refused) else {
+        return Ok(done);
+    };
+    match run_advice(api, body, &next, cancel) {
+        Ok(again) => {
+            done.input_tokens += again.input_tokens;
+            done.output_tokens += again.output_tokens;
+            done.requests += again.requests;
+            if !again.answer.proposals.is_empty() {
+                done.fixes.proposals.retain(|proposal| !refused.iter().any(|(id, _)| *id == proposal.id));
+                done.fixes.proposals.extend(again.answer.proposals);
+            }
+            Ok(done)
+        }
+        Err(RunError::Cancelled) => Err(RunError::Cancelled),
+        Err(_) => Ok(done),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sheafly_engine::advice::RiskCard;
     use std::cell::RefCell;
 
     /// Answers with a handwritten reply and keeps the body it was sent.
@@ -466,7 +526,7 @@ mod tests {
         let api = script(&["ai_risks_tools.json", "ai_risks_tools.json", "ai_risks_report.json"]);
         let cancel = AtomicBool::new(false);
         let run = run_advice(&api, json!({ "round": 0 }), reading, &cancel).unwrap();
-        assert_eq!(run.cards, vec![card()]);
+        assert_eq!(run.answer, vec![card()]);
         assert_eq!(run.requests, 3);
         // Each tool reply: 2100 + 1800 cached; the answer: 400 + 1800 read from the cache.
         assert_eq!(run.input_tokens, 2 * 3900 + 2200);
@@ -504,6 +564,65 @@ mod tests {
         let cancel = AtomicBool::new(false);
         assert_eq!(run_advice(&api, json!({}), reading, &cancel), Err(RunError::Ai(AiError::BadResponse)));
         assert_eq!(api.sent.borrow().len(), MAX_TOOL_ROUNDS + 1);
+    }
+
+    /// Stands in for the Pro crate's kind 2 reading: every call of the reply is a proposal.
+    fn proposals(_: &Value, reply: &Value) -> Result<AdviceStep<Fixes>, String> {
+        let proposals = reply["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|call| sheafly_engine::advice::Proposal {
+                id: call["id"].as_str().unwrap().into(),
+                goal: sheafly_engine::advice::Goal::Finish,
+                commands: vec![],
+                level: true,
+                reason: "r".into(),
+            })
+            .collect();
+        Ok(AdviceStep::Done(Fixes { proposals, note: String::new() }))
+    }
+
+    fn retry(body: &Value, _: &Value, refused: &[(String, String)]) -> Result<Value, String> {
+        Ok(json!({ "retry_of": body, "refused": refused.iter().map(|(id, message)| json!([id, message])).collect::<Vec<_>>() }))
+    }
+
+    /// The engine refuses `toolu_41` of `ai_fixes_refused.json`.
+    fn refuses(proposal: &sheafly_engine::advice::Proposal) -> Option<String> {
+        (proposal.id == "toolu_41").then(|| "Không tìm thấy công việc".to_string())
+    }
+
+    fn ids(run: &FixRun) -> Vec<&str> {
+        run.fixes.proposals.iter().map(|proposal| proposal.id.as_str()).collect()
+    }
+
+    #[test]
+    fn a_refused_proposal_goes_back_once_and_its_correction_replaces_it() {
+        let api = script(&["ai_fixes_refused.json", "ai_fixes_retried.json"]);
+        let cancel = AtomicBool::new(false);
+        let run = run_fixes(&api, json!({ "first": true }), proposals, retry, refuses, &cancel).unwrap();
+        assert_eq!(ids(&run), ["toolu_42", "toolu_51"]);
+        assert_eq!(run.requests, 2);
+        assert_eq!(run.input_tokens, 2 * (2400 + 1900));
+        let sent = api.sent.borrow();
+        assert_eq!(sent[1]["refused"], json!([["toolu_41", "Không tìm thấy công việc"]]));
+        assert_eq!(sent[1]["retry_of"], json!({ "first": true }), "the retry continues the last body");
+    }
+
+    #[test]
+    fn nothing_refused_means_no_retry_and_a_failed_retry_keeps_what_was_refused() {
+        let cancel = AtomicBool::new(false);
+        let api = script(&["ai_fixes_retried.json"]);
+        let run = run_fixes(&api, json!({}), proposals, retry, refuses, &cancel).unwrap();
+        assert_eq!((ids(&run), run.requests), (vec!["toolu_51"], 1));
+
+        let api = Script { replies: vec![Ok(fixture("ai_fixes_refused.json")), Err(AiError::Overloaded)], ..script(&[]) };
+        let run = run_fixes(&api, json!({}), proposals, retry, refuses, &cancel).unwrap();
+        assert_eq!(ids(&run), ["toolu_41", "toolu_42"], "the user still sees what the engine refused");
+
+        static STOP: AtomicBool = AtomicBool::new(false);
+        let api = Script { cancel_after: Some((1, &STOP)), ..script(&["ai_fixes_refused.json", "ai_fixes_retried.json"]) };
+        assert_eq!(run_fixes(&api, json!({}), proposals, retry, refuses, &STOP), Err(RunError::Cancelled));
     }
 
     #[test]
