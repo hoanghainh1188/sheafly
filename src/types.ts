@@ -746,6 +746,85 @@ export interface PaymentInput {
   retained: boolean;
 }
 
+/** Mirror of `payments::PaymentDates`: when a payment is invoiced and due. */
+export interface PaymentDates {
+  invoice: number;
+  /** The start of the day `lag_days` calendar days after the invoice's. */
+  due: number;
+  /** The invoice date is the task's actual start or finish. */
+  actual: boolean;
+}
+
+/** Mirror of `cash_flow::CashFlowOptions`: the span defaults to the project's money. */
+export interface CashFlowOptions {
+  bucket: Bucket;
+  baseline?: number | null;
+  from?: number | null;
+  to?: number | null;
+}
+
+/** Mirror of `cash_flow::Flows`: `actual` up to the status date, `baseline` when chosen. */
+export interface Flows {
+  forecast: number;
+  actual: number | null;
+  baseline: number | null;
+}
+
+/** Mirror of `cash_flow::CashFlowPeriod`. */
+export interface CashFlowPeriod {
+  /** The start of the period's first day. */
+  date: number;
+  /** The first day, `YYYY-MM-DD`. */
+  label: string;
+  inflow: Flows;
+  outflow: Flows;
+  net: Flows;
+  /** The balance at the end of the period, from the opening balance. */
+  balance: Flows;
+  /** The forecast balance is below zero. */
+  deficit: boolean;
+}
+
+/** Mirror of `cash_flow::PaymentForecast`; the retention's release has no `id`. */
+export interface PaymentForecast {
+  id: number | null;
+  name: string;
+  /** What is due, after the retention. */
+  amount: number;
+  retained: number;
+  received: number;
+  scheduled: PaymentDates | null;
+  baseline: PaymentDates | null;
+  /** When the forecast expects what is unpaid: the due date, or the status date once past. */
+  expected: number | null;
+  overdue: boolean;
+  /** Calendar days the scheduled due date is after the baseline's. */
+  late_days: number | null;
+  /** UIDs of the tasks driving the anchor's date, earliest first. */
+  driving: number[];
+}
+
+/** Mirror of `cash_flow::CashFlowNote`. */
+export type CashFlowNote =
+  | { type: "percent_total"; total: number }
+  | { type: "percent_without_contract"; id: number }
+  | { type: "over_received"; id: number }
+  | { type: "detached"; id: number };
+
+/** Mirror of `cash_flow::CashFlowReport` (computed by the Pro crate). */
+export interface CashFlowReport {
+  bucket: Bucket;
+  baseline: number | null;
+  status_date: number | null;
+  opening_balance: number;
+  periods: CashFlowPeriod[];
+  payments: PaymentForecast[];
+  /** The lowest forecast balance, and the first period it goes below zero. */
+  lowest_balance: number | null;
+  first_deficit: number | null;
+  notes: CashFlowNote[];
+}
+
 /** Mirror of `source::TrackerKind`. */
 export type TrackerKind = "backlog" | "jira";
 

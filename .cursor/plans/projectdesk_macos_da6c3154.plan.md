@@ -848,7 +848,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
 | Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue sheafly-pro#1) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
 | Xuất Excel nhiều sheet (Pha 24 PR 1, issue sheafly-pro#3) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
-| Dòng tiền và lịch thanh toán theo mốc (Pha 25, issue sheafly-pro#5; PR A dữ liệu đã làm) | lưu Free, xem `cashflow` | ba `Command` dữ liệu không chặn; đọc: `cash_flow`, `export_cash_flow`; màn Dòng tiền có ProBadge |
+| Dòng tiền và lịch thanh toán theo mốc (Pha 25, issue sheafly-pro#5; PR A dữ liệu và PR B logic Pro đã làm) | lưu Free, xem `cashflow` | ba `Command` dữ liệu không chặn; đọc: `cash_flow`, `export_cash_flow`; màn Dòng tiền có ProBadge |
 | Sau này: nhiều dự án dùng chung kho nguồn lực, dashboard một trang và nhận diện thương hiệu (sheafly-pro#3), đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
@@ -1022,7 +1022,7 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **PR 2 — dashboard một trang:** chưa làm. KPI (SV, CV, CPI, SPI, ngày xong dự kiến, tổng công và chi phí), đường S thu nhỏ, mốc sắp tới/đã xong/trễ, việc găng hàng đầu, tóm tắt quá tải; PDF/PNG với phông Be Vietnam Pro.
 - **PR 3 — nhận diện thương hiệu:** chưa làm. Logo (PNG/SVG), tên tổ chức, phiên bản tài liệu, ghi chú bảo mật trên đầu/chân trang PDF và trang bìa Excel.
 
-### Pha 25 — dòng tiền và lịch thanh toán theo mốc (issue sheafly-pro#5, Pro `cashflow`) — kế hoạch đã chốt; PR A (dữ liệu, engine công khai) đã làm (25/10/2026)
+### Pha 25 — dòng tiền và lịch thanh toán theo mốc (issue sheafly-pro#5, Pro `cashflow`) — kế hoạch đã chốt; PR A (dữ liệu, engine công khai) và PR B (logic Pro, shell) đã làm (25/10/2026)
 
 **Mục tiêu.** Cho người quản lý dự án thấy *tiền vào khi nào, tiền ra khi nào*, không chỉ ngày xong. Hợp đồng trọn gói hay theo mốc thu tiền khi đạt mốc ("30 % khi xong thiết kế giai đoạn 1"); một việc găng trễ ba tuần làm mốc trễ, khoản thu trễ theo, còn lương và nhà thầu vẫn phải trả. Người dùng nhận được:
 - **Lịch thanh toán**: các khoản thu gắn với mốc hoặc việc tóm tắt (số tiền hoặc phần trăm giá trị hợp đồng, hạn thanh toán sau khi mốc xong như Net 30, giữ lại bảo hành), ngày lập hóa đơn và ngày đến hạn tự dời theo lịch.
@@ -1105,6 +1105,12 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - `cash_flow.rs`: kiểu báo cáo (`CashFlowOptions`, `CashFlowReport`, `CashFlowPeriod`, `Flows` theo ba chuỗi, `PaymentForecast`, `CashFlowNote`), chưa có phép tính; stub `sheafly_pro::cash_flow`/`cash_flow_workbook` và hai dòng `tests/api.rs`. **Repo riêng cần thêm hai hàm này ở PR B** (tệp `tests/api.rs` phải giống nhau).
 - `FORMAT_VERSION` 26 (PR AI D đã lấy 25 cho `ApplyProposal`); `ENGINE_REVISION` giữ 9. `types.ts`, `fixtures.ts`, `fakeBackend` nhận ba lệnh.
 - Test: `tests/payments.rs` (14) và `tests/cost_timephased.rs` (12). Bench `-- cashflow 500 5000` (5.000 việc có đơn giá và chi phí cố định, tiến độ đến ngày trạng thái, 200 khoản): ngày của 200 khoản 0,5 ms, chuỗi dự báo 2 ms, mọi thứ engine đọc cho dòng tiền (ba chuỗi và ngày, cộng theo tháng hoặc 731 ngày) khoảng 5 ms.
+
+**Đã làm — PR B (25/10/2026, nhánh `feat/cash-flow` ở cả hai repo; sheafly-pro merge trước).** Theo thiết kế, với các điểm cụ thể:
+- Repo riêng, module `cash_flow` (`mod.rs` ráp kỳ và số dư, `periods.rs` cắt kỳ, `money_in.rs` tiền vào): tiền ra là `cost_timephased` (dự báo, thực tế, baseline n) đọc một lần trên khoảng rộng; *thực tế* tiền vào là các `Receipt` theo ngày, *dự báo* là tiền đã thu cộng phần chưa thu ở ngày đến hạn theo lịch (quá hạn thì dời về đầu ngày của ngày trạng thái, không có thì hôm nay theo `now_millis` như dự án mới), *baseline* là cả khoản ở ngày đến hạn của baseline. Giải ngân giữ lại là một `PaymentForecast` không có `id`, tên theo ngôn ngữ ("Giải ngân tiền giữ lại"); nó không có tiền đã thu (biên nhận ghi theo khoản), nên còn "chờ" đến khi đến hạn. Theo baseline nó chỉ mang phần giữ của các khoản có ngày baseline.
+- Kỳ cắt trong crate riêng (giống `compute_buckets`, vốn `pub(crate)` ở engine), tối đa `MAX_BUCKETS`, lỗi là chữ của engine (`DateRangeTooLong`, `BadDate`), để crate riêng không cần hàm engine mới (bản phát hành ghép crate riêng `main` lên `main` công khai). Tiền trước kỳ đầu vào số dư đầu; sau kỳ cuối thì bỏ. `actual` có ở các kỳ bắt đầu không muộn hơn ngày trạng thái. `driving` chỉ tính khi khoản trễ so với baseline.
+- Không đổi kiểu báo cáo, không đổi chữ ký, `tests/api.rs` không đổi. Test `tests/cash_flow.rs` (9): ba kiểu mốc và Net ngày lịch (đến hạn Chủ nhật giữ nguyên), mốc trễ đẩy khoản sang tháng sau với chuỗi găng, giữ lại 5 % giải ngân sau nghiệm thu, thu từng đợt và ngày trạng thái cắt thực tế, quá hạn dời về ngày trạng thái, cảnh báo, quý và tuần, đúng 731 ngày được và 732 thì lỗi vi/en, số dư từ số dư đầu và kỳ thâm hụt, tổng tiền ra bằng chi phí, chi phí thực tế và baseline. Bench `--bench cash_flow`: khoảng 6 ms theo tháng và theo 731 ngày (500 người, 5.000 việc, 200 khoản).
+- Repo công khai: `Feature::Cashflow` ("cashflow"), `cash_flow_commands.rs` (`cash_flow(options)` trên thread pool; `gate` có test nhỏ: thiếu Pro thì `unavailable` đúng ngôn ngữ trước, thiếu license thì `needs_pro_cashflow`), `types.ts` (`CashFlowOptions`, `CashFlowReport`…), `api.ts` `cashFlow`, `fakeBackend` trả `cashFlow`. CI của sheafly-pro không chạy được (Actions billing): đã chạy cục bộ bằng cách chép crate riêng đè `crates/pro`.
 
 Thứ tự: A trước (B cần kiểu và `cost_timephased`), B rồi C; D sau C. A không chạm Pha 22 và không chạm `Command` của AI; nếu PR khác tăng `FORMAT_VERSION` trước thì A lấy số kế tiếp.
 

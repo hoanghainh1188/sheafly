@@ -1,5 +1,7 @@
 import type {
   HealthCriterion,
+  CashFlowPeriod,
+  CashFlowReport,
   HealthReport,
   Assignment,
   BurndownReport,
@@ -305,6 +307,21 @@ export function makeHealthCriterion(number: number, overrides: Partial<HealthCri
 }
 
 /** A health report where every criterion passes, with `criteria` replacing some by number. */
+export function makeCashFlowReport(periods: CashFlowPeriod[] = []): CashFlowReport {
+  const balances = periods.map((p) => p.balance.forecast);
+  return {
+    bucket: "month",
+    baseline: null,
+    status_date: null,
+    opening_balance: 0,
+    periods,
+    payments: [],
+    lowest_balance: balances.length > 0 ? Math.min(...balances) : null,
+    first_deficit: periods.find((p) => p.deficit)?.date ?? null,
+    notes: [],
+  };
+}
+
 export function makeHealthReport(criteria: HealthCriterion[] = []): HealthReport {
   const all = Array.from({ length: 14 }, (_, i) => criteria.find((c) => c.number === i + 1) ?? makeHealthCriterion(i + 1));
   const passed = all.filter((c) => c.status === "pass").length;

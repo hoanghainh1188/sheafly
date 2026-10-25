@@ -63,6 +63,7 @@ pub struct Text {
     pub needs_pro: &'static str,
     pub needs_pro_reporting: &'static str,
     pub needs_pro_health: &'static str,
+    pub needs_pro_cashflow: &'static str,
 }
 
 pub static VI: Text = Text {
@@ -124,6 +125,7 @@ Phần còn lại là mã nguồn mở MIT.",
     needs_pro: "Cần Sheafly Pro để đổi năng suất hữu ích (Trợ giúp → License Sheafly Pro…).",
     needs_pro_reporting: "Cần Sheafly Pro để xuất bảng tính Excel (Trợ giúp → License Sheafly Pro…).",
     needs_pro_health: "Cần Sheafly Pro để kiểm tra chất lượng lịch (Trợ giúp → License Sheafly Pro…).",
+    needs_pro_cashflow: "Cần Sheafly Pro để xem dòng tiền (Trợ giúp → License Sheafly Pro…).",
 };
 
 pub static EN: Text = Text {
@@ -185,6 +187,7 @@ Everything else is open source under MIT.",
     needs_pro: "Changing the useful productivity needs Sheafly Pro (Help → Sheafly Pro License…).",
     needs_pro_reporting: "Exporting an Excel workbook needs Sheafly Pro (Help → Sheafly Pro License…).",
     needs_pro_health: "The schedule health check needs Sheafly Pro (Help → Sheafly Pro License…).",
+    needs_pro_cashflow: "The cash flow needs Sheafly Pro (Help → Sheafly Pro License…).",
 };
 
 pub fn text(lang: Lang) -> &'static Text {
