@@ -22,13 +22,14 @@ import type {
   TaskAssignment,
   TaskClipboard,
   Forecast,
+  CashFlowReport,
   HealthReport,
   PullChanges,
   PullPreview,
   PushPreview,
   PushReport,
 } from "../types";
-import { makeHealthReport, makeLicense, makeMetrics, makeProLicense, makeResource, makeSnapshot, makeTask } from "./fixtures";
+import { makeCashFlowReport, makeHealthReport, makeLicense, makeMetrics, makeProLicense, makeResource, makeSnapshot, makeTask } from "./fixtures";
 
 export interface InvokeCall {
   cmd: string;
@@ -52,6 +53,8 @@ class FakeBackend {
   forecast: Forecast | null = null;
   /** What `schedule_health` answers. */
   health: HealthReport = makeHealthReport();
+  /** What `cash_flow` answers. */
+  cashFlow: CashFlowReport = makeCashFlowReport();
   /** What `load_map` answers. */
   loadMap: LoadMap = { buckets: [], rows: [] };
   /** What `assignment_matrix` answers. */
@@ -152,6 +155,7 @@ class FakeBackend {
     this.license = makeLicense();
     this.licenseRefusal = null;
     this.health = makeHealthReport();
+    this.cashFlow = makeCashFlowReport();
   }
 
   /** The next call to `cmd` waits until the returned function runs, like a slow Rust command. */
@@ -217,6 +221,8 @@ class FakeBackend {
         return structuredClone(this.forecast);
       case "schedule_health":
         return structuredClone(this.health);
+      case "cash_flow":
+        return structuredClone(this.cashFlow);
       case "preview_plan":
         return structuredClone(
           this.planPreview ?? {

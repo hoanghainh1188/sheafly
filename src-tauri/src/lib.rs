@@ -10,6 +10,7 @@ mod jira_connector;
 mod jira_fields;
 mod jira_push;
 mod license;
+mod cash_flow_commands;
 mod delta;
 mod health_commands;
 mod i18n;
@@ -1524,6 +1525,7 @@ pub fn run() {
             export_mspdi,
             export_excel,
             health_commands::schedule_health,
+            cash_flow_commands::cash_flow,
             save_pdf,
             check_autosave,
             compact_history,

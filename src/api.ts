@@ -14,6 +14,8 @@ import type {
   CurvesReport,
   FixReport,
   Forecast,
+  CashFlowOptions,
+  CashFlowReport,
   HealthReport,
   Command,
   ImportProblem,
@@ -189,6 +191,11 @@ export function assignmentMatrix(group: boolean): Promise<AssignmentMatrix> {
 /** The schedule health check (Pro `health`); a read that never changes the project. */
 export function scheduleHealth(): Promise<HealthReport> {
   return invoke<HealthReport>("schedule_health");
+}
+
+/** The cash flow by period (Pro `cashflow`); refused without the Pro modules or license. */
+export function cashFlow(options: CashFlowOptions): Promise<CashFlowReport> {
+  return invoke<CashFlowReport>("cash_flow", { options });
 }
 
 export function forecast(iterations: number): Promise<Forecast | null> {
