@@ -1,4 +1,6 @@
 import type {
+  AiCheck,
+  AiSettings,
   AssignmentMatrix,
   Command,
   CurvesReport,
@@ -73,6 +75,10 @@ class FakeBackend {
   pushReport: PushReport = { done: [], entries: [], failed: [], not_sent: [], stopped: null };
   /** Sites with a saved API key (`tracker_has_key`). */
   trackerKeys = new Set<string>();
+  /** The AI settings (`ai_settings`), whether an Anthropic key is saved, and what `ai_test` answers. */
+  ai: AiSettings = defaultAiSettings();
+  aiKey = false;
+  aiCheck: AiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
   /** What `pick_table` answers (null is a cancelled dialog); `read_table_sheet` reads it too. */
   table: ImportSheet | null = null;
   /** What `check_autosave` restores; null when there is no autosave. */
@@ -118,6 +124,9 @@ class FakeBackend {
     this.pushPreview = null;
     this.pushReport = { done: [], entries: [], failed: [], not_sent: [], stopped: null };
     this.trackerKeys.clear();
+    this.ai = defaultAiSettings();
+    this.aiKey = false;
+    this.aiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
     this.failures.clear();
     this.holds.clear();
     this.autosave = null;
@@ -215,6 +224,24 @@ class FakeBackend {
       case "license_remove":
         this.license = makeLicense();
         return structuredClone(this.license);
+      case "ai_settings":
+        return structuredClone(this.ai);
+      case "ai_set_settings": {
+        const settings = args?.settings as AiSettings;
+        if (settings.enabled && !settings.notice_accepted) throw "Hãy đọc và đồng ý thông báo về dữ liệu trước khi bật gợi ý AI";
+        this.ai = structuredClone(settings);
+        return structuredClone(this.ai);
+      }
+      case "ai_has_key":
+        return this.aiKey;
+      case "ai_save_key":
+        this.aiKey = true;
+        return undefined;
+      case "ai_forget_key":
+        this.aiKey = false;
+        return undefined;
+      case "ai_test":
+        return structuredClone(this.aiCheck);
       case "tracker_has_key":
         return this.trackerKeys.has(args?.site as string);
       case "tracker_save_key":
@@ -646,6 +673,10 @@ class FakeBackend {
 function setValue(task: Task, fieldId: number, value: FieldValue | null): void {
   const { [fieldId]: _old, ...rest } = task.values;
   task.values = value === null || value === "" ? rest : { ...rest, [fieldId]: value };
+}
+
+function defaultAiSettings(): AiSettings {
+  return { enabled: false, model: "claude-opus-5-5", mask: false, notice_accepted: false };
 }
 
 function emptyNetwork(): NetworkLayout {

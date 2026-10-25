@@ -54,6 +54,8 @@ export interface MenuContext {
   openTrackerSettings: () => void;
   /** Trợ giúp → License Sheafly Pro. */
   openLicense: () => void;
+  /** Trợ giúp → Gợi ý AI. */
+  openAiSettings: () => void;
   /** Lịch làm việc, on the project calendar. */
   openWorkingTime: () => void;
   openBaseline: () => void;
@@ -207,6 +209,9 @@ function viewAction(id: string, ctx: MenuContext): boolean {
       return true;
     case "license":
       ctx.openLicense();
+      return true;
+    case "ai-settings":
+      ctx.openAiSettings();
       return true;
     case "lang-vi":
     case "lang-en":

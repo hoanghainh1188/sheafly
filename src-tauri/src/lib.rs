@@ -1,3 +1,5 @@
+mod ai;
+mod ai_commands;
 mod backlog;
 mod backlog_connector;
 mod backlog_fields;
@@ -95,6 +97,8 @@ struct AppState {
     delta: delta::Delta,
     /// The Sheafly Pro license of this computer, checked offline.
     license: license::LicenseState,
+    /// AI recommendations: on or off, the model, masking, the data notice (`settings.json`).
+    ai: Mutex<settings::AiSettings>,
 }
 
 impl AppState {
@@ -115,6 +119,7 @@ impl AppState {
             slot_checked: AtomicBool::new(false),
             lang: Mutex::new(lang),
             theme: Mutex::new(settings.as_deref().map(settings::read_theme).unwrap_or_default()),
+            ai: Mutex::new(settings.as_deref().map(settings::read_ai).unwrap_or_default()),
             settings,
             pending_open: Mutex::new(VecDeque::new()),
             settings_lock: Mutex::new(()),
@@ -1480,6 +1485,12 @@ pub fn run() {
             pick_table,
             read_table_sheet,
             check_import,
+            ai_commands::ai_settings,
+            ai_commands::ai_set_settings,
+            ai_commands::ai_save_key,
+            ai_commands::ai_has_key,
+            ai_commands::ai_forget_key,
+            ai_commands::ai_test,
             tracker_commands::tracker_save_key,
             tracker_commands::tracker_has_key,
             tracker_commands::tracker_forget_key,

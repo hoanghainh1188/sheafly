@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(state.view().state, "none");
         assert!(!state.grants(Feature::Trackers));
         let view = state.install(&format!("  {}\n", key(Plan::Pro, None, "9999-12-31"))).unwrap();
-        assert_eq!((view.state, view.plan, view.features.as_slice()), ("active", Some(Plan::Pro), &["trackers", "capacity", "reporting"][..]));
+        assert_eq!((view.state, view.plan, view.features.as_slice()), ("active", Some(Plan::Pro), &["trackers", "capacity", "reporting", "ai"][..]));
         assert!(state.grants(Feature::Trackers));
         let again = LicenseState::load(Some(path.clone()));
         assert!(again.grants(Feature::Trackers));

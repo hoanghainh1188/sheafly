@@ -294,10 +294,11 @@ pub const FILE_MENU: &[Entry] = &[
     ),
 ];
 
-/// The Help menu. License opens the frontend's license dialog; the licenses item opens the
+/// The Help menu. License and AI Recommendations open the frontend's dialogs; the licenses item opens the
 /// file the installer ships (`THIRD_PARTY_LICENSES.txt`) in the system's text viewer.
 pub const HELP_MENU: &[Entry] = &[
     item("license", "License Sheafly Pro…", "Sheafly Pro License…", None),
+    item("ai-settings", "Gợi ý AI (Pro)…", "AI Recommendations (Pro)…", None),
     item("third-party-licenses", "Giấy phép bên thứ ba", "Third-Party Licenses", None),
 ];
 

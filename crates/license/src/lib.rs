@@ -50,16 +50,19 @@ pub enum Feature {
     Capacity,
     /// Executive reporting, corporate branding, and multi-sheet Excel export.
     Reporting,
+    /// AI recommendations: calls to the AI provider with the user's own key.
+    Ai,
 }
 
 impl Feature {
-    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting];
+    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting, Feature::Ai];
 
     pub fn code(self) -> &'static str {
         match self {
             Feature::Trackers => "trackers",
             Feature::Capacity => "capacity",
             Feature::Reporting => "reporting",
+            Feature::Ai => "ai",
         }
     }
 

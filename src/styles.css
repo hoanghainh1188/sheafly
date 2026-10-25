@@ -864,6 +864,15 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .license-summary h3 { margin: 0; font-size: 15px; }
 .license-summary p { margin: 0; }
 .license-actions { display: flex; justify-content: flex-end; }
+.ai-settings { display: grid; gap: 12px; }
+.ai-settings p { margin: 0; }
+.ai-settings label { display: grid; gap: 3px; }
+.ai-settings label.ai-check { display: flex; align-items: center; gap: 6px; }
+.ai-settings input[type="password"] { min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.ai-notice { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface-chrome); }
+.ai-notice h3 { margin: 0; font-size: 14px; }
+.ai-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ai-actions .meta { flex: 1; min-width: 0; }
 .tracker-setup { display: grid; gap: 10px; }
 .tracker-setup label { display: grid; gap: 3px; }
 .tracker-setup input:not([type="checkbox"]) { min-width: 0; }

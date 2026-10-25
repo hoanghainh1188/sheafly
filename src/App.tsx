@@ -26,6 +26,7 @@ import { appMessages } from "./App.i18n";
 import { linkAbove, resourceCommand } from "./appCommands";
 import { BaselineDialog } from "./components/BaselineDialog";
 import { LicenseDialog } from "./components/license/LicenseDialog";
+import { AiSettingsDialog } from "./components/ai/AiSettingsDialog";
 import { EvmPanel } from "./components/EvmPanel";
 import { GanttChart } from "./components/GanttChart";
 import { Inspector } from "./components/inspector/Inspector";
@@ -116,6 +117,7 @@ export default function App() {
   const [infoTab, setInfoTab] = useState<ProjectTab>("general");
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [licenseOpen, setLicenseOpen] = useState(false);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   // What this computer's license unlocks; the backend checks again on every gated command.
   const [license, setLicense] = useState<LicenseView | null>(null);
   useEffect(() => {
@@ -415,6 +417,7 @@ export default function App() {
         openWorkingTime: () => void openWorkingTime(snap?.project.calendar_id ?? 1),
         openBaseline: () => setBaselineOpen(true),
         openLicense: () => setLicenseOpen(true),
+        openAiSettings: () => setAiSettingsOpen(true),
         openRecurring: () => setSeriesDialog(0),
         openSplit: setSplitDialog,
         // A new, untouched project is renamed in the new language by the backend.
@@ -1061,6 +1064,16 @@ export default function App() {
           onClose={() => setBaselineOpen(false)}
           onSet={(number) => send({ type: "set_baseline", number })}
           onClear={(number) => send({ type: "clear_baseline", number })}
+        />
+      )}
+      {aiSettingsOpen && (
+        <AiSettingsDialog
+          aiPro={license?.features.includes("ai") ?? false}
+          onClose={() => setAiSettingsOpen(false)}
+          onOpenLicense={() => {
+            setAiSettingsOpen(false);
+            setLicenseOpen(true);
+          }}
         />
       )}
       {licenseOpen && <LicenseDialog onClose={() => setLicenseOpen(false)} onChange={setLicense} />}
