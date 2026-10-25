@@ -1037,7 +1037,9 @@ export interface TaskCopy {
   fixed_cost: number;
   fixed_cost_accrual: Accrual;
   splits: Split[];
-  assignments: { resource_uid: number; resource_name: string; units: number; work: number }[];
+  assignments: { resource_uid: number; resource_name: string; units: number; work: number; focus?: number }[];
+  /** The project's productivity factor where the copy was made. */
+  focus?: number;
   /** Custom field values by field name, as `[name, value]` pairs. */
   values: [string, FieldValue][];
 }

@@ -195,7 +195,7 @@ function GeneralTab({
           badTitle={p.focusBad}
           locked={!capacityPro}
           lockedTitle={p.focusNeedsPro}
-          onCommit={(factor) => factor != null && void send({ type: "set_focus_factor", factor })}
+          onCommit={(factor) => (factor == null ? undefined : send({ type: "set_focus_factor", factor }))}
         />
         <ProBadge />
         {!capacityPro && <span className="meta">{p.focusNeedsPro}</span>}

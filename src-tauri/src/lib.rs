@@ -252,10 +252,12 @@ fn ensure_no_dialog(state: &AppState) -> Result<(), String> {
 /// The Pro feature a command sets, if any. Going back to the default stays free (a
 /// factor of 100 %, or none of a resource's own), so a file never holds data a Free app
 /// cannot undo; opening, replaying, undoing and saving never ask (the engine knows no plan).
+/// A resource's own factor is Pro whatever it is: 100 % of its own is an override that
+/// differs from a project at 80 %.
 fn pro_feature(command: &Command) -> Option<Feature> {
     match command {
         Command::SetFocusFactor { factor } if *factor != 1.0 => Some(Feature::Capacity),
-        Command::SetResourceFocus { focus: Some(focus), .. } if *focus != 1.0 => Some(Feature::Capacity),
+        Command::SetResourceFocus { focus: Some(_), .. } => Some(Feature::Capacity),
         _ => None,
     }
 }
@@ -1517,7 +1519,7 @@ mod tests {
         assert_eq!(pro_feature(&factor(0.8)), Some(Feature::Capacity));
         assert_eq!(pro_feature(&own(Some(0.9))), Some(Feature::Capacity));
         assert_eq!(pro_feature(&factor(1.0)), None);
-        assert_eq!(pro_feature(&own(Some(1.0))), None);
+        assert_eq!(pro_feature(&own(Some(1.0))), Some(Feature::Capacity));
         assert_eq!(pro_feature(&own(None)), None);
         assert_eq!(pro_feature(&Command::RenameProject { name: "Cầu".into() }), None);
     }
