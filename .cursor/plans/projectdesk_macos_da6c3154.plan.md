@@ -846,9 +846,9 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Baseline tải (21 PR 4) | lưu Free, xem `capacity` | `SetBaseline` ghi `AssignmentBaseline` trên mọi bản; đọc: lệnh Tauri trả tải baseline |
 | Biểu đồ tải theo kỳ, theo vai trò/kỹ năng (21 PR 5) | `capacity` | đọc: chế độ mới của `load_map` (tháng, gộp, baseline); màn Tải theo người/ngày/tuần như hiện nay vẫn Free |
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
-| Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue #100) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
-| Xuất Excel nhiều sheet (Pha 24 PR 1, issue #168) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
-| Sau này: nhiều dự án dùng chung kho nguồn lực, dashboard một trang và nhận diện thương hiệu (#168), đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
+| Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue sheafly-pro#1) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
+| Xuất Excel nhiều sheet (Pha 24 PR 1, issue sheafly-pro#3) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
+| Sau này: nhiều dự án dùng chung kho nguồn lực, dashboard một trang và nhận diện thương hiệu (sheafly-pro#3), đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
 - Chuỗi `SHEAFLY-` + base32 (Crockford, nhóm 5 ký tự) của `payload || chữ ký ed25519(payload)`. Payload là JSON nhỏ, có `v` (phiên bản định dạng), `id` (mã license, để thu hồi và tra cứu), `name`, `email`, `plan` (`pro`, `business`, `trial`), `seats`, `features` (danh sách; rỗng nghĩa là mọi tính năng của gói), `issued`, `updates_until`, `expires` (chỉ trial hoặc thuê bao).
@@ -870,7 +870,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 
 Thứ tự: 20A và 20C làm song song được (khác tệp); 20B sau 20A (cùng `build.yml`); 20D sau 20C, và trước 21 PR 5–6; 20E bắt đầu khi D3–D4 chốt, phải xong trước 20F. README ở 20F có bảng Free/Pro theo bảng tính năng Pro.
 
-- **20G — tách crate Pro riêng tư theo D1-B (M; chốt 25/10/2026, làm trước khi merge #174).** Tính năng Pro *mới* (báo cáo #168, portfolio #167, `.mpp` #171, DCMA #172…) nằm trong repo riêng tư `hoanghainh1188/sheafly-pro`, không theo MIT. Tracker và năng suất hữu ích đã công khai vẫn MIT, ở repo này.
+- **20G — tách crate Pro riêng tư theo D1-B (M; chốt 25/10/2026, làm trước khi merge #174).** Tính năng Pro *mới* (báo cáo sheafly-pro#3, portfolio sheafly-pro#2, `.mpp` sheafly-pro#6, DCMA sheafly-pro#7…) nằm trong repo riêng tư `hoanghainh1188/sheafly-pro`, không theo MIT. Tracker và năng suất hữu ích đã công khai vẫn MIT, ở repo này.
   - **Ranh giới.** Repo công khai giữ engine, lớp license và gate, lệnh Tauri, giao diện (cả ProBadge, hộp thoại, chuỗi vi/en). Repo riêng chỉ giữ logic Rust của tính năng Pro, dạng hàm thuần đọc `Project` (như `excel_workbook(project, lang) -> Result<Vec<u8>, String>`), không phụ thuộc Tauri. Phép tính chung mà Pro cần (số theo kỳ, tải, EVM) vào engine công khai, vì engine là nguồn số liệu duy nhất; repo riêng chỉ cộng, trình bày, đọc/ghi định dạng.
   - **Stub thay cho cargo feature.** Đã thử: Cargo đọc manifest của mọi dependency kể cả optional, nên repo công khai không thể trỏ tới một đường dẫn hay git riêng tư mà người khác vẫn build được; `paths` override cũng không thay được dependency theo đường dẫn. Cách chạy được: repo công khai có `crates/pro` (crate `sheafly-pro`, MIT) là **stub**: cùng chữ ký hàm, mọi hàm trả lỗi "bản này không có tính năng Pro" (`ProUnavailable`, chữ vi/en). Bản phát hành chép repo riêng đè lên `crates/pro` trước khi build. Không cần `#[cfg(feature = "pro")]`: shell luôn gọi `sheafly_pro::…`, gate license vẫn ở shell như hiện nay.
   - **Lockfile và giấy phép.** `Cargo.toml` của stub khai đúng các dependency của crate thật (ví dụ `rust_xlsxwriter`), nên `Cargo.lock` không đổi khi đè (`--locked` vẫn chạy, đã thử) và `scripts/third-party-licenses.mjs` ở repo công khai liệt kê đủ thư viện bản phát hành có. CI repo riêng kiểm tra `Cargo.toml` của nó trùng với stub, và chữ ký hàm khớp (build cả shell với crate thật). `sheafly-pro` thêm vào `OWN_CRATES`.
@@ -878,6 +878,7 @@ Thứ tự: 20A và 20C làm song song được (khác tệp); 20B sau 20A (cùn
   - **Phát hành.** `build.yml` lấy repo riêng bằng deploy key chỉ đọc (secret `SHEAFLY_PRO_DEPLOY_KEY`) vào `crates/pro`. Như ký số Apple: không có secret (fork) thì build với stub; trên tag `v*` thiếu secret thì job lỗi, để không phát hành nhầm bản không có Pro. README, Giới thiệu và `LICENSE` ghi rõ: mã nguồn công khai theo MIT, bản phát hành chính thức có thêm module Pro đóng (EULA ở 20E).
   - **Dữ liệu không bị khóa.** Tính năng Pro không ghi gì mà chỉ nó đọc được: báo cáo là xuất tệp, còn dữ liệu Pro lưu trong dự án (nếu có) đi qua `Command` của engine công khai, nên bản tự build vẫn mở, sửa, lưu như cam kết Free.
   - **Thứ tự.** (1, làm trong #174, 25/10/2026) PR công khai: `crates/pro` stub với `excel_workbook`, shell gọi stub, bỏ `crates/report` khỏi #174 (#174 thành phần lệnh, menu, gate, tài liệu). (2) Tạo repo riêng, chuyển `crates/report` (code và 9 test đọc lại bằng calamine) thành `sheafly-pro`, kèm CI. (3) PR công khai: `build.yml` và chữ trong README/Giới thiệu. Các tính năng Pro sau làm theo cùng khuôn: thêm hàm vào stub và crate thật.
+  - **Issue (25/10/2026).** Issue của tính năng Pro mới chuyển sang repo riêng: #100 → sheafly-pro#1 (AI), #167 → #2 (kho nguồn lực), #168 → #3 (báo cáo), #169 → #4 (so sánh phiên bản), #170 → #5 (dòng tiền), #171 → #6 (`.mpp`), #172 → #7 (DCMA). #99 (tracker) ở lại repo này vì code đã công khai. Plan này ghi số mới; issue mới của tính năng Pro mở ở repo riêng.
   - **Rủi ro.** Người đóng góp không chạy được phần Pro (chấp nhận; họ vẫn sửa được engine, giao diện và shell). Code trong repo công khai trước đây (nhánh `feat/excel-export` đã push) vẫn xem được trong lịch sử PR #174; chỉ `main` và các bản sau không chứa nó. Mất deploy key thì tạo key mới, không ảnh hưởng người dùng.
 
 **Xong khi.** Bản macOS mở không cảnh báo trên máy mới; bản 1.6.0 tự nhận bản 1.6.1; key thử bật Pro trên máy không có mạng; key sửa một ký tự bị từ chối với lý do rõ; Free mở và lưu tệp có liên kết tracker; mua thử ở chế độ test của MoR nhận được key qua email và key đó chạy.
@@ -910,7 +911,7 @@ Thứ tự: 20A và 20C làm song song được (khác tệp); 20B sau 20A (cùn
 
 Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6.
 
-### Pha 22: Gợi ý AI (AI Recommendations) — Issue #100, Pro (`ai`)
+### Pha 22: Gợi ý AI (AI Recommendations) — Issue sheafly-pro#1, Pro (`ai`)
 
 **Mục tiêu:** Giúp người lập kế hoạch nhanh chóng nhận biết các rủi ro trong dự án (trễ hạn, quá tải nguồn lực, ước lượng bất thường) và giải thích nguyên nhân, đề xuất cách xử lý cụ thể.
 **Nguyên tắc cốt lõi ("The AI proposes, the engine verifies, the user decides"):**
@@ -955,7 +956,7 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **D8 — Cài đặt và model.** `settings.json`: `ai.enabled` (mặc định tắt), `ai.model`, `ai.mask` (mặc định tắt), `ai.notice_accepted`. Model mặc định `claude-opus-5-5` (mới nhất, theo issue), có `claude-sonnet-5-5` cho rẻ và nhanh hơn, và ô "Khác" để gõ ID. ID model không ghi vào tệp dự án.
 - **D9 — License và ProBadge.** Mọi lệnh Tauri `ai_*` gọi mạng kiểm tra `grants(Feature::Ai)` (lỗi `NeedsPro`); lưu/xóa key và `apply_command` (kể cả `ApplyProposal`) không bị chặn, nên tệp đã sửa vẫn mở, undo, redo và lưu trên Free. `ProBadge` hiện trên mọi bản build (như CLAUDE.md quy định), không chỉ bản chưa có license.
 
-### Pha 23: Kiểm tra chất lượng lịch (DCMA 14 điểm) — Issue #172, Pro (`health`)
+### Pha 23: Kiểm tra chất lượng lịch (DCMA 14 điểm) — Issue sheafly-pro#7, Pro (`health`)
 
 **Mục tiêu:** chấm lịch theo 14 tiêu chí của DCMA, mỗi tiêu chí có ngưỡng, đạt hay không đạt và danh sách việc vi phạm; chọn một tiêu chí thì bảng việc lọc ra các việc đó. Đây là tính năng mới nên thuộc Pro; các số đang có ở Free (thống kê, EVM, cờ trễ) giữ nguyên.
 
@@ -999,7 +1000,7 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **PR C — `feat/schedule-health-ui`:** hộp thoại Dự án → Kiểm tra chất lượng lịch… (`Modal.tsx`, `ProBadge`, menu có "(Pro)" trong `i18n.rs`): danh sách 14 tiêu chí với số, ngưỡng và trạng thái, kết quả tổng; chọn tiêu chí thì đóng hộp, lọc bảng việc theo chế độ `health:<số>` trong `viewRows.ts` (như `interrupts`, `span`) và chuyển sang Gantt. Chạy lại khi dự án đổi. Song ngữ vi/en.
 
 Thứ tự: A → B → C.
-### Pha 24 — báo cáo cho lãnh đạo (issue #168, Pro `reporting`)
+### Pha 24 — báo cáo cho lãnh đạo (issue sheafly-pro#3, Pro `reporting`)
 
 **Mục tiêu:** sản phẩm báo cáo trình được cho lãnh đạo và khách hàng: workbook Excel nhiều sheet, dashboard một trang (PDF/PNG), logo và thông tin doanh nghiệp trên đầu trang. Tách 3 PR: (1) Excel, (2) dashboard một trang, (3) nhận diện thương hiệu áp vào PDF và trang bìa Excel. Số liệu đều lấy từ engine; báo cáo chỉ cộng theo kỳ và trình bày.
 

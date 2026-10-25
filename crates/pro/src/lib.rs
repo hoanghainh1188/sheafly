@@ -1,6 +1,6 @@
 //! Stub of the Sheafly Pro modules (plan part 20G).
 //!
-//! The Pro features added since D1-B (the Excel workbook of #168, and later ones) are
+//! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, and later ones) are
 //! closed source, in the private repository `sheafly-pro`. This crate has the same public
 //! functions and the same dependencies, so the app builds from this repository alone;
 //! each function answers that this build has no Pro modules. Release builds copy the
@@ -23,7 +23,7 @@ pub fn unavailable(lang: Lang) -> String {
     }
 }
 
-/// The project as an `.xlsx` workbook (#168). The stub has none.
+/// The project as an `.xlsx` workbook (sheafly-pro#3). The stub has none.
 pub fn excel_workbook(_project: &Project, lang: Lang) -> Result<Vec<u8>, String> {
     Err(unavailable(lang))
 }
