@@ -839,7 +839,7 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .load-histogram-svg .bar-assigned { fill: var(--chart-actual); rx: 2px; }
 .load-histogram-svg .bar-unassigned { fill: var(--chart-ac); rx: 2px; }
 .load-axis-label { font-size: 11px; fill: var(--text-muted); font-family: var(--font-ui); }
-.load-histogram-tooltip { position: absolute; top: 10px; right: 14px; background: var(--surface-chrome); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; line-height: 1.4; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); pointer-events: none; z-index: 10; }
+.load-histogram-tooltip { position: absolute; top: 10px; right: 14px; background: var(--surface-chrome); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; line-height: 1.4; box-shadow: 0 4px 12px var(--shadow-soft); pointer-events: none; z-index: 10; }
 .load-histogram-tooltip .tip-header { font-weight: 600; margin-bottom: 2px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 2px; }
 /* Giao việc theo quy tắc: the expected result of the plan. */
 .plan-filter { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0; }

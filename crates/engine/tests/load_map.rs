@@ -125,9 +125,8 @@ fn groups_aggregate_by_role() {
     assert_eq!(map.rows[0].cells[0].capacity, 10 * DAY);
 }
 
-#[test]
-fn skill_group_includes_members_and_unassigned_rule_demand() {
-    let mut doc = doc();
+/// Skill "Rust" (id 1) for An, and task 3 (one day, unassigned) whose rule targets it.
+fn add_rust_rule(doc: &mut Document) {
     // Add skill "Rust" (id 1)
     doc.apply(Command::AddSkill { name: "Rust".into() }).unwrap();
     doc.apply(Command::SetResourceSkills { uid: 1, skills: vec![1], levels: vec![] }).unwrap();
@@ -146,6 +145,12 @@ fn skill_group_includes_members_and_unassigned_rule_demand() {
         units: 1.0,
     }];
     doc.apply(Command::SetAssignmentRules { rules }).unwrap();
+}
+
+#[test]
+fn skill_group_includes_members_and_unassigned_rule_demand() {
+    let mut doc = doc();
+    add_rust_rule(&mut doc);
 
     let map = load_map(&doc.project, day(0), day(4), Bucket::Week, LoadGroup::Skill { id: 1, min_level: None }, None).unwrap();
     // Row 0 is the skill summary row, Row 1 is member An
@@ -195,6 +200,40 @@ fn baseline_load_included_when_requested() {
     assert_eq!(map.rows[0].cells[0].baseline, Some(2 * DAY));
     // Bình had 1 day = 480 min baseline work
     assert_eq!(map.rows[1].cells[0].baseline, Some(DAY));
+}
+
+#[test]
+fn unassigned_demand_leaves_out_started_and_finished_work() {
+    let skill = LoadGroup::Skill { id: 1, min_level: None };
+    for percent in [50.0, 100.0] {
+        let mut doc = doc();
+        add_rust_rule(&mut doc);
+        doc.apply(Command::SetPercentComplete { uid: 3, percent }).unwrap();
+        let map = load_map(&doc.project, day(0), day(4), Bucket::Week, skill.clone(), None).unwrap();
+        assert_eq!(map.rows[0].cells[0].unassigned, 0, "{percent}% done");
+    }
+}
+
+#[test]
+fn baseline_load_adds_up_by_role_and_skill() {
+    let mut doc = doc();
+    add_rust_rule(&mut doc);
+    doc.apply(Command::SetResourceSkills { uid: 2, skills: vec![1], levels: vec![] }).unwrap();
+    doc.apply(Command::SetResourceGroup { uid: 1, group: "Backend".into() }).unwrap();
+    doc.apply(Command::SetResourceGroup { uid: 2, group: "Backend".into() }).unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+
+    let role = load_map(&doc.project, day(0), day(4), Bucket::Week, LoadGroup::Group, Some(0)).unwrap();
+    assert_eq!(role.rows[0].cells[0].baseline, Some(3 * DAY));
+    let skill = LoadGroup::Skill { id: 1, min_level: None };
+    let skill = load_map(&doc.project, day(0), day(4), Bucket::Day, skill, Some(0)).unwrap();
+    assert_eq!(skill.rows[0].cells[0].baseline, Some(DAY + DAY / 2));
+    assert_eq!(skill.rows[1].cells[1].baseline, Some(DAY));
+    // A day outside every baseline stays empty.
+    assert_eq!(skill.rows[2].cells[3].baseline, None);
+    // Without a baseline nothing is read.
+    let none = load_map(&doc.project, day(0), day(4), Bucket::Week, LoadGroup::Group, None).unwrap();
+    assert_eq!(none.rows[0].cells[0].baseline, None);
 }
 
 #[test]
