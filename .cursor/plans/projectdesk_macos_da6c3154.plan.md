@@ -826,7 +826,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 - **Phạm vi Free cố định (chốt 24/10/2026).** Tính năng nào Free trong một bản đã phát hành thì Free ở mọi bản sau, trên mọi nền tảng; không chuyển sang Pro và không bị thêm giới hạn mới (số việc, số người, số dự án, tệp, xuất, ngôn ngữ). Chỉ tính năng mới có thể là Pro; một chế độ mới của màn Free (như tải theo tháng trên màn Tải) có thể là Pro, còn màn đó vẫn Free. Sửa lỗi và tăng tốc tính năng Free luôn Free. Ngoại lệ duy nhất là chuyển đổi một lần đã chốt ở D2: tracker (Free ở 1.5.0) thành Pro từ 1.6.0. Mỗi dòng thêm vào bảng tính năng Pro phải là tính năng chưa phát hành ở Free; README ghi cam kết này (mục "Free and Pro", huy hiệu Free/Pro trên từng nhóm tính năng).
 
 **Quyết định (chủ dự án chốt cả D1–D7 theo đề xuất ngày 24/10/2026).**
-- **D1 — giấy phép mã.** (A) Giữ MIT, gate viết trong repo công khai: ai tự build có thể bỏ gate; doanh nghiệp trả tiền cho bản đã ký, cập nhật, hỗ trợ và sự hợp lệ. (B) Open core: tính năng Pro *mới* nằm trong crate riêng tư `sheafly-pro` (repo private, CI lấy bằng deploy key, cargo feature `pro`); bản build từ repo công khai không có chúng. Đề xuất: A cho lớp license và gate (làm trước, rẻ), B cho module Pro mới (portfolio, báo cáo, `.mpp`). Code MIT đã phát hành vẫn MIT.
+- **D1 — giấy phép mã.** (A) Giữ MIT, gate viết trong repo công khai: ai tự build có thể bỏ gate; doanh nghiệp trả tiền cho bản đã ký, cập nhật, hỗ trợ và sự hợp lệ. (B) Open core: tính năng Pro *mới* nằm trong crate riêng tư `sheafly-pro` (repo private, CI lấy bằng deploy key; cách build cụ thể ở 20G: stub công khai, không dùng cargo feature); bản build từ repo công khai không có chúng. Đề xuất: A cho lớp license và gate (làm trước, rẻ), B cho module Pro mới (portfolio, báo cáo, `.mpp`). Code MIT đã phát hành vẫn MIT.
 - **D2 — tính năng Pro lúc ra mắt.** Đề xuất: kết nối task tracker (Backlog, Jira: kéo, đẩy, đồng bộ ba bên, thiết lập đồng bộ). Lý do: chỉ doanh nghiệp dùng, mới phát hành ở 1.5.0 nên ít người đang dùng, và chưa thử với dịch vụ thật. Free giữ lập lịch, leveling, gợi ý giao việc, dự báo, nhập bảng, MSPDI, PDF. Sau đó: nhiều dự án dùng chung kho nguồn lực, báo cáo tùy biến/xuất Excel, đọc `.mpp`, tiếng Nhật (tiếng Nhật có thể để Free).
 - **D3 — mô hình giá.** Đề xuất: Pro $99 một lần, kèm 12 tháng cập nhật, gia hạn cập nhật $49/năm; giá VND riêng (ví dụ 1.990.000 ₫) cho khách trong nước; Business theo số chỗ (seats) với hóa đơn. Phương án khác: $8/tháng hoặc $79/năm.
 - **D4 — kênh thanh toán và pháp nhân.** Đề xuất: một Merchant of Record (Paddle hoặc Lemon Squeezy) cho khách quốc tế, vì họ thu và nộp VAT/GST/JCT; cần kiểm tra họ có nhận người bán và chi trả về ngân hàng Việt Nam không. Khách trong nước: payOS (VietQR) hoặc chuyển khoản; xuất hóa đơn điện tử cần đăng ký hộ kinh doanh hoặc công ty và hỏi kế toán về thuế. Đây là việc ngoài repo.
@@ -847,7 +847,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Biểu đồ tải theo kỳ, theo vai trò/kỹ năng (21 PR 5) | `capacity` | đọc: chế độ mới của `load_map` (tháng, gộp, baseline); màn Tải theo người/ngày/tuần như hiện nay vẫn Free |
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
 | Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue #100) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
-| Xuất Excel nhiều sheet (Pha 23 PR 1, issue #168) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
+| Xuất Excel nhiều sheet (Pha 24 PR 1, issue #168) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
 | Sau này: nhiều dự án dùng chung kho nguồn lực, dashboard một trang và nhận diện thương hiệu (#168), đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
@@ -869,6 +869,16 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 - **20F — phát hành 1.6.0 (S).** README tiếng Anh và tiếng Việt: cập nhật mục Free/Pro và huy hiệu (đã có từ 24/10/2026) theo bảng tính năng Pro, cách nhập key, bản đã ký; ghi chú phát hành; CLAUDE.md thêm mục license và gate; cập nhật plan này. Không đổi `FORMAT_VERSION` hay `ENGINE_REVISION` (không có `Command` mới).
 
 Thứ tự: 20A và 20C làm song song được (khác tệp); 20B sau 20A (cùng `build.yml`); 20D sau 20C, và trước 21 PR 5–6; 20E bắt đầu khi D3–D4 chốt, phải xong trước 20F. README ở 20F có bảng Free/Pro theo bảng tính năng Pro.
+
+- **20G — tách crate Pro riêng tư theo D1-B (M; chốt 25/10/2026, làm trước khi merge #174).** Tính năng Pro *mới* (báo cáo #168, portfolio #167, `.mpp` #171, DCMA #172…) nằm trong repo riêng tư `hoanghainh1188/sheafly-pro`, không theo MIT. Tracker và năng suất hữu ích đã công khai vẫn MIT, ở repo này.
+  - **Ranh giới.** Repo công khai giữ engine, lớp license và gate, lệnh Tauri, giao diện (cả ProBadge, hộp thoại, chuỗi vi/en). Repo riêng chỉ giữ logic Rust của tính năng Pro, dạng hàm thuần đọc `Project` (như `excel_workbook(project, lang) -> Result<Vec<u8>, String>`), không phụ thuộc Tauri. Phép tính chung mà Pro cần (số theo kỳ, tải, EVM) vào engine công khai, vì engine là nguồn số liệu duy nhất; repo riêng chỉ cộng, trình bày, đọc/ghi định dạng.
+  - **Stub thay cho cargo feature.** Đã thử: Cargo đọc manifest của mọi dependency kể cả optional, nên repo công khai không thể trỏ tới một đường dẫn hay git riêng tư mà người khác vẫn build được; `paths` override cũng không thay được dependency theo đường dẫn. Cách chạy được: repo công khai có `crates/pro` (crate `sheafly-pro`, MIT) là **stub**: cùng chữ ký hàm, mọi hàm trả lỗi "bản này không có tính năng Pro" (`ProUnavailable`, chữ vi/en). Bản phát hành chép repo riêng đè lên `crates/pro` trước khi build. Không cần `#[cfg(feature = "pro")]`: shell luôn gọi `sheafly_pro::…`, gate license vẫn ở shell như hiện nay.
+  - **Lockfile và giấy phép.** `Cargo.toml` của stub khai đúng các dependency của crate thật (ví dụ `rust_xlsxwriter`), nên `Cargo.lock` không đổi khi đè (`--locked` vẫn chạy, đã thử) và `scripts/third-party-licenses.mjs` ở repo công khai liệt kê đủ thư viện bản phát hành có. CI repo riêng kiểm tra `Cargo.toml` của nó trùng với stub, và chữ ký hàm khớp (build cả shell với crate thật). `sheafly-pro` thêm vào `OWN_CRATES`.
+  - **CI.** Repo công khai: test như hiện nay, chạy với stub (thêm test shell nhỏ: lệnh Pro trả `ProUnavailable` có chữ đúng ngôn ngữ). Repo riêng: checkout repo công khai, đặt mình vào `crates/pro`, chạy `cargo test -p sheafly-pro` và clippy. Đổi chữ ký hàm là hai PR đi cùng nhau: repo riêng trước (nhánh cùng tên), rồi stub.
+  - **Phát hành.** `build.yml` lấy repo riêng bằng deploy key chỉ đọc (secret `SHEAFLY_PRO_DEPLOY_KEY`) vào `crates/pro`. Như ký số Apple: không có secret (fork) thì build với stub; trên tag `v*` thiếu secret thì job lỗi, để không phát hành nhầm bản không có Pro. README, Giới thiệu và `LICENSE` ghi rõ: mã nguồn công khai theo MIT, bản phát hành chính thức có thêm module Pro đóng (EULA ở 20E).
+  - **Dữ liệu không bị khóa.** Tính năng Pro không ghi gì mà chỉ nó đọc được: báo cáo là xuất tệp, còn dữ liệu Pro lưu trong dự án (nếu có) đi qua `Command` của engine công khai, nên bản tự build vẫn mở, sửa, lưu như cam kết Free.
+  - **Thứ tự.** (1) PR công khai: `crates/pro` stub với `excel_workbook`, shell gọi stub, bỏ `crates/report` khỏi #174 (#174 thành phần lệnh, menu, gate, tài liệu). (2) Tạo repo riêng, chuyển `crates/report` (code và 9 test đọc lại bằng calamine) thành `sheafly-pro`, kèm CI. (3) PR công khai: `build.yml` và chữ trong README/Giới thiệu. Các tính năng Pro sau làm theo cùng khuôn: thêm hàm vào stub và crate thật.
+  - **Rủi ro.** Người đóng góp không chạy được phần Pro (chấp nhận; họ vẫn sửa được engine, giao diện và shell). Code trong repo công khai trước đây (nhánh `feat/excel-export` đã push) vẫn xem được trong lịch sử PR #174; chỉ `main` và các bản sau không chứa nó. Mất deploy key thì tạo key mới, không ảnh hưởng người dùng.
 
 **Xong khi.** Bản macOS mở không cảnh báo trên máy mới; bản 1.6.0 tự nhận bản 1.6.1; key thử bật Pro trên máy không có mạng; key sửa một ký tự bị từ chối với lý do rõ; Free mở và lưu tệp có liên kết tracker; mua thử ở chế độ test của MoR nhận được key qua email và key đó chạy.
 
@@ -945,7 +955,51 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **D8 — Cài đặt và model.** `settings.json`: `ai.enabled` (mặc định tắt), `ai.model`, `ai.mask` (mặc định tắt), `ai.notice_accepted`. Model mặc định `claude-opus-5-5` (mới nhất, theo issue), có `claude-sonnet-5-5` cho rẻ và nhanh hơn, và ô "Khác" để gõ ID. ID model không ghi vào tệp dự án.
 - **D9 — License và ProBadge.** Mọi lệnh Tauri `ai_*` gọi mạng kiểm tra `grants(Feature::Ai)` (lỗi `NeedsPro`); lưu/xóa key và `apply_command` (kể cả `ApplyProposal`) không bị chặn, nên tệp đã sửa vẫn mở, undo, redo và lưu trên Free. `ProBadge` hiện trên mọi bản build (như CLAUDE.md quy định), không chỉ bản chưa có license.
 
-### Pha 23 — báo cáo cho lãnh đạo (issue #168, Pro `reporting`)
+### Pha 23: Kiểm tra chất lượng lịch (DCMA 14 điểm) — Issue #172, Pro (`health`)
+
+**Mục tiêu:** chấm lịch theo 14 tiêu chí của DCMA, mỗi tiêu chí có ngưỡng, đạt hay không đạt và danh sách việc vi phạm; chọn một tiêu chí thì bảng việc lọc ra các việc đó. Đây là tính năng mới nên thuộc Pro; các số đang có ở Free (thống kê, EVM, cờ trễ) giữ nguyên.
+
+**Hiện trạng engine (25/10/2026):** đủ dữ liệu cho cả 14 điểm, không cần lệnh hay trường mới. Liên kết có kiểu và lag; ràng buộc `Mso`, `Mfo`, `Snlt`, `Fnlt`; `total_slack` âm được (`working_between` trả số âm khi late trước early, và lượt lùi giới hạn late theo FNLT/MFO/SNLT/MSO); có baseline (start, finish, work), `status_date`, ngày thực tế, assignment và chi phí. **Deadline không làm slack âm** (khác Microsoft Project, nơi deadline giới hạn late finish), nên điểm 7 đếm thêm việc có early finish sau deadline (D3).
+
+**Định nghĩa 14 điểm.** Đếm trên việc lá chưa xong, trừ khi ghi khác. "Ngày" là ngày làm việc 8 giờ (`MINUTES_PER_DAY`, 480 phút), giống ô nhập ở giao diện.
+
+| # | Tiêu chí | Vi phạm khi | Ngưỡng |
+|---|---|---|---|
+| 1 | Logic | việc không có việc trước hoặc không có việc sau (D2) | ≤ 5% |
+| 2 | Lead | liên kết có lag âm | 0 |
+| 3 | Lag | liên kết có lag dương | ≤ 5% số liên kết |
+| 4 | Kiểu liên kết | liên kết FS | ≥ 90% số liên kết |
+| 5 | Ràng buộc cứng | MSO, MFO, SNLT, FNLT (D4) | ≤ 5% |
+| 6 | Độ chùng lớn | total slack > 44 ngày | ≤ 5% |
+| 7 | Độ chùng âm | total slack < 0, hoặc early finish sau deadline (D3) | 0 |
+| 8 | Thời lượng dài | thời lượng baseline > 44 ngày (chưa có baseline thì thời lượng hiện tại) | ≤ 5% |
+| 9 | Ngày không hợp lệ | ngày thực tế sau `status_date`, hoặc ngày dự kiến của phần chưa làm trước `status_date` | 0 |
+| 10 | Nguồn lực | việc từ 1 ngày trở lên không có người và không có chi phí | chỉ báo, không ngưỡng |
+| 11 | Việc lỡ hạn | baseline finish ≤ `status_date` mà chưa xong hoặc xong sau baseline finish; mẫu số là các việc có baseline finish ≤ `status_date` | ≤ 5% |
+| 12 | Thử đường găng | thêm độ trễ vào việc găng đầu tiên chưa xong mà ngày kết thúc dự án không lùi đúng bấy nhiêu (D5) | đạt |
+| 13 | CPLI | (độ dài đường găng + độ chùng của dự án so với mốc mục tiêu) / độ dài đường găng (D6) | ≥ 0,95 |
+| 14 | BEI | số việc đã xong / số việc có baseline finish ≤ `status_date` | ≥ 0,95 |
+
+**Quyết định (25/10/2026):**
+- **D1 — Phạm vi đếm.** Việc lá, bỏ summary, việc đã xong (trừ điểm 9, 11, 14) và chuỗi nền (`RecurrenceSpec::background`, vốn không vào đường găng). Milestone tính ở điểm 1, 2–4 (qua liên kết), 5, 7, 9, 11, 14; bỏ ở 6, 8, 10. Việc đầu và cuối dự án không có trước/sau là bình thường: điểm 1 bỏ qua việc chỉ thiếu việc trước khi nó bắt đầu từ ngày bắt đầu dự án, và việc chỉ thiếu việc sau khi nó là việc kết thúc dự án.
+- **D2 — Liên kết qua summary.** Liên kết tới/từ summary đi qua nút ảo của `Graph`, nên việc lá có summary cha được nối thì tính là có việc trước/sau. Các công cụ DCMA đọc tệp MSPDI chỉ tính liên kết của chính việc; Sheafly lấy theo đồ thị nó thực sự xếp lịch.
+- **D3 — Deadline ở điểm 7.** Vì deadline không vào lượt lùi, việc có `early_finish` sau `deadline` được tính là độ chùng âm, ghi lý do riêng ("trễ deadline") cạnh lý do "slack âm".
+- **D4 — Việc thủ công.** Việc `manual` cũng khóa ngày nên tính ở điểm 5, ghi lý do riêng ("lập lịch thủ công").
+- **D5 — Thử đường găng.** Trên một bản sao: thêm 600 ngày làm việc vào thời lượng còn lại của việc găng chưa xong sớm nhất, chạy `schedule_dates` một lần, so độ lùi ngày kết thúc dự án. Không có việc găng chưa xong thì "không áp dụng". Đây là phần duy nhất phải xếp lịch lại, nên có bench riêng.
+- **D6 — CPLI.** Mốc mục tiêu là deadline của milestone cuối (theo finish), hoặc ràng buộc FNLT/MFO của nó; không có thì "không áp dụng" thay vì luôn bằng 1.
+- **D7 — Kết quả tổng.** DCMA không có điểm tổng chính thức, nên không hiện phần trăm. Kết quả là "đạt x / y tiêu chí áp dụng" và xếp loại: *Tốt* (đạt hết); *Chấp nhận được* (trượt 1–2 tiêu chí, không có tiêu chí nào trong 2, 7, 9, 12); *Rủi ro* (còn lại). Giao diện ghi rõ đây là cách xếp loại của Sheafly. Điểm 10 không có ngưỡng nên không tính vào tổng.
+- **D8 — Không áp dụng.** Thiếu dữ liệu (không có baseline: 8 dùng thời lượng hiện tại, 11, 14 không áp dụng; không có `status_date`: 9, 11, 14 không áp dụng; dự án không có nguồn lực: 10 không áp dụng) thì hiện "không áp dụng" kèm lý do, không tính là đạt.
+- **D9 — Ngưỡng cố định.** 44 ngày, 5%, 90%, 0,95 là hằng số trong `health.rs`; không lưu vào tệp và không có lệnh đổi ngưỡng ở bản đầu.
+- **D10 — License.** Thêm `Feature::Health` ("health") vào `crates/license` (`Feature::ALL`). Lệnh Tauri `schedule_health` kiểm tra `grants(Feature::Health)` (lỗi `NeedsPro`). Không có `Command`, không đổi `FORMAT_VERSION` hay `ENGINE_REVISION`.
+- **D11 — Gợi ý sửa.** Không có ở bản đầu. Kind 3 của Pha 22 (việc cô lập, ước lượng bất thường) đọc kết quả này qua summary thay vì tự tính lại.
+
+**Lộ trình PR:**
+- **PR A — `feat/schedule-health-engine`:** `health.rs` (read thuần `schedule_health(project) -> HealthReport`: mỗi tiêu chí có số vi phạm, mẫu số, tỷ lệ, ngưỡng, trạng thái đạt / không đạt / không áp dụng kèm lý do, và uid các việc vi phạm theo thứ tự dự án), test `tests/health.rs` (mỗi tiêu chí một dự án viết tay, ngưỡng sát biên, không áp dụng, liên kết qua summary, milestone đầu/cuối), bench `-- health 500 5000` (< 10 ms chưa tính điểm 12; điểm 12 đo riêng).
+- **PR B — `feat/schedule-health-tauri`:** `Feature::Health`, lệnh `schedule_health` chạy trên thread pool, `types.ts`, `api.ts`, `fakeBackend`.
+- **PR C — `feat/schedule-health-ui`:** hộp thoại Dự án → Kiểm tra chất lượng lịch… (`Modal.tsx`, `ProBadge`, menu có "(Pro)" trong `i18n.rs`): danh sách 14 tiêu chí với số, ngưỡng và trạng thái, kết quả tổng; chọn tiêu chí thì đóng hộp, lọc bảng việc theo chế độ `health:<số>` trong `viewRows.ts` (như `interrupts`, `span`) và chuyển sang Gantt. Chạy lại khi dự án đổi. Song ngữ vi/en.
+
+Thứ tự: A → B → C.
+### Pha 24 — báo cáo cho lãnh đạo (issue #168, Pro `reporting`)
 
 **Mục tiêu:** sản phẩm báo cáo trình được cho lãnh đạo và khách hàng: workbook Excel nhiều sheet, dashboard một trang (PDF/PNG), logo và thông tin doanh nghiệp trên đầu trang. Tách 3 PR: (1) Excel, (2) dashboard một trang, (3) nhận diện thương hiệu áp vào PDF và trang bìa Excel. Số liệu đều lấy từ engine; báo cáo chỉ cộng theo kỳ và trình bày.
 
