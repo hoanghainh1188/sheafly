@@ -69,6 +69,25 @@ pub fn find_overallocations(project: &Project) -> Vec<Overallocation> {
         .collect()
 }
 
+/// Work above what each person has, in working minutes, by resource uid: the units over
+/// their availability times the length of every overallocated stretch, from the same sweep
+/// as `find_overallocations`. People with no overload are left out.
+pub fn over_minutes(project: &Project) -> BTreeMap<u32, i64> {
+    sweeps(project)
+        .into_iter()
+        .filter_map(|sweep| {
+            let excess: f64 = sweep
+                .stretches
+                .iter()
+                .filter(|stretch| stretch.over())
+                .map(|stretch| (stretch.load - stretch.available) * (stretch.end - stretch.start) as f64 / 60_000.0)
+                .sum();
+            let minutes = excess.round() as i64;
+            (minutes > 0).then_some((sweep.resource_uid, minutes))
+        })
+        .collect()
+}
+
 /// A piece of one assignment's work inside one calendar range of one day.
 #[derive(Clone, Copy)]
 struct Piece {
@@ -85,6 +104,7 @@ const NO_OWNER: usize = usize::MAX;
 /// A stretch of time with one load and one availability.
 struct Stretch {
     start: i64,
+    end: i64,
     load: f64,
     available: f64,
 }
@@ -213,6 +233,7 @@ fn stretches(
             if next > at {
                 stretches.push(Stretch {
                     start: at,
+                    end: next,
                     load: load.max(0.0),
                     available: available.max(0.0),
                 });

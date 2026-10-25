@@ -123,6 +123,13 @@
   --risk-medium-bg: #fdf1de;
   --risk-low: #0b5fc0;
   --risk-low-bg: #e7f0fc;
+  /* What the engine's trial of an AI proposal found: better, a trade-off, worse or refused. */
+  --verdict-improved: #1b6b2f;
+  --verdict-improved-bg: #e6f4ea;
+  --verdict-trade-off: #8a5300;
+  --verdict-trade-off-bg: #fdf1de;
+  --verdict-worse: #b3261e;
+  --verdict-worse-bg: #fdecea;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
   --matrix-rule: #985800;
@@ -226,6 +233,12 @@
   --risk-medium-bg: #37290f;
   --risk-low: #70b2ff;
   --risk-low-bg: #152a42;
+  --verdict-improved: #7fd99a;
+  --verdict-improved-bg: #16301e;
+  --verdict-trade-off: #f2b660;
+  --verdict-trade-off-bg: #37290f;
+  --verdict-worse: #ff8a80;
+  --verdict-worse-bg: #3d1b19;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
   --matrix-rule: #f2b660;

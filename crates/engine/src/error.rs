@@ -123,6 +123,8 @@ pub enum Invalid {
     ImportLinkRow,
     ImportLinkLoop,
     EmptyPlan,
+    EmptyProposal,
+    NotInProposal,
     EmailInvalid,
     EmailTaken,
     SourceSite,
@@ -515,6 +517,14 @@ impl Invalid {
                 "Kế hoạch không có gì để áp dụng",
                 "The plan has nothing to apply",
             ),
+            Self::EmptyProposal => fixed(
+                "Đề xuất không có lệnh nào",
+                "The proposal has no command",
+            ),
+            Self::NotInProposal => fixed(
+                "Đề xuất chứa một lệnh không được phép",
+                "The proposal holds a command that is not allowed in one",
+            ),
             Self::ImportLinkLoop => fixed(
                 "Các dòng chờ nhau thành vòng",
                 "These rows wait for each other in a loop",
@@ -743,6 +753,8 @@ mod tests {
             ImportLinkRow,
             ImportLinkLoop,
             EmptyPlan,
+            EmptyProposal,
+            NotInProposal,
             EmailInvalid,
             EmailTaken,
             SourceSite,

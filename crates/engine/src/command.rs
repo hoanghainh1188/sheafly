@@ -10,6 +10,7 @@ use crate::fields::{self, FieldKind, FieldValue, OptionRename};
 use crate::import::{self, ImportResource, ImportTask};
 use crate::payments::{self, CashFlowSettings, PaymentInput, Receipt};
 use crate::plan;
+use crate::proposal;
 use crate::pull::{self, PullTask};
 use crate::push::{self, PushedEntry};
 use crate::sync::Resolution;
@@ -29,7 +30,7 @@ use crate::timeutil::{parse_date_key, MINUTES_PER_DAY, MINUTES_PER_HOUR};
 use crate::tracking;
 use crate::work::{self, Changed};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
     RenameProject {
@@ -459,6 +460,12 @@ pub enum Command {
         delays: Vec<LevelingDelay>,
         #[serde(default)]
         splits: Vec<LevelingSplits>,
+    },
+    /// An AI proposal the user accepted (`proposal.rs`): the commands in order, one undo
+    /// step, all or nothing. Only the commands of `allowed_in_proposal` may be inside, so a
+    /// file edited by hand cannot slip another one in; leveling comes as `ApplyLeveling`.
+    ApplyProposal {
+        commands: Vec<Command>,
     },
     /// Replace the contract value, opening balance and retention (`payments.rs`).
     SetCashFlowSettings {
@@ -1221,6 +1228,7 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
             delays,
             splits,
         } => plan::apply_plan(project, assignments, delays, splits)?,
+        Command::ApplyProposal { commands } => proposal::apply_proposal(project, commands)?,
         Command::SetResourceEmail { uid, email } => source::set_resource_email(project, *uid, email)?,
         Command::SetSource { source } => source::set_source(project, source)?,
         Command::ApplyPull { rows, pulled_at, resolutions } => {

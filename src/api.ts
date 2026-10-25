@@ -7,12 +7,12 @@ import { isThemeChoice, type ThemeChoice } from "./theme";
 import type {
   AiCheck,
   AiSettings,
-  RiskReport,
   AssignmentMatrix,
   CurveBucket,
   CurveFilter,
   CurveMeasure,
   CurvesReport,
+  FixReport,
   Forecast,
   HealthReport,
   Command,
@@ -28,6 +28,8 @@ import type {
   NetworkOptions,
   PlanPreview,
   ProjectMetrics,
+  Proposal,
+  ProposalTrial,
   PullChanges,
   PullPreview,
   PullProgress,
@@ -37,6 +39,7 @@ import type {
   PushProgress,
   PushReport,
   Resolution,
+  RiskReport,
   Source,
   Snapshot,
   Suggestion,
@@ -263,7 +266,25 @@ export function aiRisks(): Promise<RiskReport | null> {
   return invoke<RiskReport | null>("ai_risks");
 }
 
-/** Stop the request `aiRisks` is running. */
+/**
+ * Ask the AI for fixes to overallocation and missed deadlines; `null` when stopped. Not
+ * queued, like `aiRisks`; nothing changes until `aiApply`.
+ */
+export function aiFixes(): Promise<FixReport | null> {
+  return invoke<FixReport | null>("ai_fixes");
+}
+
+/** Try a proposal on a copy of the project as it is now; rejects with the engine's refusal. */
+export function aiTrial(proposal: Proposal): Promise<ProposalTrial> {
+  return inOrder(() => invoke<ProposalTrial>("ai_trial", { proposal }));
+}
+
+/** Apply a proposal's last trial as one undo step; refused when the project changed since. */
+export function aiApply(id: string, commands: Command[]): Promise<Snapshot> {
+  return inOrder(() => received(invoke<SnapshotAnswer>("ai_apply", { id, commands })));
+}
+
+/** Stop the request `aiRisks` or `aiFixes` is running. */
 export function aiCancel(): Promise<void> {
   return invoke<void>("ai_cancel");
 }
