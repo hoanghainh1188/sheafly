@@ -944,6 +944,51 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **D8 — Cài đặt và model.** `settings.json`: `ai.enabled` (mặc định tắt), `ai.model`, `ai.mask` (mặc định tắt), `ai.notice_accepted`. Model mặc định `claude-opus-5-5` (mới nhất, theo issue), có `claude-sonnet-5-5` cho rẻ và nhanh hơn, và ô "Khác" để gõ ID. ID model không ghi vào tệp dự án.
 - **D9 — License và ProBadge.** Mọi lệnh Tauri `ai_*` gọi mạng kiểm tra `grants(Feature::Ai)` (lỗi `NeedsPro`); lưu/xóa key và `apply_command` (kể cả `ApplyProposal`) không bị chặn, nên tệp đã sửa vẫn mở, undo, redo và lưu trên Free. `ProBadge` hiện trên mọi bản build (như CLAUDE.md quy định), không chỉ bản chưa có license.
 
+### Pha 23: Kiểm tra chất lượng lịch (DCMA 14 điểm) — Issue #172, Pro (`health`)
+
+**Mục tiêu:** chấm lịch theo 14 tiêu chí của DCMA, mỗi tiêu chí có ngưỡng, đạt hay không đạt và danh sách việc vi phạm; chọn một tiêu chí thì bảng việc lọc ra các việc đó. Đây là tính năng mới nên thuộc Pro; các số đang có ở Free (thống kê, EVM, cờ trễ) giữ nguyên.
+
+**Hiện trạng engine (25/10/2026):** đủ dữ liệu cho cả 14 điểm, không cần lệnh hay trường mới. Liên kết có kiểu và lag; ràng buộc `Mso`, `Mfo`, `Snlt`, `Fnlt`; `total_slack` âm được (`working_between` trả số âm khi late trước early, và lượt lùi giới hạn late theo FNLT/MFO/SNLT/MSO); có baseline (start, finish, work), `status_date`, ngày thực tế, assignment và chi phí. **Deadline không làm slack âm** (khác Microsoft Project, nơi deadline giới hạn late finish), nên điểm 7 đếm thêm việc có early finish sau deadline (D3).
+
+**Định nghĩa 14 điểm.** Đếm trên việc lá chưa xong, trừ khi ghi khác. "Ngày" là ngày làm việc 8 giờ (`MINUTES_PER_DAY`, 480 phút), giống ô nhập ở giao diện.
+
+| # | Tiêu chí | Vi phạm khi | Ngưỡng |
+|---|---|---|---|
+| 1 | Logic | việc không có việc trước hoặc không có việc sau (D2) | ≤ 5% |
+| 2 | Lead | liên kết có lag âm | 0 |
+| 3 | Lag | liên kết có lag dương | ≤ 5% số liên kết |
+| 4 | Kiểu liên kết | liên kết FS | ≥ 90% số liên kết |
+| 5 | Ràng buộc cứng | MSO, MFO, SNLT, FNLT (D4) | ≤ 5% |
+| 6 | Độ chùng lớn | total slack > 44 ngày | ≤ 5% |
+| 7 | Độ chùng âm | total slack < 0, hoặc early finish sau deadline (D3) | 0 |
+| 8 | Thời lượng dài | thời lượng baseline > 44 ngày (chưa có baseline thì thời lượng hiện tại) | ≤ 5% |
+| 9 | Ngày không hợp lệ | ngày thực tế sau `status_date`, hoặc ngày dự kiến của phần chưa làm trước `status_date` | 0 |
+| 10 | Nguồn lực | việc từ 1 ngày trở lên không có người và không có chi phí | chỉ báo, không ngưỡng |
+| 11 | Việc lỡ hạn | baseline finish ≤ `status_date` mà chưa xong hoặc xong sau baseline finish; mẫu số là các việc có baseline finish ≤ `status_date` | ≤ 5% |
+| 12 | Thử đường găng | thêm độ trễ vào việc găng đầu tiên chưa xong mà ngày kết thúc dự án không lùi đúng bấy nhiêu (D5) | đạt |
+| 13 | CPLI | (độ dài đường găng + độ chùng của dự án so với mốc mục tiêu) / độ dài đường găng (D6) | ≥ 0,95 |
+| 14 | BEI | số việc đã xong / số việc có baseline finish ≤ `status_date` | ≥ 0,95 |
+
+**Quyết định (25/10/2026):**
+- **D1 — Phạm vi đếm.** Việc lá, bỏ summary, việc đã xong (trừ điểm 9, 11, 14) và chuỗi nền (`RecurrenceSpec::background`, vốn không vào đường găng). Milestone tính ở điểm 1, 2–4 (qua liên kết), 5, 7, 9, 11, 14; bỏ ở 6, 8, 10. Việc đầu và cuối dự án không có trước/sau là bình thường: điểm 1 bỏ qua việc chỉ thiếu việc trước khi nó bắt đầu từ ngày bắt đầu dự án, và việc chỉ thiếu việc sau khi nó là việc kết thúc dự án.
+- **D2 — Liên kết qua summary.** Liên kết tới/từ summary đi qua nút ảo của `Graph`, nên việc lá có summary cha được nối thì tính là có việc trước/sau. Các công cụ DCMA đọc tệp MSPDI chỉ tính liên kết của chính việc; Sheafly lấy theo đồ thị nó thực sự xếp lịch.
+- **D3 — Deadline ở điểm 7.** Vì deadline không vào lượt lùi, việc có `early_finish` sau `deadline` được tính là độ chùng âm, ghi lý do riêng ("trễ deadline") cạnh lý do "slack âm".
+- **D4 — Việc thủ công.** Việc `manual` cũng khóa ngày nên tính ở điểm 5, ghi lý do riêng ("lập lịch thủ công").
+- **D5 — Thử đường găng.** Trên một bản sao: thêm 600 ngày làm việc vào thời lượng còn lại của việc găng chưa xong sớm nhất, chạy `schedule_dates` một lần, so độ lùi ngày kết thúc dự án. Không có việc găng chưa xong thì "không áp dụng". Đây là phần duy nhất phải xếp lịch lại, nên có bench riêng.
+- **D6 — CPLI.** Mốc mục tiêu là deadline của milestone cuối (theo finish), hoặc ràng buộc FNLT/MFO của nó; không có thì "không áp dụng" thay vì luôn bằng 1.
+- **D7 — Kết quả tổng.** DCMA không có điểm tổng chính thức, nên không hiện phần trăm. Kết quả là "đạt x / y tiêu chí áp dụng" và xếp loại: *Tốt* (đạt hết); *Chấp nhận được* (trượt 1–2 tiêu chí, không có tiêu chí nào trong 2, 7, 9, 12); *Rủi ro* (còn lại). Giao diện ghi rõ đây là cách xếp loại của Sheafly. Điểm 10 không có ngưỡng nên không tính vào tổng.
+- **D8 — Không áp dụng.** Thiếu dữ liệu (không có baseline: 8 dùng thời lượng hiện tại, 11, 14 không áp dụng; không có `status_date`: 9, 11, 14 không áp dụng; dự án không có nguồn lực: 10 không áp dụng) thì hiện "không áp dụng" kèm lý do, không tính là đạt.
+- **D9 — Ngưỡng cố định.** 44 ngày, 5%, 90%, 0,95 là hằng số trong `health.rs`; không lưu vào tệp và không có lệnh đổi ngưỡng ở bản đầu.
+- **D10 — License.** Thêm `Feature::Health` ("health") vào `crates/license` (`Feature::ALL`). Lệnh Tauri `schedule_health` kiểm tra `grants(Feature::Health)` (lỗi `NeedsPro`). Không có `Command`, không đổi `FORMAT_VERSION` hay `ENGINE_REVISION`.
+- **D11 — Gợi ý sửa.** Không có ở bản đầu. Kind 3 của Pha 22 (việc cô lập, ước lượng bất thường) đọc kết quả này qua summary thay vì tự tính lại.
+
+**Lộ trình PR:**
+- **PR A — `feat/schedule-health-engine`:** `health.rs` (read thuần `schedule_health(project) -> HealthReport`: mỗi tiêu chí có số vi phạm, mẫu số, tỷ lệ, ngưỡng, trạng thái đạt / không đạt / không áp dụng kèm lý do, và uid các việc vi phạm theo thứ tự dự án), test `tests/health.rs` (mỗi tiêu chí một dự án viết tay, ngưỡng sát biên, không áp dụng, liên kết qua summary, milestone đầu/cuối), bench `-- health 500 5000` (< 10 ms chưa tính điểm 12; điểm 12 đo riêng).
+- **PR B — `feat/schedule-health-tauri`:** `Feature::Health`, lệnh `schedule_health` chạy trên thread pool, `types.ts`, `api.ts`, `fakeBackend`.
+- **PR C — `feat/schedule-health-ui`:** hộp thoại Dự án → Kiểm tra chất lượng lịch… (`Modal.tsx`, `ProBadge`, menu có "(Pro)" trong `i18n.rs`): danh sách 14 tiêu chí với số, ngưỡng và trạng thái, kết quả tổng; chọn tiêu chí thì đóng hộp, lọc bảng việc theo chế độ `health:<số>` trong `viewRows.ts` (như `interrupts`, `span`) và chuyển sang Gantt. Chạy lại khi dự án đổi. Song ngữ vi/en.
+
+Thứ tự: A → B → C.
+
 ### Tiếng Anh (sau v1.0.0) — đã xong
 
 Giao diện có tiếng Việt và tiếng Anh. Lần đầu mở theo ngôn ngữ hệ thống (máy tiếng Việt thì tiếng Việt, còn lại tiếng Anh, không lưu); Xem → Ngôn ngữ đổi ngay và lưu lựa chọn vào `settings.json`. Mỗi vùng giao diện có catalog `<Tên>.i18n.ts` (`defineMessages(vi, en)`, kiểu của `en` lấy từ `vi` nên thiếu khóa là lỗi biên dịch). Tiếng Anh dùng ngày ISO `2026-01-05 08:00`, dấu chấm thập phân, `7.5 days`, thuật ngữ Microsoft Project (As Soon As Possible, Fixed Units, Effort driven…). Ô nhập nhận cả hai kiểu ở cả hai ngôn ngữ. Menu, hộp hỏi lưu, hộp Giới thiệu, thông báo lỗi của engine và báo cáo khôi phục tệp theo ngôn ngữ đang chọn (`src-tauri/src/i18n.rs`, `EngineError::message(lang)`). Tên đã ghi vào tệp là dữ liệu, không đổi khi đổi ngôn ngữ, nên replay và tệp đã lưu không phụ thuộc ngôn ngữ. Tên mặc định theo ngôn ngữ lúc tạo: giao diện gửi tên cho công việc, nguồn lực, mốc, lịch, chuỗi lặp mới; dự án mới dùng `Document::new_in(lang)` ("New project", "Task 1", lịch "Standard"). Tiếng Anh chỉ nhận ngày dạng ISO để `1/5/2026` không bị hiểu nhầm; độ trễ gõ "2 hrs", "30 mins" được chuẩn hóa thành "2h", "30m" trước khi gửi, để tệp vẫn mở được ở bản cũ.
