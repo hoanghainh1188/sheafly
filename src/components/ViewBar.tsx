@@ -5,8 +5,9 @@ import { distinctValues, formatFieldValue, valueKey } from "../fieldValues";
 import { useMessages } from "../i18n";
 import { lastFinish, type SpanEnd } from "../spanFit";
 import type { Project, Scale, ViewId } from "../types";
-import { fieldMode, fieldOfMode, type FilterMode, type GroupMode, type HighlightMode } from "../viewRows";
+import { fieldMode, fieldOfMode, healthCriterionOf, type FilterMode, type GroupMode, type HighlightMode } from "../viewRows";
 import { viewBarMessages } from "./ViewBar.i18n";
+import { healthMessages } from "./health/HealthDialog.i18n";
 import { ProBadge } from "./license/ProBadge";
 
 const VIEWS: { id: ViewId; Icon: LucideIcon; pro?: boolean }[] = [
@@ -82,6 +83,8 @@ export function ViewBar(props: Props) {
   const chart = view === "gantt" || view === "tracking";
   const rowControls = project && (chart || view === "network" || view === "matrix");
   const filterField = project ? fieldOfMode(project, props.filter) : null;
+  const healthCriterion = healthCriterionOf(props.filter);
+  const health = useMessages(healthMessages);
   const filterValues = useMemo(
     () => (filterField && project ? distinctValues(filterField, project.tasks) : []),
     [filterField, project],
@@ -187,6 +190,10 @@ export function ViewBar(props: Props) {
                   {m.byField(field.name)}
                 </option>
               ))}
+              {/* Set from the health check dialog; listed only while it is on. */}
+              {healthCriterion != null && (
+                <option value={props.filter}>{m.byHealth(`${healthCriterion}. ${health.name(healthCriterion)}`)}</option>
+              )}
             </select>
           </label>
           {filterField && (

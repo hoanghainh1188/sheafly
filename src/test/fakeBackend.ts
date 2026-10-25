@@ -18,12 +18,13 @@ import type {
   TaskAssignment,
   TaskClipboard,
   Forecast,
+  HealthReport,
   PullChanges,
   PullPreview,
   PushPreview,
   PushReport,
 } from "../types";
-import { makeLicense, makeMetrics, makeProLicense, makeResource, makeSnapshot, makeTask } from "./fixtures";
+import { makeHealthReport, makeLicense, makeMetrics, makeProLicense, makeResource, makeSnapshot, makeTask } from "./fixtures";
 
 export interface InvokeCall {
   cmd: string;
@@ -45,6 +46,8 @@ class FakeBackend {
   planPreview: PlanPreview | null = null;
   /** What `forecast` answers (null is a run stopped by a newer one). */
   forecast: Forecast | null = null;
+  /** What `schedule_health` answers. */
+  health: HealthReport = makeHealthReport();
   /** What `load_map` answers. */
   loadMap: LoadMap = { buckets: [], rows: [] };
   /** What `assignment_matrix` answers. */
@@ -134,6 +137,7 @@ class FakeBackend {
     this.theme = "system";
     this.license = makeLicense();
     this.licenseRefusal = null;
+    this.health = makeHealthReport();
   }
 
   /** The next call to `cmd` waits until the returned function runs, like a slow Rust command. */
@@ -197,6 +201,8 @@ class FakeBackend {
         return structuredClone(this.curvesReport);
       case "forecast":
         return structuredClone(this.forecast);
+      case "schedule_health":
+        return structuredClone(this.health);
       case "preview_plan":
         return structuredClone(
           this.planPreview ?? {

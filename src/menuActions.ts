@@ -56,6 +56,8 @@ export interface MenuContext {
   openLicense: () => void;
   /** Trợ giúp → Gợi ý AI. */
   openAiSettings: () => void;
+  /** Dự án → Kiểm tra chất lượng lịch (Pro `health`). */
+  openHealth: () => void;
   /** Lịch làm việc, on the project calendar. */
   openWorkingTime: () => void;
   openBaseline: () => void;
@@ -71,6 +73,8 @@ export interface MenuContext {
   fillField: FillField | null;
   /** Whether this computer's license unlocks Sheafly Pro reporting features. */
   reportingPro?: boolean;
+  /** Whether it unlocks the schedule health check. */
+  healthPro?: boolean;
 }
 
 const VIEWS: Record<string, ViewId> = {
@@ -212,6 +216,11 @@ function viewAction(id: string, ctx: MenuContext): boolean {
       return true;
     case "ai-settings":
       ctx.openAiSettings();
+      return true;
+    case "schedule-health":
+      if (!ctx.snap) return true;
+      if (ctx.healthPro) ctx.openHealth();
+      else ctx.openLicense();
       return true;
     case "lang-vi":
     case "lang-en":

@@ -11,6 +11,7 @@ mod jira_fields;
 mod jira_push;
 mod license;
 mod delta;
+mod health_commands;
 mod i18n;
 mod menu_icons;
 mod settings;
@@ -1508,6 +1509,7 @@ pub fn run() {
             apply_plan,
             export_mspdi,
             export_excel,
+            health_commands::schedule_health,
             save_pdf,
             check_autosave,
             compact_history,

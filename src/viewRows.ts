@@ -6,9 +6,18 @@ import { viewRowsMessages } from "./viewRows.i18n";
 
 /** A custom field, by id, as a filter or group mode. */
 export type FieldMode = `field:${number}`;
-export type FilterMode = "none" | "critical" | "resource" | "late" | "interrupts" | "span" | FieldMode;
+/** A criterion of the schedule health check, by number: its tasks. */
+export type HealthMode = `health:${number}`;
+export type FilterMode = "none" | "critical" | "resource" | "late" | "interrupts" | "span" | FieldMode | HealthMode;
 export type GroupMode = "none" | "resource" | "summary" | FieldMode;
 export type HighlightMode = "none" | "critical" | "late" | "interrupts" | "span";
+
+/** The criterion number a health mode names, or null for another mode. */
+export function healthCriterionOf(mode: string): number | null {
+  if (!mode.startsWith("health:")) return null;
+  const number = Number(mode.slice("health:".length));
+  return Number.isInteger(number) && number >= 1 && number <= 14 ? number : null;
+}
 
 export function fieldMode(field: FieldDef): FieldMode {
   return `field:${field.id}`;
@@ -44,7 +53,8 @@ export type ViewRow = TaskViewRow | GroupViewRow;
  * has `fieldValue` as its key (see `valueKey`; "" keeps tasks with no value), and a
  * mode naming a field that no longer exists does nothing. "span" filters or highlights
  * the tasks that do not fit before `spanEnd` (see `outsideSpan`); without an end it does
- * nothing.
+ * nothing. A health mode keeps the tasks in `healthTasks` (the criterion's, from the last
+ * report); without them it does nothing.
  */
 export function buildViewRows(
   project: Project,
@@ -54,8 +64,9 @@ export function buildViewRows(
   highlight: HighlightMode,
   fieldValue = "",
   spanEnd: number | null = null,
+  healthTasks: ReadonlySet<number> | null = null,
 ): ViewRow[] {
-  const visible = visibleTasks(project, filter, resourceUid, fieldValue, spanEnd);
+  const visible = visibleTasks(project, filter, resourceUid, fieldValue, spanEnd, healthTasks);
   const lit = highlighter(highlight, spanEnd);
   if (group === "resource") return groupByResource(project, visible, lit);
   if (group === "summary") return groupBySummary(project, visible, lit);
@@ -73,10 +84,13 @@ function visibleTasks(
   resourceUid: number | null,
   fieldValue: string,
   spanEnd: number | null,
+  healthTasks: ReadonlySet<number> | null,
 ): Task[] {
   const field = fieldOfMode(project, filter);
+  const health = filter.startsWith("health:");
   if (filter === "none" || (filter.startsWith("field:") && !field)) return project.tasks;
   if (filter === "span" && spanEnd == null) return project.tasks;
+  if (health && healthTasks == null) return project.tasks;
   const byUid = new Map(project.tasks.map((task) => [task.uid, task]));
   const direct = new Set<number>();
   const assignedTo = filter === "resource" ? tasksAssignedTo(project.assignments, resourceUid) : new Set<number>();
@@ -86,7 +100,9 @@ function visibleTasks(
       ? valueKey(valueOf(task, field)) === fieldValue && !(fieldValue === "" && task.summary)
       : filter === "span"
         ? spanEnd != null && outsideSpan(task, spanEnd)
-        : matchesFilter(task, assignedTo, filter, resourceUid);
+        : health
+          ? (healthTasks?.has(task.uid) ?? false)
+          : matchesFilter(task, assignedTo, filter, resourceUid);
     if (matches) direct.add(task.uid);
   }
   const keep = new Set(direct);

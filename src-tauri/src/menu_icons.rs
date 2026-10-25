@@ -62,6 +62,7 @@ pub const SYMBOLS: &[(&str, &str)] = &[
     ("assignment-rules", "list.bullet.clipboard"),
     ("tracking", "chart.bar.doc.horizontal"),
     ("reschedule-uncompleted", "calendar.badge.clock"),
+    ("schedule-health", "stethoscope"),
     ("compact-history", "archivebox"),
     ("license", "key"),
     ("ai-settings", "sparkles"),

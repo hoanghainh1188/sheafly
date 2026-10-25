@@ -32,6 +32,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     openBaseline: vi.fn(),
     openLicense: vi.fn(),
     openAiSettings: vi.fn(),
+    openHealth: vi.fn(),
     openRecurring: vi.fn(),
     openSplit: vi.fn(),
     changeLang: vi.fn(),
@@ -129,6 +130,17 @@ describe("handleMenuAction", () => {
     handleMenuAction("export-excel", ctx);
     expect(ctx.openLicense).toHaveBeenCalledOnce();
     expect(ctx.startFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("opens the health check with its license and the license dialog without", () => {
+    const licensed = context({ healthPro: true });
+    handleMenuAction("schedule-health", licensed);
+    expect(licensed.openHealth).toHaveBeenCalledOnce();
+    expect(licensed.openLicense).not.toHaveBeenCalled();
+    const free = context({ healthPro: false });
+    handleMenuAction("schedule-health", free);
+    expect(free.openHealth).not.toHaveBeenCalled();
+    expect(free.openLicense).toHaveBeenCalledOnce();
   });
 
   it("opens the file dialog when exporting excel with pro license", () => {

@@ -4,6 +4,7 @@ import { setCurrentLang } from "./i18n";
 import { makeAssignment, makeProject, makeResource, makeTask, outlineProject } from "./test/fixtures";
 import {
   buildViewRows,
+  healthCriterionOf,
   type FilterMode,
   type GroupMode,
   type HighlightMode,
@@ -47,6 +48,18 @@ describe("buildViewRows filters", () => {
     expect(shape(buildViewRows(project, "none", null, "none", "interrupts"))).toEqual([
       "1", "2", "3", "4", "5", "6", "7*", "8",
     ]);
+  });
+
+  it("keeps a health criterion's tasks, and does nothing before its report is in", () => {
+    const project = outlineProject();
+    expect(shape(buildViewRows(project, "health:1", null, "none", "none", "", null, new Set([5, 8])))).toEqual([
+      "1", "4", "5", "8",
+    ]);
+    expect(buildViewRows(project, "health:1", null, "none", "none", "", null, null)).toHaveLength(8);
+    expect(shape(buildViewRows(project, "health:3", null, "none", "none", "", null, new Set()))).toEqual([]);
+    expect(healthCriterionOf("health:14")).toBe(14);
+    expect(healthCriterionOf("health:15")).toBeNull();
+    expect(healthCriterionOf("late")).toBeNull();
   });
 
   it("critical filter keeps matching tasks and their summary ancestors", () => {

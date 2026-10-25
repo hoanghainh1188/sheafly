@@ -27,6 +27,8 @@ import { linkAbove, resourceCommand } from "./appCommands";
 import { BaselineDialog } from "./components/BaselineDialog";
 import { LicenseDialog } from "./components/license/LicenseDialog";
 import { AiSettingsDialog } from "./components/ai/AiSettingsDialog";
+import { HealthDialog } from "./components/health/HealthDialog";
+import { useScheduleHealth } from "./components/health/useScheduleHealth";
 import { EvmPanel } from "./components/EvmPanel";
 import { GanttChart } from "./components/GanttChart";
 import { Inspector } from "./components/inspector/Inspector";
@@ -77,7 +79,7 @@ import { undoTo } from "./undoTo";
 import { useFileDialog } from "./useFileDialog";
 import { distinctValues, valueKey } from "./fieldValues";
 import { lastFinish, spanEndInstant, type SpanEnd } from "./spanFit";
-import { buildViewRows, fieldOfMode, type FilterMode, type GroupMode, type HighlightMode } from "./viewRows";
+import { buildViewRows, fieldOfMode, healthCriterionOf, type FilterMode, type GroupMode, type HighlightMode } from "./viewRows";
 import { windowTitle } from "./windowTitle";
 import { selectionRange } from "./taskSelection";
 import { parsePastedTable } from "./pastedTable";
@@ -118,6 +120,7 @@ export default function App() {
   const [baselineOpen, setBaselineOpen] = useState(false);
   const [licenseOpen, setLicenseOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   // What this computer's license unlocks; the backend checks again on every gated command.
   const [license, setLicense] = useState<LicenseView | null>(null);
   useEffect(() => {
@@ -125,6 +128,7 @@ export default function App() {
   }, []);
   const capacityPro = license?.features.includes("capacity") ?? false;
   const reportingPro = license?.features.includes("reporting") ?? false;
+  const healthPro = license?.features.includes("health") ?? false;
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
   const [workingTime, setWorkingTime] = useState<{ id: number; start: number } | null>(null);
   // The resource Khả dụng is open for and the history cursor to roll back to.
@@ -340,6 +344,13 @@ export default function App() {
     () => (forecastState.current && forecastState.result ? new Map(forecastState.result.tasks.map((item) => [item.uid, item])) : null),
     [forecastState.current, forecastState.result],
   );
+  // The health check reschedules a copy once: ask only while the dialog or its filter shows it.
+  const healthCriterion = healthCriterionOf(rowFilter);
+  const health = useScheduleHealth(project, healthOpen || healthCriterion != null);
+  const healthTasks = useMemo(() => {
+    const criterion = healthCriterion != null ? health.report?.criteria[healthCriterion - 1] : undefined;
+    return criterion ? new Set(criterion.tasks.map((item) => item.uid)) : null;
+  }, [health.report, healthCriterion]);
   const availabilityResource = availability ? project?.resources.find((item) => item.uid === availability.uid) : undefined;
   // A resource that is gone (a file opened elsewhere) ends its Khả dụng transaction.
   useEffect(() => {
@@ -350,10 +361,10 @@ export default function App() {
   const rows = useMemo(
     () =>
       project
-        ? buildViewRows(project, rowFilter, filterResource, rowGroup, rowHighlight, filterValue, spanEndInstant(project, spanEnd))
+        ? buildViewRows(project, rowFilter, filterResource, rowGroup, rowHighlight, filterValue, spanEndInstant(project, spanEnd), healthTasks)
         : [],
     // Group headers ("Chưa gán" / "Unassigned") are text, so they follow the language.
-    [project, rowFilter, filterResource, rowGroup, rowHighlight, filterValue, spanEnd, lang],
+    [project, rowFilter, filterResource, rowGroup, rowHighlight, filterValue, spanEnd, healthTasks, lang],
   );
   // A Shift+click range runs in the rows' order, also when picked on the network diagram.
   const selection = useMemo(
@@ -418,6 +429,7 @@ export default function App() {
         openBaseline: () => setBaselineOpen(true),
         openLicense: () => setLicenseOpen(true),
         openAiSettings: () => setAiSettingsOpen(true),
+        openHealth: () => setHealthOpen(true),
         openRecurring: () => setSeriesDialog(0),
         openSplit: setSplitDialog,
         // A new, untouched project is renamed in the new language by the backend.
@@ -431,8 +443,9 @@ export default function App() {
         setClipboard,
         fillField,
         reportingPro,
+        healthPro,
       }),
-    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, infoStart, workingTime, availability, assignmentStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro],
+    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, infoStart, workingTime, availability, assignmentStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro, healthPro],
   );
   menuRef.current = handleMenu;
 
@@ -580,9 +593,9 @@ export default function App() {
   const networkRows = useMemo(
     () =>
       project && view === "network"
-        ? buildViewRows(project, rowFilter, filterResource, "none", rowHighlight, filterValue, spanEndInstant(project, spanEnd))
+        ? buildViewRows(project, rowFilter, filterResource, "none", rowHighlight, filterValue, spanEndInstant(project, spanEnd), healthTasks)
         : [],
-    [project, view, rowFilter, filterResource, rowHighlight, filterValue, spanEnd, lang],
+    [project, view, rowFilter, filterResource, rowHighlight, filterValue, spanEnd, healthTasks, lang],
   );
   const networkVisible = useMemo(
     () => (rowFilter === "none" ? null : networkRows.flatMap((row) => (row.kind === "task" ? [row.task.uid] : []))),
@@ -596,9 +609,9 @@ export default function App() {
   const matrixRows = useMemo(
     () =>
       project && view === "matrix"
-        ? buildViewRows(project, rowFilter, filterResource, "none", "none", filterValue, spanEndInstant(project, spanEnd))
+        ? buildViewRows(project, rowFilter, filterResource, "none", "none", filterValue, spanEndInstant(project, spanEnd), healthTasks)
         : [],
-    [project, view, rowFilter, filterResource, filterValue, spanEnd, lang],
+    [project, view, rowFilter, filterResource, filterValue, spanEnd, healthTasks, lang],
   );
   const matrixVisible = useMemo(
     () => (rowFilter === "none" ? null : new Set(matrixRows.flatMap((row) => (row.kind === "task" ? [row.task.uid] : [])))),
@@ -1073,6 +1086,19 @@ export default function App() {
           onOpenLicense={() => {
             setAiSettingsOpen(false);
             setLicenseOpen(true);
+          }}
+        />
+      )}
+      {healthOpen && (
+        <HealthDialog
+          report={health.report}
+          current={health.current}
+          error={health.error}
+          onClose={() => setHealthOpen(false)}
+          onPick={(number) => {
+            setHealthOpen(false);
+            setRowFilter(`health:${number}`);
+            if (view !== "gantt" && view !== "tracking") setView("gantt");
           }}
         />
       )}

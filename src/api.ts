@@ -13,6 +13,7 @@ import type {
   CurveMeasure,
   CurvesReport,
   Forecast,
+  HealthReport,
   Command,
   ImportProblem,
   ImportResource,
@@ -181,6 +182,11 @@ export function assignmentMatrix(group: boolean): Promise<AssignmentMatrix> {
  * The finish forecast of the project as it is now. Not queued behind edits (it takes about
  * a second on a large project); a newer call stops this one, which then answers null.
  */
+/** The schedule health check (Pro `health`); a read that never changes the project. */
+export function scheduleHealth(): Promise<HealthReport> {
+  return invoke<HealthReport>("schedule_health");
+}
+
 export function forecast(iterations: number): Promise<Forecast | null> {
   return invoke<Forecast | null>("forecast", { iterations });
 }

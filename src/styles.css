@@ -864,6 +864,34 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .license-summary h3 { margin: 0; font-size: 15px; }
 .license-summary p { margin: 0; }
 .license-actions { display: flex; justify-content: flex-end; }
+/* Kiểm tra chất lượng lịch: the rating, then one row per DCMA criterion. */
+.health { display: grid; gap: 10px; transition: opacity 150ms ease-out; }
+.health.stale { opacity: 0.6; }
+.health p { margin: 0; }
+.health-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.health-summary .meta { flex-basis: 100%; }
+.health-rating, .health-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.health-rating { font-size: 14px; padding: 2px 10px; }
+.health-rating.good, .health-status.pass { color: var(--health-pass); background: var(--health-pass-bg); }
+.health-rating.acceptable, .health-status.info { color: var(--health-info); background: var(--health-info-bg); }
+.health-rating.at_risk, .health-status.fail { color: var(--health-fail); background: var(--health-fail-bg); }
+.health-status.not_applicable { color: var(--health-na); background: var(--health-na-bg); font-weight: 500; }
+.health-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.health-table th, .health-table td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; vertical-align: top; }
+.health-table thead th { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.health-table tbody th { font-weight: 500; }
+.health-table .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.health-name { display: block; }
+.health-hint, .health-reasons { display: block; font-size: 12px; font-weight: 400; }
+.health-row.fail .health-name { font-weight: 600; }
+.health-row.not_applicable td, .health-row.not_applicable .health-name { color: var(--text-muted); }
 .ai-settings { display: grid; gap: 12px; }
 .ai-settings p { margin: 0; }
 .ai-settings label { display: grid; gap: 3px; }
