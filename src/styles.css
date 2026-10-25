@@ -456,6 +456,36 @@ body.pane-resizing { cursor: col-resize; user-select: none; }
   cursor: pointer;
 }
 .ai-task-link:hover { text-decoration-color: currentColor; }
+/* AI proposals (kind 2): each card says what the engine's trial found. */
+.ai-panel-actions { flex-wrap: wrap; }
+.ai-proposal { border-left-color: var(--border-strong); }
+.ai-proposal-improved { border-left-color: var(--verdict-improved); }
+.ai-proposal-trade_off { border-left-color: var(--verdict-trade-off); }
+.ai-proposal-worse, .ai-proposal-refused { border-left-color: var(--verdict-worse); }
+.ai-verdict {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+}
+.ai-verdict-improved { color: var(--verdict-improved); background: var(--verdict-improved-bg); }
+.ai-verdict-trade_off { color: var(--verdict-trade-off); background: var(--verdict-trade-off-bg); }
+.ai-verdict-worse, .ai-verdict-refused { color: var(--verdict-worse); background: var(--verdict-worse-bg); }
+.ai-changes { margin: 0; padding-left: 18px; line-height: 1.45; }
+.ai-measures { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ai-measures th, .ai-measures td { padding: 2px 4px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+.ai-measures th { position: static; background: transparent; font-weight: 400; color: var(--text-secondary); }
+.ai-measures .bad { color: var(--verdict-worse); font-weight: 600; }
+.ai-proposal-actions { display: flex; gap: 6px; margin-top: 8px; }
+.ai-proposal[aria-busy="true"] .ai-measures { opacity: 0.6; }
+.ai-dropped { margin: 4px 0 0; }
+.ai-dropped > summary { cursor: pointer; color: var(--text-secondary); }
+.ai-dropped[open] > summary { margin-bottom: 6px; }
 .evm-table { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 6px; }
 .evm-table th { position: static; background: transparent; font-weight: 400; color: var(--text-secondary); white-space: normal; }
 .evm-table td { text-align: right; font-variant-numeric: tabular-nums; }

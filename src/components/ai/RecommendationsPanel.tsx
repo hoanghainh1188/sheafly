@@ -1,22 +1,25 @@
-import { KeyRound, Settings2, Sparkles, Square, X } from "lucide-react";
+import { KeyRound, Settings2, Sparkles, Square, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { aiCancel, aiRisks, aiSettings, errorMessage } from "../../api";
+import { aiCancel, aiFixes, aiRisks, aiSettings, errorMessage } from "../../api";
 import { getLang, useMessages } from "../../i18n";
-import type { AiSettings, Project, RiskCard, RiskReport, RiskSeverity } from "../../types";
+import type { AiSettings, FixReport, Project, RiskCard, RiskReport, RiskSeverity, Snapshot } from "../../types";
 import { Button } from "../Button";
 import { ProBadge } from "../license/ProBadge";
-import { adviceNames, adviceParts, refUid, type AdviceNames } from "./adviceText";
+import { AdviceText, TaskLink } from "./AdviceLinks";
+import { adviceNames, refUid, type AdviceNames } from "./adviceText";
+import { Proposals } from "./Proposals";
 import { recommendationsMessages } from "./RecommendationsPanel.i18n";
 
 type Messages = (typeof recommendationsMessages)["vi"];
 
 type Phase =
   | { kind: "idle" }
-  | { kind: "running" }
+  | { kind: "running"; ask: "risks" | "fixes" }
   | { kind: "stopped" }
   | { kind: "failed"; message: string }
-  | { kind: "done"; report: RiskReport; asked: Project };
+  | { kind: "done"; report: RiskReport; asked: Project }
+  | { kind: "fixes"; report: FixReport };
 
 interface RecommendationsPanelProps {
   project: Project;
@@ -28,6 +31,8 @@ interface RecommendationsPanelProps {
   onOpenSettings: () => void;
   /** Select a task named in a card, on the Gantt. */
   onPickTask: (uid: number) => void;
+  /** The project after the user applied a proposal. */
+  onApplied: (snapshot: Snapshot) => void;
   onClose: () => void;
 }
 
@@ -42,13 +47,14 @@ function formatCount(value: number): string {
 }
 
 /**
- * The Recommendations panel beside the Gantt (phase 22, PR C): recommendation kind 1,
- * explain risks. Read only. Without the `ai` license it introduces the feature; with AI
+ * The Recommendations panel beside the Gantt (phase 22, PR C and D): kind 1, explain risks
+ * (read only), and kind 2, proposals to fix overallocation and missed deadlines, which the
+ * engine tries and only the user applies (`Proposals`). Without the `ai` license it introduces the feature; with AI
  * off it points to its settings. A request runs until it answers or Stop; closing the
  * panel or asking again stops the one running, and an answer that comes after is dropped.
  */
 export function RecommendationsPanel(props: RecommendationsPanelProps) {
-  const { project, aiPro, settingsKey, onOpenLicense, onOpenSettings, onPickTask, onClose } = props;
+  const { project, aiPro, settingsKey, onOpenLicense, onOpenSettings, onPickTask, onApplied, onClose } = props;
   const m = useMessages(recommendationsMessages);
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -79,14 +85,17 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
     [],
   );
 
-  async function explain() {
+  async function ask(kind: "risks" | "fixes") {
     const id = ++request.current;
     const asked = project;
-    setPhase({ kind: "running" });
+    setPhase({ kind: "running", ask: kind });
     try {
-      const report = await aiRisks();
+      const next: Phase | null =
+        kind === "risks"
+          ? await aiRisks().then((report) => report && { kind: "done", report, asked })
+          : await aiFixes().then((report) => report && { kind: "fixes", report });
       if (id !== request.current) return;
-      setPhase(report ? { kind: "done", report, asked } : { kind: "stopped" });
+      setPhase(next ?? { kind: "stopped" });
     } catch (error) {
       if (id === request.current) setPhase({ kind: "failed", message: errorMessage(error) });
     }
@@ -131,13 +140,26 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
                 {m.stop}
               </Button>
             ) : (
-              <Button variant="primary" Icon={Sparkles} disabled={!settings} title={m.explainHint} onClick={() => void explain()}>
-                {phase.kind === "done" ? m.explainAgain : m.explain}
-              </Button>
+              <>
+                <Button variant="primary" Icon={Sparkles} disabled={!settings} title={m.explainHint} onClick={() => void ask("risks")}>
+                  {phase.kind === "done" ? m.explainAgain : m.explain}
+                </Button>
+                <Button Icon={Wrench} disabled={!settings} title={m.fixHint} onClick={() => void ask("fixes")}>
+                  {m.fix}
+                </Button>
+              </>
             )}
           </div>
           <div role="status" className="evm-note">
-            {running ? m.running : phase.kind === "stopped" ? m.stopped : phase.kind === "idle" ? m.explainHint : ""}
+            {phase.kind === "running"
+              ? phase.ask === "risks"
+                ? m.running
+                : m.runningFixes
+              : phase.kind === "stopped"
+                ? m.stopped
+                : phase.kind === "idle"
+                  ? m.idleHint
+                  : ""}
           </div>
           {phase.kind === "failed" && (
             <p role="alert" className="ai-panel-error">
@@ -146,6 +168,12 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
           )}
           {phase.kind === "done" && (
             <Results report={phase.report} changed={phase.asked !== project} names={names} m={m} onPickTask={onPickTask} />
+          )}
+          {phase.kind === "fixes" && (
+            <>
+              <Proposals report={phase.report} project={project} names={names} onPickTask={onPickTask} onApplied={onApplied} />
+              <Usage report={phase.report} m={m} />
+            </>
           )}
         </>
       )}
@@ -176,6 +204,15 @@ function Results({ report, changed, names, m, onPickTask }: ResultsProps) {
           ))}
         </ol>
       )}
+      <Usage report={report} m={m} />
+    </>
+  );
+}
+
+/** Whether the summary sent was shortened, and the tokens a request took. */
+function Usage({ report, m }: { report: RiskReport | FixReport; m: Messages }) {
+  return (
+    <>
       {report.truncated && <p className="evm-note">{m.truncated(report.omitted_tasks, report.omitted_resources)}</p>}
       <p className="evm-note ai-tokens">
         {m.tokens(formatCount(report.input_tokens), formatCount(report.output_tokens), report.requests)}
@@ -192,7 +229,7 @@ interface CardProps {
 }
 
 function Card({ card, names, m, onPickTask }: CardProps) {
-  const text = (value: string) => <Text value={value} names={names} m={m} onPickTask={onPickTask} />;
+  const text = (value: string) => <AdviceText value={value} names={names} onPickTask={onPickTask} />;
   const chain = card.chain.map((ref) => refUid(ref, "T")).filter((uid): uid is number => uid != null && names.tasks.has(uid));
   const people = card.people
     .map((ref) => refUid(ref, "R"))
@@ -215,7 +252,7 @@ function Card({ card, names, m, onPickTask }: CardProps) {
               <ol className="ai-chain">
                 {chain.map((uid) => (
                   <li key={uid}>
-                    <TaskLink uid={uid} name={names.tasks.get(uid) as string} m={m} onPickTask={onPickTask} />
+                    <TaskLink uid={uid} name={names.tasks.get(uid) as string} onPickTask={onPickTask} />
                   </li>
                 ))}
               </ol>
@@ -232,30 +269,5 @@ function Card({ card, names, m, onPickTask }: CardProps) {
         )}
       </dl>
     </article>
-  );
-}
-
-function TaskLink({ uid, name, m, onPickTask }: { uid: number; name: string; m: Messages; onPickTask: (uid: number) => void }) {
-  return (
-    <button type="button" className="ai-task-link" title={m.pickTask(name)} onClick={() => onPickTask(uid)}>
-      {name}
-    </button>
-  );
-}
-
-/** A card's text with `T42` and `R7` shown as their names; tasks can be selected. */
-function Text({ value, names, m, onPickTask }: { value: string; names: AdviceNames; m: Messages; onPickTask: (uid: number) => void }) {
-  return (
-    <>
-      {adviceParts(value, names).map((part, at) =>
-        part.kind === "task" ? (
-          <TaskLink key={at} uid={part.uid} name={part.name} m={m} onPickTask={onPickTask} />
-        ) : part.kind === "resource" ? (
-          <strong key={at}>{part.name}</strong>
-        ) : (
-          <span key={at}>{part.text}</span>
-        ),
-      )}
-    </>
   );
 }

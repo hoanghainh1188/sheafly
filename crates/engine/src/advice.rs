@@ -1,4 +1,4 @@
-//! The shapes of AI recommendations (phase 22, PR C, sheafly-pro#1), shared by the Pro crate
+//! The shapes of AI recommendations (phase 22, PR C and D, sheafly-pro#1), shared by the Pro crate
 //! that reads a model's replies, its public stub and the shell that runs the requests.
 //! Nothing here talks to a model: the Pro crate builds requests and reads replies into these,
 //! the shell sends them (decision D7).
@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::command::Command;
 
 /// The most rounds of read tools one request may take before it must answer (decision D4).
 pub const MAX_TOOL_ROUNDS: usize = 8;
@@ -43,11 +45,50 @@ pub struct RiskCard {
     pub people: Vec<String>,
 }
 
-/// What to do after reading a reply.
+/// What to do after reading a reply: `T` is the answer of the kind asked for, the risk cards
+/// (kind 1) by default, or `Fixes` (kind 2).
 #[derive(Clone, Debug, PartialEq)]
-pub enum AdviceStep {
+pub enum AdviceStep<T = Vec<RiskCard>> {
     /// Send this body next: the conversation so far with the answers to the model's tools.
     Ask(Value),
     /// The model answered.
-    Done(Vec<RiskCard>),
+    Done(T),
+}
+
+/// What a proposal sets out to improve (decision D5): the measure its trial is judged by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Goal {
+    /// Finish this task earlier, toward its deadline.
+    Deadline { task: u32 },
+    /// Take work off this person where they are overallocated.
+    Overallocation { resource: u32 },
+    /// Finish the project earlier.
+    Finish,
+}
+
+/// A change the model proposes (kind 2, phase 22 PR D): commands the engine tries on a copy
+/// before the user sees them, and that only `ApplyProposal` applies.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Proposal {
+    /// The model's tool call it came from, to answer it on a retry.
+    pub id: String,
+    pub goal: Goal,
+    /// Only commands `allowed_in_proposal` accepts, never `ApplyLeveling`: see `level`.
+    pub commands: Vec<Command>,
+    /// Level the people after the commands, as `LevelResources` would; the trial turns the
+    /// result into an `ApplyLeveling` at the end of the commands (decision D1).
+    #[serde(default)]
+    pub level: bool,
+    /// Why, in the interface language, with tasks and people as `T42` and `R7`.
+    pub reason: String,
+}
+
+/// The answer of kind 2: the proposals, or none and why.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fixes {
+    pub proposals: Vec<Proposal>,
+    /// What the model said when it had nothing to propose; empty otherwise.
+    #[serde(default)]
+    pub note: String,
 }

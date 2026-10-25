@@ -22,7 +22,7 @@ mod tracker_commands;
 use settings::Theme;
 
 use std::fs;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -93,6 +93,9 @@ struct AppState {
     tracker_cancel: Mutex<Arc<AtomicBool>>,
     /// Stops the AI recommendation request running when a newer one starts or it is stopped.
     ai_cancel: Mutex<Arc<AtomicBool>>,
+    /// The last trial of each AI proposal, by its id: the project it ran on and the commands
+    /// it would apply. `ai_apply` applies only those, on that same project (decision D6).
+    ai_trials: Mutex<HashMap<String, (sheafly_engine::Project, Vec<Command>)>>,
     /// The push `tracker_push_preview` last made: `tracker_push` writes exactly that plan,
     /// and only while the project and the settings are still the ones it was made for.
     push_base: Mutex<Option<tracker_commands::PushBase>>,
@@ -131,6 +134,7 @@ impl AppState {
             forecast_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             tracker_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             ai_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
+            ai_trials: Mutex::new(HashMap::new()),
             push_base: Mutex::new(None),
             delta: delta::Delta::default(),
             license,
@@ -267,6 +271,8 @@ fn pro_feature(command: &Command) -> Option<Feature> {
     match command {
         Command::SetFocusFactor { factor } if *factor != 1.0 => Some(Feature::Capacity),
         Command::SetResourceFocus { focus: Some(_), .. } => Some(Feature::Capacity),
+        // A proposal is no way around a gate: what is inside it is checked the same.
+        Command::ApplyProposal { commands } => commands.iter().find_map(pro_feature),
         _ => None,
     }
 }
@@ -1496,6 +1502,9 @@ pub fn run() {
             ai_commands::ai_forget_key,
             ai_commands::ai_test,
             ai_commands::ai_risks,
+            ai_commands::ai_fixes,
+            ai_commands::ai_trial,
+            ai_commands::ai_apply,
             ai_commands::ai_cancel,
             tracker_commands::tracker_save_key,
             tracker_commands::tracker_has_key,
@@ -1577,6 +1586,9 @@ mod tests {
         assert_eq!(pro_feature(&own(Some(1.0))), Some(Feature::Capacity));
         assert_eq!(pro_feature(&own(None)), None);
         assert_eq!(pro_feature(&Command::RenameProject { name: "Cầu".into() }), None);
+        let inside = |command| Command::ApplyProposal { commands: vec![Command::SetPriority { uid: 1, priority: 600 }, command] };
+        assert_eq!(pro_feature(&inside(factor(0.8))), Some(Feature::Capacity), "a proposal is checked inside");
+        assert_eq!(pro_feature(&inside(own(None))), None);
     }
 
     #[test]

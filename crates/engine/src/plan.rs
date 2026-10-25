@@ -59,34 +59,7 @@ pub fn preview_plan(project: &Project, assignments: &[TaskAssignment]) -> Result
     apply_one(&mut trial, &leveling)?;
     schedule(&mut trial)?;
 
-    let moves = trial
-        .tasks
-        .iter()
-        .filter(|task| !task.summary)
-        .filter_map(|after| {
-            let before = project.task(after.uid)?;
-            (before.start != after.start || before.finish != after.finish).then_some(PlanMove {
-                uid: after.uid,
-                start_before: before.start,
-                finish_before: before.finish,
-                start: after.start,
-                finish: after.finish,
-            })
-        })
-        .collect();
-    let late = trial
-        .tasks
-        .iter()
-        .filter(|task| !task.summary && task.deadline.is_some_and(|deadline| task.finish > deadline))
-        .map(|task| task.uid)
-        .collect();
-    let mut overallocated: Vec<u32> = trial
-        .overallocations
-        .iter()
-        .map(|over| over.resource_uid)
-        .collect();
-    overallocated.sort_unstable();
-    overallocated.dedup();
+    let (moves, late, overallocated) = outcome(project, &trial);
     Ok(PlanPreview {
         assignments: assignments.to_vec(),
         delays,
@@ -95,6 +68,36 @@ pub fn preview_plan(project: &Project, assignments: &[TaskAssignment]) -> Result
         late,
         overallocated,
     })
+}
+
+/// What changed from `before` to `after` (both scheduled): the leaves whose dates move,
+/// the leaves that end after their deadline, and the people still overallocated.
+pub(crate) fn outcome(before: &Project, after: &Project) -> (Vec<PlanMove>, Vec<u32>, Vec<u32>) {
+    let moves = after
+        .tasks
+        .iter()
+        .filter(|task| !task.summary)
+        .filter_map(|task| {
+            let old = before.task(task.uid)?;
+            (old.start != task.start || old.finish != task.finish).then_some(PlanMove {
+                uid: task.uid,
+                start_before: old.start,
+                finish_before: old.finish,
+                start: task.start,
+                finish: task.finish,
+            })
+        })
+        .collect();
+    let late = after
+        .tasks
+        .iter()
+        .filter(|task| !task.summary && task.deadline.is_some_and(|deadline| task.finish > deadline))
+        .map(|task| task.uid)
+        .collect();
+    let mut overallocated: Vec<u32> = after.overallocations.iter().map(|over| over.resource_uid).collect();
+    overallocated.sort_unstable();
+    overallocated.dedup();
+    (moves, late, overallocated)
 }
 
 /// `ApplyPlan`: the assignments, then the leveling a preview chose.
