@@ -19,7 +19,8 @@
 //! twenty rules from the values of a list field to the skills.
 //!
 //! `-- loadmap [<people> <tasks>]` levels a capacity backlog (default 500 people, 5000
-//! tasks), then times `load_map` for a year by week and for twelve weeks by day.
+//! tasks) and sets baseline 0, then times `load_map` for a year by week and for twelve weeks
+//! by day, and with the baseline by week and by role and month.
 //!
 //! `-- import [<tasks>]` times `check_import` and `ImportRows` for a table of people and
 //! tasks (default 5000 tasks in groups of ten, one person per ten tasks, each leaf with
@@ -432,19 +433,27 @@ fn main() {
     if args.iter().any(|arg| arg == "loadmap") {
         let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
         let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
-        let project = capacity(people, tasks, false, true, false, false);
+        let mut doc = Document::from_project(capacity(people, tasks, false, true, false, false));
+        doc.apply(Command::SetBaseline { number: 0 }).expect("baseline");
+        let project = &doc.project;
         let monday = NaiveDate::from_ymd_opt(2026, 1, 5).unwrap();
         timed("load_map 52 tuần", || {
-            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Week, LoadGroup::Person, None).expect("load map")
+            load_map(project, monday, monday + chrono::Duration::days(363), Bucket::Week, LoadGroup::Person, None).expect("load map")
         });
         timed("load_map 84 ngày", || {
-            load_map(&project, monday, monday + chrono::Duration::days(83), Bucket::Day, LoadGroup::Person, None).expect("load map")
+            load_map(project, monday, monday + chrono::Duration::days(83), Bucket::Day, LoadGroup::Person, None).expect("load map")
         });
         timed("load_map 12 tháng", || {
-            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Person, None).expect("load map")
+            load_map(project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Person, None).expect("load map")
         });
         timed("load_map vai trò 12 tháng", || {
-            load_map(&project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Group, None).expect("load map")
+            load_map(project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Group, None).expect("load map")
+        });
+        timed("load_map 52 tuần, baseline 0", || {
+            load_map(project, monday, monday + chrono::Duration::days(363), Bucket::Week, LoadGroup::Person, Some(0)).expect("load map")
+        });
+        timed("load_map vai trò 12 tháng, baseline 0", || {
+            load_map(project, monday, monday + chrono::Duration::days(363), Bucket::Month, LoadGroup::Group, Some(0)).expect("load map")
         });
         return;
     }

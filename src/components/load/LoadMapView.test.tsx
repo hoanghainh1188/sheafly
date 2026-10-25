@@ -136,4 +136,46 @@ describe("LoadMapView", () => {
     fireEvent.click(screen.getByRole("button", { name: /An/ }));
     expect(onPickResource).toHaveBeenCalledWith(10);
   });
+  it("asks for whole calendar months, six from the last day of a month", async () => {
+    renderView(vi.fn(), "vi", { ...project, start: Date.UTC(2026, 7, 31, 8) });
+    fireEvent.click(screen.getByRole("radio", { name: /tháng/i }));
+    const count = screen.getByRole("spinbutton");
+    fireEvent.change(count, { target: { value: "6" } });
+    await waitFor(() => expect(lastLoadMap()).toMatchObject({ bucket: "month", from: "2026-08-31", to: "2027-01-31" }));
+  });
+
+  it("names the baselines and the rows' kind through the catalog", async () => {
+    renderView(vi.fn(), "en");
+    expect(screen.getByRole("option", { name: "Baseline 3" })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector(".load-corner")?.textContent).toBe("Person"));
+    fireEvent.click(screen.getByRole("radio", { name: /^role/i }));
+    await waitFor(() => expect(document.querySelector(".load-corner")?.textContent).toBe("Role"));
+  });
+
+  it("shows hours with the language's unit in the histogram, zero as 0", async () => {
+    renderView(vi.fn(), "en");
+    fireEvent.click(screen.getByRole("radio", { name: /histogram/i }));
+    fireEvent.change(await screen.findByRole("combobox", { name: /Person/ }), { target: { value: "1" } });
+    const columns = await waitFor(() => {
+      const found = document.querySelectorAll(".load-histogram-svg > g[style]");
+      expect(found.length).toBe(2);
+      return found;
+    });
+    fireEvent.mouseEnter(columns[1]);
+    const tip = document.querySelector(".load-histogram-tooltip")!;
+    expect(tip.textContent).toContain("Assigned: 0 hrs");
+    expect(tip.textContent).toContain("Capacity: 0 hrs");
+    expect(tip.textContent).toContain("Load:");
+    expect(tip.textContent).not.toMatch(/Tải|\dh\b/);
+    expect(screen.getAllByText("0h").length).toBeGreaterThan(0);
+  });
+
+  it("colours the histogram through styles, never SVG colour attributes", async () => {
+    renderView();
+    fireEvent.click(screen.getByRole("radio", { name: /biểu đồ cột/i }));
+    await waitFor(() => expect(document.querySelector(".load-histogram-svg")).toBeInTheDocument());
+    const svg = document.querySelector(".load-histogram-svg")!;
+    expect(svg.querySelectorAll("[fill], [stroke]")).toHaveLength(0);
+    expect(svg.querySelector("line")?.getAttribute("style")).toContain("var(--chart-grid)");
+  });
 });
