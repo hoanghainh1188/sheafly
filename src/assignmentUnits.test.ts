@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { formatUnits, hoursPerDay, parseUnits } from "./assignmentUnits";
+import { formatUnits, hoursPerDay, parseUnits, parseUnitsOrPercent } from "./assignmentUnits";
 import { setCurrentLang } from "./i18n";
 
 describe("assignment units", () => {
@@ -39,5 +39,14 @@ describe("assignment units", () => {
     expect(hoursPerDay(0.125)).toBe("1 hr/day");
     expect(hoursPerDay(0.124)).toBe("1 hr/day");
     expect(hoursPerDay(0.13)).toBe("1 hr/day");
+  });
+
+  it("reads a percentage as units where the field allows it", () => {
+    expect(parseUnitsOrPercent("50%")).toBe(0.5);
+    expect(parseUnitsOrPercent(" 12,5 % ")).toBe(0.125);
+    expect(parseUnitsOrPercent("0%")).toBe(0);
+    expect(parseUnitsOrPercent("0,75")).toBe(0.75);
+    expect(parseUnitsOrPercent("abc%")).toBeNull();
+    expect(parseUnits("50%")).toBeNull();
   });
 });

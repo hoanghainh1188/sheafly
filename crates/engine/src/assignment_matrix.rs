@@ -6,7 +6,9 @@
 //! A column "Chưa giao" for leaves with no one, showing the target of the first matching
 //! assignment rule (skill and minimum level, or the person).
 //! Cells: units and work of the assignment, as computed by the engine; a role column shows
-//! the sum of its people. Totals per row and column.
+//! the sum of its people. A summary's cell adds an assignment of its own (allowed, e.g.
+//! after indenting a task under an assigned one) to its children's. Totals per row and
+//! column count each assignment once.
 
 use std::collections::HashMap;
 
@@ -17,7 +19,8 @@ use crate::skills::{rule_for, RuleTarget};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MatrixCell {
-    /// Assignment UID if this is a leaf task directly assigned to this resource.
+    /// Assignment UID when the row's task itself is assigned to this resource (a leaf, or
+    /// a summary holding an assignment of its own; its cell also sums its children).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assignment_uid: Option<u32>,
     /// Units assigned, or sum of units for a role or summary roll-up.
@@ -37,7 +40,7 @@ pub struct MatrixColumn {
     /// Resource UID if this is a person column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource_uid: Option<u32>,
-    /// Total work in working minutes for this column across all leaf tasks.
+    /// Total work in working minutes for this column: every task's own assignments.
     pub total_work: i64,
 }
 
@@ -166,11 +169,9 @@ pub fn assignment_matrix(project: &Project, group: bool) -> AssignmentMatrix {
     let mut grid: Vec<Vec<Option<MatrixCell>>> = vec![vec![None; col_count]; task_count];
     let mut role_grid: Vec<Vec<Option<MatrixCell>>> = vec![vec![None; role_count]; task_count];
 
-    // Populate leaf task cells.
+    // Each task's own assignments, summaries included: a summary can hold one of its own
+    // (an assigned task that later got children, or an MSPDI file).
     for (i, task) in project.tasks.iter().enumerate() {
-        if task.summary {
-            continue;
-        }
         for (r, role) in roles.iter().enumerate() {
             let mut sum_units = 0.0;
             let mut sum_work = 0i64;
@@ -194,7 +195,9 @@ pub fn assignment_matrix(project: &Project, group: bool) -> AssignmentMatrix {
             grid[i] = role_grid[i].clone();
         } else {
             for (c, col) in columns.iter().enumerate() {
-                let res_uid = col.resource_uid.unwrap();
+                let Some(res_uid) = col.resource_uid else {
+                    continue;
+                };
                 if let Some(a) = assignment_map.get(&(task.uid, res_uid)) {
                     grid[i][c] = Some(MatrixCell {
                         assignment_uid: Some(a.uid),
@@ -206,86 +209,74 @@ pub fn assignment_matrix(project: &Project, group: bool) -> AssignmentMatrix {
         }
     }
 
-    // 6. Roll up summaries bottom-up.
+    // 6. Column totals and grand total: every task's own assignments, counted once.
+    for (c, col) in columns.iter_mut().enumerate() {
+        col.total_work = grid
+            .iter()
+            .filter_map(|cells| cells[c].as_ref())
+            .map(|cell| cell.work)
+            .sum();
+    }
+    for (r, role) in roles.iter_mut().enumerate() {
+        role.total_work = role_grid
+            .iter()
+            .filter_map(|cells| cells[r].as_ref())
+            .map(|cell| cell.work)
+            .sum();
+    }
+    let total_work: i64 = role_grid
+        .iter()
+        .flatten()
+        .filter_map(|cell| cell.as_ref())
+        .map(|cell| cell.work)
+        .sum();
+
+    // 7. Roll up summaries bottom-up: a summary's own assignment plus its direct children,
+    // which already hold theirs. A summary's own assignment keeps its uid on the cell.
     for i in (0..task_count).rev() {
         if !project.tasks[i].summary {
             continue;
         }
         let level = project.tasks[i].outline_level;
-
-        // Roll up role_grid
+        let children: Vec<usize> = (i + 1..task_count)
+            .take_while(|&j| project.tasks[j].outline_level > level)
+            .filter(|&j| project.tasks[j].outline_level == level + 1)
+            .collect();
         for r in 0..role_count {
-            let mut sum_units = 0.0;
-            let mut sum_work = 0i64;
-            let mut has_any = false;
-            for j in i + 1..task_count {
-                if project.tasks[j].outline_level <= level {
-                    break;
-                }
-                if project.tasks[j].outline_level == level + 1 {
-                    if let Some(cell) = &role_grid[j][r] {
-                        sum_units += cell.units;
-                        sum_work += cell.work;
-                        has_any = true;
-                    }
-                }
-            }
-            if has_any {
-                role_grid[i][r] = Some(MatrixCell {
-                    assignment_uid: None,
-                    units: sum_units,
-                    work: sum_work,
-                });
-            }
+            role_grid[i][r] = roll_up(
+                role_grid[i][r].take(),
+                children.iter().map(|&j| &role_grid[j][r]),
+            );
         }
-
         if group {
             grid[i] = role_grid[i].clone();
         } else {
             for c in 0..col_count {
-                let mut sum_units = 0.0;
-                let mut sum_work = 0i64;
-                let mut has_any = false;
-                for j in i + 1..task_count {
-                    if project.tasks[j].outline_level <= level {
-                        break;
-                    }
-                    if project.tasks[j].outline_level == level + 1 {
-                        if let Some(cell) = &grid[j][c] {
-                            sum_units += cell.units;
-                            sum_work += cell.work;
-                            has_any = true;
-                        }
-                    }
-                }
-                if has_any {
-                    grid[i][c] = Some(MatrixCell {
-                        assignment_uid: None,
-                        units: sum_units,
-                        work: sum_work,
-                    });
-                }
+                grid[i][c] = roll_up(grid[i][c].take(), children.iter().map(|&j| &grid[j][c]));
             }
         }
     }
 
-    // 7. Build rows, row totals, and unassigned targets.
+    // 8. Build rows, row totals, and unassigned targets.
     let mut rows = Vec::with_capacity(task_count);
     for (i, task) in project.tasks.iter().enumerate() {
         let cells = std::mem::take(&mut grid[i]);
         let role_cells = std::mem::take(&mut role_grid[i]);
-        let total_work: i64 = cells.iter().filter_map(|c| c.as_ref()).map(|c| c.work).sum();
+        let total_work: i64 = cells
+            .iter()
+            .filter_map(|c| c.as_ref())
+            .map(|c| c.work)
+            .sum();
 
-        let unassigned = if !task.summary
-            && task_assignment_count.get(&task.uid).copied().unwrap_or(0) == 0
-        {
-            rule_for(project, task).map(|idx| UnassignedTarget {
-                rule_index: idx,
-                target: project.assignment_rules[idx].target,
-            })
-        } else {
-            None
-        };
+        let unassigned =
+            if !task.summary && task_assignment_count.get(&task.uid).copied().unwrap_or(0) == 0 {
+                rule_for(project, task).map(|idx| UnassignedTarget {
+                    rule_index: idx,
+                    target: project.assignment_rules[idx].target,
+                })
+            } else {
+                None
+            };
 
         rows.push(MatrixRow {
             task_uid: task.uid,
@@ -300,43 +291,27 @@ pub fn assignment_matrix(project: &Project, group: bool) -> AssignmentMatrix {
         });
     }
 
-    // 8. Column totals and grand total across all leaf tasks.
-    let leaf_indices: Vec<usize> = project
-        .tasks
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| !t.summary)
-        .map(|(i, _)| i)
-        .collect();
-
-    for (c, col) in columns.iter_mut().enumerate() {
-        col.total_work = leaf_indices
-            .iter()
-            .filter_map(|&i| rows[i].cells[c].as_ref())
-            .map(|cell| cell.work)
-            .sum();
-    }
-
-    for role in &mut roles {
-        role.total_work = leaf_indices
-            .iter()
-            .map(|&i| {
-                let task_uid = project.tasks[i].uid;
-                role.resource_uids
-                    .iter()
-                    .filter_map(|&res_uid| assignment_map.get(&(task_uid, res_uid)))
-                    .map(|a| a.work)
-                    .sum::<i64>()
-            })
-            .sum();
-    }
-
-    let total_work: i64 = leaf_indices.iter().map(|&i| rows[i].total_work).sum();
-
     AssignmentMatrix {
         columns,
         roles,
         rows,
         total_work,
     }
+}
+
+/// A summary's cell: its own assignment (keeping its uid) plus its children's cells.
+fn roll_up<'a>(
+    own: Option<MatrixCell>,
+    children: impl Iterator<Item = &'a Option<MatrixCell>>,
+) -> Option<MatrixCell> {
+    children.flatten().fold(own, |acc, cell| {
+        let mut sum = acc.unwrap_or(MatrixCell {
+            assignment_uid: None,
+            units: 0.0,
+            work: 0,
+        });
+        sum.units += cell.units;
+        sum.work += cell.work;
+        Some(sum)
+    })
 }
