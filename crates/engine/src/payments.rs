@@ -17,13 +17,13 @@
 //! Scheduling never reads any of this, and MSPDI has no element for it: it lives in
 //! `.sheafly` files only, and copying tasks does not carry it.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use chrono::{Datelike, Days};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{EngineError, Invalid};
-use crate::model::{Project, Task};
+use crate::model::Project;
 use crate::timeutil::{civil, compose};
 
 /// At most this many payments in a project.
@@ -381,26 +381,22 @@ pub fn set_receipts(
 }
 
 /// The invoice dates of the anchors that follow a task, as scheduled before a command, for
-/// `detach_gone` after it. Empty (and free) when nothing is anchored to a task; otherwise one
-/// pass over the tasks, which every command already clones.
-pub(crate) fn anchored_dates(project: &Project) -> Vec<(u32, i64)> {
+/// `detach_gone` after it. Empty (and free) when nothing is anchored to a task; otherwise
+/// one pass over the tasks with a set of at most 501 uids.
+pub(crate) fn anchored_dates(project: &Project) -> Vec<(PaymentAnchor, i64)> {
     let anchors = task_anchors(project);
     if anchors.is_empty() {
         return Vec::new();
     }
-    let tasks: HashMap<u32, &Task> = project.tasks.iter().map(|t| (t.uid, t)).collect();
-    anchors
-        .into_iter()
-        .filter_map(|anchor| {
-            let task = tasks.get(&anchor.task()?)?;
-            let at = match anchor {
-                PaymentAnchor::Finish { .. } => task.actual_finish.unwrap_or(task.finish),
-                PaymentAnchor::Start { .. } => task.actual_start.unwrap_or(task.start),
-                PaymentAnchor::Date { at } => at,
-            };
-            Some((task.uid, at))
-        })
-        .collect()
+    let uids: HashSet<u32> = anchors.iter().filter_map(|a| a.task()).collect();
+    let mut dates = Vec::with_capacity(anchors.len());
+    for task in project.tasks.iter().filter(|t| uids.contains(&t.uid)) {
+        let start = task.actual_start.unwrap_or(task.start);
+        let finish = task.actual_finish.unwrap_or(task.finish);
+        dates.push((PaymentAnchor::Start { task: task.uid }, start));
+        dates.push((PaymentAnchor::Finish { task: task.uid }, finish));
+    }
+    dates
 }
 
 /// The anchors of the payments and the retention that follow a task.
@@ -417,17 +413,20 @@ fn task_anchors(project: &Project) -> Vec<PaymentAnchor> {
 
 /// Turns anchors whose task a command removed into fixed dates on the day they were
 /// invoiced before it (`before`, from `anchored_dates`), marking payments `detached`.
-pub(crate) fn detach_gone(project: &mut Project, before: &[(u32, i64)]) {
+pub(crate) fn detach_gone(project: &mut Project, before: &[(PaymentAnchor, i64)]) {
     if before.is_empty() {
         return;
     }
-    let present: HashSet<u32> = project.tasks.iter().map(|t| t.uid).collect();
+    let anchored: HashSet<u32> = before.iter().filter_map(|(a, _)| a.task()).collect();
+    let present: HashSet<u32> = project
+        .tasks
+        .iter()
+        .map(|t| t.uid)
+        .filter(|uid| anchored.contains(uid))
+        .collect();
     let gone = |anchor: PaymentAnchor| {
-        let uid = anchor.task().filter(|uid| !present.contains(uid))?;
-        before
-            .iter()
-            .find(|(task, _)| *task == uid)
-            .map(|(_, at)| *at)
+        anchor.task().filter(|uid| !present.contains(uid))?;
+        before.iter().find(|(a, _)| *a == anchor).map(|(_, at)| *at)
     };
     for payment in &mut project.payments {
         if let Some(at) = gone(payment.anchor) {
