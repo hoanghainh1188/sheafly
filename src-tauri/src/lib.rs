@@ -1056,6 +1056,9 @@ async fn export_mspdi(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
 
 #[tauri::command]
 async fn export_excel(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    if !sheafly_pro::available() {
+        return Err(sheafly_pro::unavailable(lang(&state)));
+    }
     if !state.license.grants(Feature::Reporting) {
         return Err(i18n::text(lang(&state)).needs_pro_reporting.into());
     }
@@ -1076,7 +1079,7 @@ async fn export_excel(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
     };
     let path = ensure_suffix(path, ".xlsx");
     let (project, l) = (lock(&state).project.clone(), lang(&state));
-    let bytes = tauri::async_runtime::spawn_blocking(move || sheafly_report::excel_workbook(&project, l))
+    let bytes = tauri::async_runtime::spawn_blocking(move || sheafly_pro::excel_workbook(&project, l))
         .await
         .map_err(|error| error.to_string())??;
     fs::write(path, bytes).map_err(write_failed(&state))

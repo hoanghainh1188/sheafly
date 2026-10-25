@@ -18,8 +18,10 @@ jobs:
       - name: Test scheduling engine
         run: cargo test -p sheafly-engine
 
-      - name: Test reports (Excel workbook)
-        run: cargo test -p sheafly-report
+      # The stub of the closed-source Pro modules (plan part 20G); the private repository
+      # tests the real crate.
+      - name: Test Pro stub
+        run: cargo test -p sheafly-pro
 
       - name: Test license keys
         run: cargo test -p sheafly-license && cargo test -p sheafly-license --release --test license

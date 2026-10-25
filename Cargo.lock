@@ -3809,7 +3809,7 @@ dependencies = [
  "serde_json",
  "sheafly-engine",
  "sheafly-license",
- "sheafly-report",
+ "sheafly-pro",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -3827,7 +3827,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "sheafly-report",
 ]
 
 [[package]]
@@ -3842,7 +3841,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sheafly-report"
+name = "sheafly-pro"
 version = "1.5.0"
 dependencies = [
  "calamine",
