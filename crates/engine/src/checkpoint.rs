@@ -23,7 +23,9 @@ use crate::model::Project;
 /// Revision 7: `SetBaseline` also saves each assignment's work (`Assignment.baselines`,
 /// capacity plan PR 4). A checkpoint from revision 6 holds no assignment baselines for the
 /// same commands, so it must be replayed instead of reused.
-pub const ENGINE_REVISION: u32 = 7;
+/// Revision 8: an assignment baseline also keeps the assignment's cost (S-curves by person,
+/// role or skill); a checkpoint from revision 7 holds none.
+pub const ENGINE_REVISION: u32 = 8;
 
 /// A new checkpoint every this many commands while editing or replaying.
 pub const INTERVAL: usize = 25;

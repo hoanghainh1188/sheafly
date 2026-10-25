@@ -1044,6 +1044,7 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
                 assignment.baselines.push(AssignmentBaseline {
                     number,
                     work: assignment.work,
+                    cost: assignment.cost,
                 });
             }
         }

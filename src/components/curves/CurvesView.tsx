@@ -48,6 +48,7 @@ export function CurvesView({ project }: Props) {
   const [mode, setMode] = useState<DisplayMode>("cumulative");
   const [report, setReport] = useState<CurvesReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   // Groups and Skills dropdown data
@@ -76,17 +77,20 @@ export function CurvesView({ project }: Props) {
     }
   }, [filterType, personUid, groupName, skillId, minLevel]);
 
+  // Asked again on every project change too: the engine's numbers follow each edit.
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const rep = await curves(measure, bucket, currentFilter, baselineNum ?? undefined);
       setReport(rep);
-    } catch {
+      setError(null);
+    } catch (reason) {
       setReport(null);
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
     }
-  }, [measure, bucket, currentFilter, baselineNum]);
+  }, [measure, bucket, currentFilter, baselineNum, project]);
 
   useEffect(() => {
     void loadData();
@@ -240,7 +244,11 @@ export function CurvesView({ project }: Props) {
       </div>
 
       {/* Main Content Area */}
-      {loading ? (
+      {error != null ? (
+        <div className="curves-empty" role="alert">
+          {m.failed(error)}
+        </div>
+      ) : loading && !report ? (
         <div className="curves-empty">{m.loading}</div>
       ) : !report || report.points.length === 0 ? (
         <div className="curves-empty">{m.empty}</div>

@@ -373,6 +373,7 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
                                 assignment.baselines.push(AssignmentBaseline {
                                     number: b.number,
                                     work: b.work,
+                                    cost: b.cost,
                                 });
                             }
                         }
@@ -1171,6 +1172,7 @@ fn write_assignment(xml: &mut String, project: &Project, assignment: &Assignment
         xml.push_str("<Baseline>\n");
         el(xml, "Number", &baseline.number.to_string());
         el(xml, "Work", &format_duration_iso(baseline.work));
+        el(xml, "Cost", &format_number(baseline.cost));
         xml.push_str("</Baseline>\n");
     }
     if let Some(task) = project.task(assignment.task_uid) {

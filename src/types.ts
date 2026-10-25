@@ -606,6 +606,8 @@ export interface AvailabilityPeriod {
 export interface AssignmentBaseline {
   number: number;
   work: number;
+  /** Cost when the baseline was set; absent or 0 in baselines saved before it was kept. */
+  cost?: number;
 }
 
 export interface Assignment {

@@ -40,6 +40,7 @@ export const curvesMessages = defineMessages(
 
     loading: "Đang tính đường cong…",
     empty: "Không có dữ liệu cho cấu hình lọc này.",
+    failed: (reason: string) => `Không tính được đường cong: ${reason}`,
     tableTitle: "Bảng chi tiết số liệu",
     colPeriod: "Kỳ",
     colBaseline: "Cơ sở",
@@ -89,6 +90,7 @@ export const curvesMessages = defineMessages(
 
     loading: "Calculating curves…",
     empty: "No data available for the selected filter.",
+    failed: (reason: string) => `Could not compute the curves: ${reason}`,
     tableTitle: "Detailed Figures Table",
     colPeriod: "Period",
     colBaseline: "Baseline",

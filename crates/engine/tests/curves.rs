@@ -267,3 +267,140 @@ fn test_evm_s_curve_equality() {
     assert!((wed_curve_pt.actual_cumulative.unwrap() - evm_status_pt.ac.unwrap()).abs() < 1e-4);
     assert!((wed_curve_pt.earned_cumulative.unwrap() - evm_status_pt.ev.unwrap()).abs() < 1e-4);
 }
+
+/// Two people, one task each over the same three days, a baseline, and both half done on
+/// the status date: Alice at 10/h plus 50 per use, Bob at 20/h.
+fn two_people_half_done() -> (Document, u32, u32) {
+    let mut doc = setup_base_document();
+    for (name, rate, per_use) in [("Alice", 10.0, 50.0), ("Bob", 20.0, 0.0)] {
+        doc.apply(Command::AddResource { name: name.into(), kind: ResourceKind::Person }).unwrap();
+        let uid = doc.project.resources.last().unwrap().uid;
+        doc.apply(Command::UpdateResource {
+            uid,
+            name: name.into(),
+            kind: ResourceKind::Person,
+            max_units: 1.0,
+            calendar_id: None,
+            standard_rate: rate,
+            overtime_rate: 0.0,
+            cost_per_use: per_use,
+        })
+        .unwrap();
+        doc.apply(Command::AddTask { name: format!("{name}'s task"), after_uid: None }).unwrap();
+        let task = doc.project.tasks.last().unwrap().uid;
+        doc.apply(Command::SetDuration { uid: task, minutes: 3 * DAY }).unwrap();
+        doc.apply(Command::AssignResource { task_uid: task, resource_uid: uid, units: 1.0 }).unwrap();
+    }
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    doc.apply(Command::SetStatusDate { date: Some(at(1, 12, 0)) }).unwrap();
+    for task in doc.project.tasks.iter().map(|t| t.uid).collect::<Vec<_>>() {
+        doc.apply(Command::SetPercentComplete { uid: task, percent: 50.0 }).unwrap();
+    }
+    let alice = doc.project.resources[0].uid;
+    let bob = doc.project.resources[1].uid;
+    (doc, alice, bob)
+}
+
+fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1e-6
+}
+
+#[test]
+fn no_baseline_chosen_draws_neither_baseline_nor_earned_value() {
+    let (doc, alice, _) = two_people_half_done();
+    for filter in [CurveFilter::Project, CurveFilter::Person { uid: alice }] {
+        let rep = curves(&doc.project, CurveMeasure::Cost, Bucket::Day, filter.clone(), None).unwrap();
+        assert_eq!(rep.baseline, None, "{filter:?}");
+        assert_eq!(rep.total_baseline, None, "{filter:?}");
+        assert_eq!(rep.total_earned, None, "{filter:?}");
+        assert!(rep.points.iter().all(|p| p.baseline_period.is_none() && p.earned_period.is_none()));
+        // The scheduled and actual series stay.
+        assert!(rep.total_scheduled > 0.0);
+        assert!(rep.total_actual.is_some());
+    }
+    // A baseline that no task holds is the same as none.
+    let rep = curves(&doc.project, CurveMeasure::Work, Bucket::Day, CurveFilter::Project, Some(3)).unwrap();
+    assert_eq!(rep.baseline, None);
+    assert_eq!(rep.total_baseline, None);
+}
+
+#[test]
+fn earned_value_follows_the_filter() {
+    let (doc, alice, bob) = two_people_half_done();
+    let cost = |filter| {
+        curves(&doc.project, CurveMeasure::Cost, Bucket::Day, filter, Some(0)).unwrap()
+    };
+    let all = cost(CurveFilter::Project);
+    let a = cost(CurveFilter::Person { uid: alice });
+    let b = cost(CurveFilter::Person { uid: bob });
+    // Alice: 24 h × 10 + 50 per use = 290 planned, half earned; Bob: 24 h × 20 = 480.
+    assert!(close(a.total_earned.unwrap(), 145.0), "{:?}", a.total_earned);
+    assert!(close(b.total_earned.unwrap(), 240.0), "{:?}", b.total_earned);
+    assert!(close(a.total_earned.unwrap() + b.total_earned.unwrap(), all.total_earned.unwrap()));
+}
+
+#[test]
+fn filtered_costs_are_the_assignments_costs_and_add_up_to_the_project() {
+    let (doc, alice, bob) = two_people_half_done();
+    let cost = |filter| {
+        curves(&doc.project, CurveMeasure::Cost, Bucket::Day, filter, Some(0)).unwrap()
+    };
+    let all = cost(CurveFilter::Project);
+    let a = cost(CurveFilter::Person { uid: alice });
+    let b = cost(CurveFilter::Person { uid: bob });
+    // The cost per use is part of Alice's cost, scheduled and in the baseline she saved.
+    let alice_cost = doc.project.assignments.iter().find(|x| x.resource_uid == alice).unwrap().cost;
+    assert!(close(alice_cost, 290.0));
+    assert!(close(a.total_scheduled, 290.0), "{}", a.total_scheduled);
+    assert!(close(a.total_baseline.unwrap(), 290.0), "{:?}", a.total_baseline);
+    assert_eq!(doc.project.assignments[0].baselines[0].cost, 290.0);
+    for (series, whole) in [
+        (a.total_scheduled + b.total_scheduled, all.total_scheduled),
+        (a.total_baseline.unwrap() + b.total_baseline.unwrap(), all.total_baseline.unwrap()),
+        (a.total_actual.unwrap() + b.total_actual.unwrap(), all.total_actual.unwrap()),
+    ] {
+        assert!(close(series, whole), "{series} vs {whole}");
+    }
+    // A raise after the baseline moves the scheduled cost, not the baseline.
+    let mut raised = doc.clone();
+    raised
+        .apply(Command::UpdateResource {
+            uid: alice,
+            name: "Alice".into(),
+            kind: ResourceKind::Person,
+            max_units: 1.0,
+            calendar_id: None,
+            standard_rate: 30.0,
+            overtime_rate: 0.0,
+            cost_per_use: 50.0,
+        })
+        .unwrap();
+    let after = curves(&raised.project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Person { uid: alice }, Some(0)).unwrap();
+    assert!(close(after.total_scheduled, 24.0 * 30.0 + 50.0));
+    assert!(close(after.total_baseline.unwrap(), 290.0));
+}
+
+#[test]
+fn a_baseline_without_assignment_baselines_is_read_from_the_task() {
+    let (doc, alice, bob) = two_people_half_done();
+    // As in a file baselined before engine revision 7: tasks hold the baseline, assignments none.
+    let mut project = doc.project.clone();
+    for assignment in &mut project.assignments {
+        assignment.baselines.clear();
+    }
+    let work = |filter| curves(&project, CurveMeasure::Work, Bucket::Day, filter, Some(0)).unwrap();
+    assert_eq!(work(CurveFilter::Project).total_baseline, Some(48.0));
+    let a = work(CurveFilter::Person { uid: alice });
+    assert!(close(a.total_baseline.unwrap(), 24.0), "{:?}", a.total_baseline);
+    let b = work(CurveFilter::Person { uid: bob });
+    assert!(close(b.total_baseline.unwrap(), 24.0));
+
+    // Progress is measured against that baseline, so the scheduled curve ends at 100 %.
+    let progress = curves(&project, CurveMeasure::Progress, Bucket::Day, CurveFilter::Project, Some(0)).unwrap();
+    assert!(close(progress.total_baseline.unwrap(), 100.0));
+    assert!(close(progress.total_scheduled, 100.0), "{}", progress.total_scheduled);
+
+    // With no saved cost, a person's baseline cost is the shared work at today's rate.
+    let cost = curves(&project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Person { uid: alice }, Some(0)).unwrap();
+    assert!(close(cost.total_baseline.unwrap(), 290.0), "{:?}", cost.total_baseline);
+}

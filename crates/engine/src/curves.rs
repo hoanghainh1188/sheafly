@@ -12,25 +12,34 @@
 //!   - `Group` (Role): All resources belonging to a role/group name.
 //!   - `Skill`: All resources possessing a skill ID (with optional minimum skill level rank).
 //! - Series:
-//!   - `baseline`: Planned curve from specified baseline number (defaulting to baseline 0).
+//!   - `baseline`: Planned curve from the chosen baseline number; none when no baseline is
+//!     chosen (EV, which is measured against a baseline, is then left out too).
 //!   - `scheduled`: Current early CPM schedule.
 //!   - `actual`: Actual cost/work/progress up to the project status date (None after status date).
 //!
 //! Each bucket provides both the period value (for histogram/bar chart) and the cumulative value
 //! (for S-curves), allowing instantaneous UI switching without re-computation.
+//!
+//! Costs follow the EVM panel: for the whole project a task's cost is spread by the task's
+//! accrual (`evm.rs` does the same for PV, AC and EV). Filtered by people, each matching
+//! assignment brings its own cost (`Assignment.cost`, `actual_cost`, and the cost saved in its
+//! baseline), so the curves of all people add up to the labour part of the project's.
+//!
+//! A task baselined while it had people but whose assignments hold no baseline (files saved
+//! before engine revision 7 kept none) is read from the task's own baseline instead: its work
+//! is shared among its assignments by their current work.
 
 use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-use crate::baseline_load::{
-    assignment_baseline_days, baseline_load_by_resource, project_baseline_load_by_day,
-};
+use crate::baseline_load::assignment_baseline_days;
+use crate::calendar::Calendar;
 use crate::error::EngineError;
 use crate::evm::progress_intervals;
 use crate::load_map::{compute_buckets, Buckets};
-use crate::model::{Accrual, Baseline, Project, Task};
+use crate::model::{Accrual, Assignment, Baseline, Project, Task, UsageDay};
 use crate::skill_levels::qualifies;
 use crate::split;
 use crate::timeutil::{civil, compose, parse_date_key};
@@ -102,6 +111,19 @@ fn task_baseline(task: &Task, baseline_number: u8) -> Option<&Baseline> {
     task.baselines.iter().find(|b| b.number == baseline_number)
 }
 
+/// The periods a baseline was planned to work: its segments, else its start to finish.
+fn baseline_intervals(baseline: &Baseline) -> Vec<(i64, i64)> {
+    if baseline.segments.is_empty() {
+        vec![(baseline.start, baseline.finish)]
+    } else {
+        baseline
+            .segments
+            .iter()
+            .map(|s| (s.start, s.finish))
+            .collect()
+    }
+}
+
 /// Collects target resource UIDs matching the given filter.
 fn resolve_filter_resources(project: &Project, filter: &CurveFilter) -> Option<HashSet<u32>> {
     match filter {
@@ -128,7 +150,242 @@ fn resolve_filter_resources(project: &Project, filter: &CurveFilter) -> Option<H
     }
 }
 
+/// What the curves read, built once: lookups by uid and the chosen baseline.
+struct Context<'a> {
+    project: &'a Project,
+    buckets: &'a Buckets,
+    /// The people of the filter; `None` for the whole project.
+    people: Option<&'a HashSet<u32>>,
+    /// The chosen baseline, when one is chosen and some task holds it.
+    baseline: Option<u8>,
+    status: Option<(i64, NaiveDate)>,
+    tasks: HashMap<u32, &'a Task>,
+    /// Leaf tasks with the chosen baseline none of whose assignments holds it: their
+    /// baseline is read from the task's own (see the module header).
+    task_level_baseline: HashSet<u32>,
+    /// The current work of each task's assignments, for sharing a task-level baseline.
+    assigned_work: HashMap<u32, (i64, usize)>,
+}
+
+impl<'a> Context<'a> {
+    fn new(
+        project: &'a Project,
+        buckets: &'a Buckets,
+        people: Option<&'a HashSet<u32>>,
+        baseline: Option<u8>,
+    ) -> Self {
+        let tasks: HashMap<u32, &Task> = project.tasks.iter().map(|t| (t.uid, t)).collect();
+        let mut assigned_work: HashMap<u32, (i64, usize)> = HashMap::new();
+        let mut with_assignment_baseline = HashSet::new();
+        for assignment in &project.assignments {
+            let entry = assigned_work.entry(assignment.task_uid).or_default();
+            entry.0 += assignment.work.max(0);
+            entry.1 += 1;
+            if baseline.is_some_and(|n| assignment.baselines.iter().any(|b| b.number == n)) {
+                with_assignment_baseline.insert(assignment.task_uid);
+            }
+        }
+        let task_level_baseline = match baseline {
+            Some(n) => project
+                .tasks
+                .iter()
+                .filter(|t| !t.summary && task_baseline(t, n).is_some())
+                .filter(|t| !with_assignment_baseline.contains(&t.uid))
+                .map(|t| t.uid)
+                .collect(),
+            None => HashSet::new(),
+        };
+        Self {
+            project,
+            buckets,
+            people,
+            baseline,
+            status: project.status_date.map(|s| (s, civil(s).0)),
+            tasks,
+            task_level_baseline,
+            assigned_work,
+        }
+    }
+
+    fn leaves(&self) -> impl Iterator<Item = &'a Task> {
+        self.project.tasks.iter().filter(|t| !t.summary)
+    }
+
+    /// The assignments of the filter's people, with their task.
+    fn filtered_assignments(&self) -> impl Iterator<Item = (&'a Assignment, &'a Task)> + '_ {
+        let people = self.people;
+        self.project
+            .assignments
+            .iter()
+            .filter(move |a| people.is_some_and(|set| set.contains(&a.resource_uid)))
+            .filter_map(|a| self.tasks.get(&a.task_uid).map(|task| (a, *task)))
+    }
+
+    fn add(&self, target: &mut [f64], day: NaiveDate, amount: f64) {
+        if let Some(idx) = (self.buckets.index_of)(day) {
+            target[idx] += amount;
+        }
+    }
+
+    /// Spreads `amount` over the working minutes of `intervals`, day by day; with no working
+    /// minutes it all goes on `fallback`.
+    fn spread(
+        &self,
+        calendar: &Calendar,
+        intervals: &[(i64, i64)],
+        amount: f64,
+        fallback: NaiveDate,
+        target: &mut [f64],
+    ) {
+        let total = split::working_within(calendar, intervals, i64::MIN, i64::MAX);
+        if total <= 0 {
+            self.add(target, fallback, amount);
+            return;
+        }
+        let (Some(first), Some(last)) = (
+            intervals.iter().map(|(s, _)| *s).min(),
+            intervals.iter().map(|(_, f)| *f).max(),
+        ) else {
+            return;
+        };
+        let (mut day, _) = civil(first);
+        let (end, _) = civil(last);
+        let mut accumulated = 0i64;
+        let mut placed = 0.0f64;
+        while let Some(next) = day.succ_opt() {
+            accumulated +=
+                split::working_within(calendar, intervals, compose(day, 0), compose(next, 0));
+            let reached = amount * accumulated as f64 / total as f64;
+            if reached > placed {
+                self.add(target, day, reached - placed);
+                placed = reached;
+            }
+            if day >= end {
+                break;
+            }
+            day = next;
+        }
+    }
+
+    /// Spreads by `accrual`: all at the start, all at the finish, or over the working time.
+    #[allow(clippy::too_many_arguments)]
+    fn spread_accrued(
+        &self,
+        calendar: &Calendar,
+        accrual: Accrual,
+        intervals: &[(i64, i64)],
+        start: i64,
+        finish: i64,
+        amount: f64,
+        target: &mut [f64],
+    ) {
+        match accrual {
+            Accrual::Start => self.add(target, civil(start).0, amount),
+            Accrual::End => self.add(target, civil(finish).0, amount),
+            Accrual::Prorated => self.spread(calendar, intervals, amount, civil(finish).0, target),
+        }
+    }
+
+    /// Spreads an amount done so far (actual work or cost, earned value) over the task's
+    /// progress windows cut at the status date; with no working time in them it goes on the
+    /// actual start (or start) when that is not after the status date.
+    fn spread_done(&self, task: &Task, amount: f64, target: &mut [f64]) {
+        let Some((status, status_day)) = self.status else {
+            return;
+        };
+        let Some(intervals) = progress_intervals(self.project, task) else {
+            return;
+        };
+        let cut: Vec<(i64, i64)> = intervals
+            .iter()
+            .map(|(low, high)| ((*low).min(status), (*high).min(status)))
+            .filter(|(low, high)| high > low)
+            .collect();
+        let calendar = self.project.task_calendar(task);
+        if split::working_within(calendar, &cut, i64::MIN, i64::MAX) <= 0 {
+            let day = civil(task.actual_start.unwrap_or(task.start)).0;
+            if day <= status_day {
+                self.add(target, day, amount);
+            }
+            return;
+        }
+        self.spread(calendar, &cut, amount, status_day, target);
+    }
+
+    /// An assignment's baseline: its work by day (minutes) and its cost. A task read at task
+    /// level shares the task's baseline work by the assignments' current work.
+    fn assignment_baseline(
+        &self,
+        assignment: &Assignment,
+        task: &Task,
+    ) -> Option<(Vec<(NaiveDate, f64)>, f64)> {
+        let n = self.baseline?;
+        let task_base = task_baseline(task, n)?;
+        let rate = effective_rate(self.project, assignment);
+        if self.task_level_baseline.contains(&task.uid) {
+            let (work_sum, count) = self.assigned_work.get(&task.uid).copied().unwrap_or((0, 1));
+            let share = if work_sum > 0 {
+                assignment.work.max(0) as f64 / work_sum as f64
+            } else {
+                1.0 / count.max(1) as f64
+            };
+            let work = task_base.work.max(0) as f64 * share;
+            if work <= 0.0 {
+                return None;
+            }
+            let mut days = vec![0.0; self.buckets.count];
+            let calendar = self.project.task_calendar(task);
+            let fallback = civil(task_base.finish).0;
+            self.spread(
+                calendar,
+                &baseline_intervals(task_base),
+                work,
+                fallback,
+                &mut days,
+            );
+            let per_bucket = days
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| **m > 0.0)
+                .map(|(i, m)| (bucket_day(self.buckets, i), *m))
+                .collect();
+            return Some((per_bucket, work / 60.0 * rate));
+        }
+        let saved = assignment.baselines.iter().find(|b| b.number == n)?;
+        let days: Vec<(NaiveDate, f64)> =
+            assignment_baseline_days(self.project, task, assignment, n)
+                .into_iter()
+                .map(|(d, m)| (d, m as f64))
+                .collect();
+        let cost = if saved.cost > 0.0 {
+            saved.cost
+        } else {
+            saved.work.max(0) as f64 / 60.0 * rate
+        };
+        Some((days, cost))
+    }
+}
+
+/// The first day of bucket `index` (its key).
+fn bucket_day(buckets: &Buckets, index: usize) -> NaiveDate {
+    parse_date_key(&buckets.keys[index]).unwrap_or(buckets.first)
+}
+
+/// What an hour of the assignment costs now: its cost over its work, else the resource's
+/// standard rate. Used for baselines that kept no cost.
+fn effective_rate(project: &Project, assignment: &Assignment) -> f64 {
+    if assignment.work > 0 && assignment.cost > 0.0 {
+        return assignment.cost / (assignment.work as f64 / 60.0);
+    }
+    project
+        .resources
+        .iter()
+        .find(|r| r.uid == assignment.resource_uid)
+        .map_or(0.0, |r| r.standard_rate)
+}
+
 /// Calculates S-curve and periodic values according to measure, bucket, filter, and baseline.
+/// `baseline` None draws no baseline (and no earned value).
 pub fn curves(
     project: &Project,
     measure: CurveMeasure,
@@ -137,59 +394,49 @@ pub fn curves(
     baseline: Option<u8>,
 ) -> Result<CurvesReport, EngineError> {
     let target_resources = resolve_filter_resources(project, &filter);
-    let baseline_num = baseline.unwrap_or(0);
+    let baseline = baseline.filter(|n| {
+        project
+            .tasks
+            .iter()
+            .filter(|t| !t.summary)
+            .any(|t| task_baseline(t, *n).is_some())
+    });
 
     // 1. Determine timeline boundaries (min_start and max_finish).
     let mut min_start: Option<i64> = None;
     let mut max_finish: Option<i64> = None;
     let mut baseline_finish_ts: Option<i64> = None;
     let mut scheduled_finish_ts: Option<i64> = None;
-
-    let has_any_baseline = project
-        .tasks
-        .iter()
-        .filter(|t| !t.summary)
-        .any(|t| task_baseline(t, baseline_num).is_some());
+    let mut widen = |from: i64, to: i64| {
+        min_start = Some(min_start.map_or(from, |s| s.min(from)));
+        max_finish = Some(max_finish.map_or(to, |f| f.max(to)));
+    };
 
     for task in project.tasks.iter().filter(|t| !t.summary) {
-        let task_matches = if let Some(ref res_set) = target_resources {
+        let task_matches = target_resources.as_ref().is_none_or(|res_set| {
             project
                 .assignments
                 .iter()
                 .any(|a| a.task_uid == task.uid && res_set.contains(&a.resource_uid))
-        } else {
-            true
-        };
-
+        });
         if !task_matches {
             continue;
         }
-
-        min_start = Some(min_start.map_or(task.start, |s| s.min(task.start)));
-        max_finish = Some(max_finish.map_or(task.finish, |f| f.max(task.finish)));
-        scheduled_finish_ts =
-            Some(scheduled_finish_ts.map_or(task.finish, |f| f.max(task.finish)));
-
-        if let Some(b) = task_baseline(task, baseline_num) {
-            min_start = Some(min_start.map_or(b.start, |s| s.min(b.start)));
-            max_finish = Some(max_finish.map_or(b.finish, |f| f.max(b.finish)));
-            baseline_finish_ts =
-                Some(baseline_finish_ts.map_or(b.finish, |f| f.max(b.finish)));
+        widen(task.start, task.finish);
+        scheduled_finish_ts = Some(scheduled_finish_ts.map_or(task.finish, |f| f.max(task.finish)));
+        if let Some(b) = baseline.and_then(|n| task_baseline(task, n)) {
+            widen(b.start, b.finish);
+            baseline_finish_ts = Some(baseline_finish_ts.map_or(b.finish, |f| f.max(b.finish)));
         }
-
         if let Some(start) = task.actual_start {
-            min_start = Some(min_start.map_or(start, |s| s.min(start)));
+            widen(start, start);
         }
         if let Some(finish) = task.actual_finish {
-            max_finish = Some(max_finish.map_or(finish, |f| f.max(finish)));
+            widen(finish, finish);
         }
     }
-
-    if let Some(status) = project.status_date {
-        if min_start.is_some() {
-            min_start = Some(min_start.unwrap().min(status));
-            max_finish = Some(max_finish.unwrap().max(status));
-        }
+    if let (Some(status), true) = (project.status_date, scheduled_finish_ts.is_some()) {
+        widen(status, status);
     }
 
     let (Some(start_ts), Some(finish_ts)) = (min_start, max_finish) else {
@@ -197,7 +444,7 @@ pub fn curves(
             measure,
             bucket,
             filter,
-            baseline: if has_any_baseline { Some(baseline_num) } else { None },
+            baseline,
             status_date: project.status_date,
             baseline_finish: None,
             scheduled_finish: None,
@@ -210,778 +457,310 @@ pub fn curves(
     };
 
     let from_date = civil(start_ts).0;
-    let to_date = civil(finish_ts).0;
-
-    let buckets = compute_buckets(from_date, to_date, bucket)?;
+    let buckets = compute_buckets(from_date, civil(finish_ts).0, bucket)?;
     let count = buckets.count;
+    let cx = Context::new(project, &buckets, target_resources.as_ref(), baseline);
 
-    // Daily distribution buffers before aggregating into buckets.
     let mut scheduled_periods = vec![0.0f64; count];
-    let mut baseline_periods = if has_any_baseline {
-        Some(vec![0.0f64; count])
-    } else {
-        None
-    };
-    let mut actual_periods = if project.status_date.is_some() {
-        Some(vec![0.0f64; count])
-    } else {
-        None
-    };
-    let mut earned_periods = if has_any_baseline && project.status_date.is_some() && measure == CurveMeasure::Cost {
-        Some(vec![0.0f64; count])
-    } else {
-        None
-    };
+    let mut baseline_periods = baseline.map(|_| vec![0.0f64; count]);
+    let mut actual_periods = project.status_date.map(|_| vec![0.0f64; count]);
+    let mut earned_periods =
+        (baseline.is_some() && project.status_date.is_some() && measure == CurveMeasure::Cost)
+            .then(|| vec![0.0f64; count]);
 
-    let status_day = project.status_date.map(|s| civil(s).0);
-
-    // Compute period distributions based on measure.
     match measure {
-        CurveMeasure::Work => {
-            compute_work_periods(
-                project,
-                &buckets,
-                target_resources.as_ref(),
-                baseline_num,
-                has_any_baseline,
-                status_day,
+        CurveMeasure::Work | CurveMeasure::Progress => {
+            work_periods(
+                &cx,
                 &mut scheduled_periods,
                 &mut baseline_periods,
                 &mut actual_periods,
             );
+            if measure == CurveMeasure::Progress {
+                to_percent(
+                    &mut scheduled_periods,
+                    &mut baseline_periods,
+                    &mut actual_periods,
+                );
+            }
         }
-        CurveMeasure::Cost => {
-            compute_cost_periods(
-                project,
-                &buckets,
-                target_resources.as_ref(),
-                baseline_num,
-                has_any_baseline,
-                status_day,
-                &mut scheduled_periods,
-                &mut baseline_periods,
-                &mut actual_periods,
-                &mut earned_periods,
-            );
-        }
-        CurveMeasure::Progress => {
-            compute_progress_periods(
-                project,
-                &buckets,
-                target_resources.as_ref(),
-                baseline_num,
-                has_any_baseline,
-                status_day,
-                &mut scheduled_periods,
-                &mut baseline_periods,
-                &mut actual_periods,
-            );
-        }
+        CurveMeasure::Cost => cost_periods(
+            &cx,
+            &mut scheduled_periods,
+            &mut baseline_periods,
+            &mut actual_periods,
+            &mut earned_periods,
+        ),
     }
 
     // Build cumulative series and final points.
+    let status_day = cx.status.map(|(_, day)| day);
     let mut scheduled_cum = 0.0f64;
     let mut baseline_cum = 0.0f64;
     let mut actual_cum = 0.0f64;
     let mut earned_cum = 0.0f64;
-
     let mut points = Vec::with_capacity(count);
 
     for i in 0..count {
-        let date_key_str = &buckets.keys[i];
-        let bucket_date = parse_date_key(date_key_str).unwrap_or(from_date);
-        let bucket_ts = compose(bucket_date, 0);
+        let bucket_date = bucket_day(&buckets, i);
+        // Actual values only exist up to the status date's bucket.
+        let is_past_status = status_day.is_some_and(|sd| bucket_date > sd);
 
         let sched_p = scheduled_periods[i];
         scheduled_cum += sched_p;
-
         let base_p = baseline_periods.as_ref().map(|v| v[i]);
         if let Some(bp) = base_p {
             baseline_cum += bp;
         }
-
-        // Actual values only exist up to the status date's bucket.
-        let is_past_status = status_day.is_some_and(|sd| bucket_date > sd);
-        let act_p = if is_past_status {
-            None
-        } else {
-            actual_periods.as_ref().map(|v| v[i])
-        };
+        let act_p = actual_periods
+            .as_ref()
+            .filter(|_| !is_past_status)
+            .map(|v| v[i]);
         if let Some(ap) = act_p {
             actual_cum += ap;
         }
-
-        let earn_p = if is_past_status {
-            None
-        } else {
-            earned_periods.as_ref().map(|v| v[i])
-        };
+        let earn_p = earned_periods
+            .as_ref()
+            .filter(|_| !is_past_status)
+            .map(|v| v[i]);
         if let Some(ep) = earn_p {
             earned_cum += ep;
         }
 
         points.push(CurvePoint {
-            date: bucket_ts,
-            label: date_key_str.clone(),
+            date: compose(bucket_date, 0),
+            label: buckets.keys[i].clone(),
             baseline_period: base_p,
             scheduled_period: sched_p,
             actual_period: act_p,
             earned_period: earn_p,
             baseline_cumulative: base_p.map(|_| baseline_cum),
             scheduled_cumulative: scheduled_cum,
-            actual_cumulative: if is_past_status { None } else { actual_periods.as_ref().map(|_| actual_cum) },
-            earned_cumulative: if is_past_status { None } else { earned_periods.as_ref().map(|_| earned_cum) },
+            actual_cumulative: act_p.map(|_| actual_cum),
+            earned_cumulative: earn_p.map(|_| earned_cum),
         });
     }
-
-    let total_baseline = baseline_periods.as_ref().map(|_| baseline_cum);
-    let total_actual = actual_periods.as_ref().map(|_| actual_cum);
-    let total_earned = earned_periods.as_ref().map(|_| earned_cum);
 
     Ok(CurvesReport {
         measure,
         bucket,
         filter,
-        baseline: if has_any_baseline { Some(baseline_num) } else { None },
+        baseline,
         status_date: project.status_date,
         baseline_finish: baseline_finish_ts,
         scheduled_finish: scheduled_finish_ts,
-        total_baseline,
+        total_baseline: baseline_periods.as_ref().map(|_| baseline_cum),
         total_scheduled: scheduled_cum,
-        total_actual,
-        total_earned,
+        total_actual: actual_periods.as_ref().map(|_| actual_cum),
+        total_earned: earned_periods.as_ref().map(|_| earned_cum),
         points,
     })
 }
 
-/// Distributes work hours across buckets for Scheduled, Baseline, and Actual series.
-#[allow(clippy::too_many_arguments)]
-fn compute_work_periods(
-    project: &Project,
-    buckets: &Buckets,
-    target_resources: Option<&HashSet<u32>>,
-    baseline_num: u8,
-    has_any_baseline: bool,
-    status_day: Option<NaiveDate>,
+/// Work hours by bucket for the scheduled, baseline and actual series.
+fn work_periods(
+    cx: &Context,
     scheduled: &mut [f64],
     baseline: &mut Option<Vec<f64>>,
     actual: &mut Option<Vec<f64>>,
 ) {
-    // 1. Scheduled Work from project.usage (in hours)
+    let project = cx.project;
+
+    // Scheduled: the usage rows, a task's row for the project, the assignments' when filtered.
     for row in &project.usage {
-        let is_target = match target_resources {
+        let is_target = match cx.people {
             None => row.assignment_uid.is_none(),
-            Some(res_set) => row.resource_uid.is_some_and(|uid| res_set.contains(&uid)),
+            Some(set) => row.resource_uid.is_some_and(|uid| set.contains(&uid)),
         };
         if !is_target {
             continue;
         }
         for day in &row.days {
             if let Some(d) = parse_date_key(&day.date) {
-                if let Some(idx) = (buckets.index_of)(d) {
-                    scheduled[idx] += day.hours;
-                }
+                cx.add(scheduled, d, day.hours);
             }
         }
     }
 
-    // 2. Baseline Work (converted from minutes to hours)
-    if has_any_baseline {
-        if let Some(ref mut base_vec) = baseline {
-            if let Some(res_set) = target_resources {
-                let load_map = baseline_load_by_resource(project, baseline_num);
-                for (&uid, days) in &load_map {
-                    if res_set.contains(&uid) {
-                        for (&d, &minutes) in days {
-                            if let Some(idx) = (buckets.index_of)(d) {
-                                base_vec[idx] += minutes as f64 / 60.0;
-                            }
-                        }
+    // Baseline.
+    if let (Some(n), Some(base)) = (cx.baseline, baseline.as_mut()) {
+        if cx.people.is_some() {
+            for (assignment, task) in cx.filtered_assignments() {
+                if let Some((days, _)) = cx.assignment_baseline(assignment, task) {
+                    for (d, minutes) in days {
+                        cx.add(base, d, minutes / 60.0);
                     }
                 }
-            } else {
-                let assigned_task_uids: HashSet<u32> =
-                    project.assignments.iter().map(|a| a.task_uid).collect();
-                let load_map = project_baseline_load_by_day(project, baseline_num);
-                for (d, minutes) in load_map {
-                    if let Some(idx) = (buckets.index_of)(d) {
-                        base_vec[idx] += minutes as f64 / 60.0;
-                    }
+            }
+        } else {
+            for assignment in &project.assignments {
+                let Some(task) = cx.tasks.get(&assignment.task_uid) else {
+                    continue;
+                };
+                if cx.task_level_baseline.contains(&task.uid) {
+                    continue;
                 }
-                for task in project.tasks.iter().filter(|t| !t.summary) {
-                    if assigned_task_uids.contains(&task.uid) {
-                        continue;
-                    }
-                    let Some(b) = task_baseline(task, baseline_num) else {
-                        continue;
-                    };
-                    if b.work <= 0 {
-                        continue;
-                    }
+                for (d, minutes) in assignment_baseline_days(project, task, assignment, n) {
+                    cx.add(base, d, minutes as f64 / 60.0);
+                }
+            }
+            // Tasks with no assignment baseline (unassigned, or baselined before revision 7).
+            for task in cx
+                .leaves()
+                .filter(|t| cx.task_level_baseline.contains(&t.uid))
+            {
+                let Some(b) = task_baseline(task, n) else {
+                    continue;
+                };
+                if b.work > 0 {
                     let calendar = project.task_calendar(task);
-                    let intervals: Vec<(i64, i64)> = if !b.segments.is_empty() {
-                        b.segments.iter().map(|s| (s.start, s.finish)).collect()
-                    } else if b.finish > b.start {
-                        vec![(b.start, b.finish)]
-                    } else {
-                        continue;
-                    };
-                    let total_task_mins =
-                        split::working_within(calendar, &intervals, i64::MIN, i64::MAX);
-                    if total_task_mins <= 0 {
-                        continue;
-                    }
-                    let min_start = intervals.iter().map(|(s, _)| *s).min().unwrap_or(b.start);
-                    let max_finish = intervals.iter().map(|(_, f)| *f).max().unwrap_or(b.finish);
-                    let (mut d, _) = civil(min_start);
-                    let (end_d, _) = civil(max_finish);
-                    let mut accumulated = 0i64;
-                    let mut prev_work = 0i64;
-                    while let Some(next) = d.succ_opt() {
-                        let day_mins = split::working_within(
-                            calendar,
-                            &intervals,
-                            compose(d, 0),
-                            compose(next, 0),
-                        );
-                        accumulated += day_mins;
-                        let cur_work =
-                            ((b.work as f64 * accumulated as f64) / total_task_mins as f64).round() as i64;
-                        let day_work = cur_work - prev_work;
-                        prev_work = cur_work;
-                        if day_work > 0 {
-                            if let Some(idx) = (buckets.index_of)(d) {
-                                base_vec[idx] += day_work as f64 / 60.0;
-                            }
-                        }
-                        if d >= end_d {
-                            break;
-                        }
-                        d = next;
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. Actual Work (converted from minutes to hours)
-    if let (Some(status_date_ts), Some(status_d)) = (project.status_date, status_day) {
-        if let Some(ref mut act_vec) = actual {
-            let tasks: HashMap<u32, &Task> = project.tasks.iter().map(|t| (t.uid, t)).collect();
-
-            if let Some(res_set) = target_resources {
-                for assignment in &project.assignments {
-                    if !res_set.contains(&assignment.resource_uid) || assignment.actual_work <= 0 {
-                        continue;
-                    }
-                    let Some(task) = tasks.get(&assignment.task_uid) else {
-                        continue;
-                    };
-                    distribute_actual_work(
-                        project,
-                        task,
-                        assignment.actual_work,
-                        status_date_ts,
-                        status_d,
-                        buckets,
-                        act_vec,
-                    );
-                }
-            } else {
-                for task in project.tasks.iter().filter(|t| !t.summary) {
-                    if task.actual_work <= 0 {
-                        continue;
-                    }
-                    distribute_actual_work(
-                        project,
-                        task,
-                        task.actual_work,
-                        status_date_ts,
-                        status_d,
-                        buckets,
-                        act_vec,
+                    let hours = b.work as f64 / 60.0;
+                    cx.spread(
+                        calendar,
+                        &baseline_intervals(b),
+                        hours,
+                        civil(b.finish).0,
+                        base,
                     );
                 }
             }
         }
     }
-}
 
-/// Distributes actual work proportionally over progress intervals up to status date.
-fn distribute_actual_work(
-    project: &Project,
-    task: &Task,
-    work_minutes: i64,
-    status_date: i64,
-    status_day: NaiveDate,
-    buckets: &Buckets,
-    target: &mut [f64],
-) {
-    let Some(intervals) = progress_intervals(project, task) else {
-        return;
-    };
-    let calendar = project.task_calendar(task);
-    let cut: Vec<(i64, i64)> = intervals
-        .iter()
-        .map(|(low, high)| ((*low).min(status_date), (*high).min(status_date)))
-        .filter(|(low, high)| high > low)
-        .collect();
-
-    let total_working_mins = split::working_within(calendar, &cut, i64::MIN, i64::MAX);
-    if total_working_mins <= 0 {
-        // Book at actual start or task start if no working time elapsed
-        let d = civil(task.actual_start.unwrap_or(task.start)).0;
-        if d <= status_day {
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += work_minutes as f64 / 60.0;
+    // Actual.
+    if let Some(act) = actual.as_mut() {
+        if cx.people.is_some() {
+            for (assignment, task) in cx.filtered_assignments() {
+                if assignment.actual_work > 0 {
+                    cx.spread_done(task, assignment.actual_work as f64 / 60.0, act);
+                }
+            }
+        } else {
+            for task in cx.leaves().filter(|t| t.actual_work > 0) {
+                cx.spread_done(task, task.actual_work as f64 / 60.0, act);
             }
         }
-        return;
-    }
-
-    let min_start = cut.iter().map(|(s, _)| *s).min().unwrap_or(task.start);
-    let max_finish = cut.iter().map(|(_, f)| *f).max().unwrap_or(task.finish);
-
-    let (mut d, _) = civil(min_start);
-    let (end_d, _) = civil(max_finish);
-
-    let mut accumulated = 0i64;
-    let mut prev_work = 0i64;
-
-    while let Some(next) = d.succ_opt() {
-        if d > status_day {
-            break;
-        }
-        let day_working = split::working_within(calendar, &cut, compose(d, 0), compose(next, 0));
-        accumulated += day_working;
-
-        let cur_work = ((work_minutes as f64 * accumulated as f64) / total_working_mins as f64).round() as i64;
-        let day_work = cur_work - prev_work;
-        prev_work = cur_work;
-
-        if day_work > 0 {
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += day_work as f64 / 60.0;
-            }
-        }
-
-        if d >= end_d {
-            break;
-        }
-        d = next;
     }
 }
 
-/// Distributes costs across buckets for Scheduled, Baseline, Actual, and Earned series.
-#[allow(clippy::too_many_arguments)]
-fn compute_cost_periods(
-    project: &Project,
-    buckets: &Buckets,
-    target_resources: Option<&HashSet<u32>>,
-    baseline_num: u8,
-    has_any_baseline: bool,
-    status_day: Option<NaiveDate>,
+/// Costs by bucket for the scheduled, baseline, actual and earned series.
+fn cost_periods(
+    cx: &Context,
     scheduled: &mut [f64],
     baseline: &mut Option<Vec<f64>>,
     actual: &mut Option<Vec<f64>>,
     earned: &mut Option<Vec<f64>>,
 ) {
-    let tasks: HashMap<u32, &Task> = project.tasks.iter().map(|t| (t.uid, t)).collect();
-    let rates: HashMap<u32, f64> = project.resources.iter().map(|r| (r.uid, r.standard_rate)).collect();
+    let project = cx.project;
 
-    // 1. Scheduled Cost
-    if let Some(res_set) = target_resources {
-        for row in &project.usage {
-            if let Some(uid) = row.resource_uid {
-                if res_set.contains(&uid) {
-                    let rate = rates.get(&uid).copied().unwrap_or(0.0);
-                    for day in &row.days {
+    if cx.people.is_some() {
+        // Each assignment's cost spread like its hours in the usage rows.
+        let hours: HashMap<u32, &[UsageDay]> = project
+            .usage
+            .iter()
+            .filter_map(|row| row.assignment_uid.map(|uid| (uid, row.days.as_slice())))
+            .collect();
+        for (assignment, task) in cx.filtered_assignments() {
+            if assignment.cost > 0.0 {
+                let days = hours.get(&assignment.uid).copied().unwrap_or(&[]);
+                let total: f64 = days.iter().map(|d| d.hours).sum();
+                if total > 0.0 {
+                    for day in days {
                         if let Some(d) = parse_date_key(&day.date) {
-                            if let Some(idx) = (buckets.index_of)(d) {
-                                scheduled[idx] += day.hours * rate;
-                            }
+                            cx.add(scheduled, d, assignment.cost * day.hours / total);
                         }
                     }
+                } else {
+                    cx.add(scheduled, civil(task.start).0, assignment.cost);
+                }
+            }
+            let base = cx.assignment_baseline(assignment, task);
+            if let (Some(target), Some((days, cost))) = (baseline.as_mut(), base.as_ref()) {
+                let minutes: f64 = days.iter().map(|(_, m)| m).sum();
+                if minutes > 0.0 {
+                    for (d, m) in days {
+                        cx.add(target, *d, cost * m / minutes);
+                    }
+                }
+            }
+            if let Some(target) = actual.as_mut() {
+                if assignment.actual_cost > 0.0 {
+                    cx.spread_done(task, assignment.actual_cost, target);
+                }
+            }
+            if let (Some(target), Some((_, cost))) = (earned.as_mut(), base) {
+                let pct = task.percent_complete.clamp(0.0, 100.0);
+                if pct > 0.0 && cost > 0.0 {
+                    cx.spread_done(task, cost * pct / 100.0, target);
                 }
             }
         }
-    } else {
-        for task in project.tasks.iter().filter(|t| !t.summary) {
-            let total_cost = task.cost;
-            if total_cost <= 0.0 {
-                continue;
-            }
-            distribute_task_cost(project, task, total_cost, task.fixed_cost_accrual, buckets, scheduled);
-        }
+        return;
     }
 
-    // 2. Baseline Cost
-    if has_any_baseline {
-        if let Some(ref mut base_vec) = baseline {
-            if let Some(res_set) = target_resources {
-                for assignment in &project.assignments {
-                    if !res_set.contains(&assignment.resource_uid) {
-                        continue;
-                    }
-                    let Some(task) = tasks.get(&assignment.task_uid) else {
-                        continue;
-                    };
-                    let rate = rates.get(&assignment.resource_uid).copied().unwrap_or(0.0);
-                    let days = assignment_baseline_days(project, task, assignment, baseline_num);
-                    for (d, minutes) in days {
-                        if let Some(idx) = (buckets.index_of)(d) {
-                            base_vec[idx] += (minutes as f64 / 60.0) * rate;
-                        }
-                    }
-                }
-            } else {
-                for task in project.tasks.iter().filter(|t| !t.summary) {
-                    let Some(b) = task_baseline(task, baseline_num) else {
-                        continue;
-                    };
-                    let base_cost = b.cost;
-                    if base_cost <= 0.0 {
-                        continue;
-                    }
-                    distribute_baseline_cost(project, task, b, buckets, base_vec);
-                }
-            }
-        }
-    }
-
-    // 3. Actual Cost and Earned Value
-    if let (Some(status_ts), Some(status_d)) = (project.status_date, status_day) {
-        if let Some(ref mut act_vec) = actual {
-            if let Some(res_set) = target_resources {
-                for assignment in &project.assignments {
-                    if !res_set.contains(&assignment.resource_uid) {
-                        continue;
-                    }
-                    let Some(task) = tasks.get(&assignment.task_uid) else {
-                        continue;
-                    };
-                    let rate = rates.get(&assignment.resource_uid).copied().unwrap_or(0.0);
-                    let actual_cost = if assignment.actual_cost > 0.0 {
-                        assignment.actual_cost
-                    } else {
-                        (assignment.actual_work as f64 / 60.0) * rate
-                    };
-                    if actual_cost <= 0.0 {
-                        continue;
-                    }
-                    distribute_actual_cost(
-                        project,
-                        task,
-                        actual_cost,
-                        status_ts,
-                        status_d,
-                        buckets,
-                        act_vec,
-                    );
-                }
-            } else {
-                for task in project.tasks.iter().filter(|t| !t.summary) {
-                    let actual_cost = task.actual_cost;
-                    if actual_cost <= 0.0 {
-                        continue;
-                    }
-                    distribute_actual_cost(
-                        project,
-                        task,
-                        actual_cost,
-                        status_ts,
-                        status_d,
-                        buckets,
-                        act_vec,
-                    );
-                }
-            }
-        }
-
-        // Earned Value (EV)
-        if has_any_baseline {
-            if let Some(ref mut earn_vec) = earned {
-                for task in project.tasks.iter().filter(|t| !t.summary) {
-                    let Some(b) = task_baseline(task, baseline_num) else {
-                        continue;
-                    };
-                    let pct = task.percent_complete.clamp(0.0, 100.0);
-                    if pct <= 0.0 || b.cost <= 0.0 {
-                        continue;
-                    }
-                    let task_ev = b.cost * pct / 100.0;
-                    distribute_actual_cost(
-                        project,
-                        task,
-                        task_ev,
-                        status_ts,
-                        status_d,
-                        buckets,
-                        earn_vec,
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// Distributes task cost across buckets according to fixed_cost_accrual.
-fn distribute_task_cost(
-    project: &Project,
-    task: &Task,
-    cost: f64,
-    accrual: Accrual,
-    buckets: &Buckets,
-    target: &mut [f64],
-) {
-    match accrual {
-        Accrual::Start => {
-            let d = civil(task.start).0;
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += cost;
-            }
-        }
-        Accrual::End => {
-            let d = civil(task.finish).0;
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += cost;
-            }
-        }
-        Accrual::Prorated => {
-            let calendar = project.task_calendar(task);
+    for task in cx.leaves() {
+        let calendar = project.task_calendar(task);
+        if task.cost > 0.0 {
             let intervals = split::work_intervals(task);
-            let total_mins = split::working_within(calendar, &intervals, i64::MIN, i64::MAX);
-            if total_mins <= 0 {
-                let d = civil(task.finish).0;
-                if let Some(idx) = (buckets.index_of)(d) {
-                    target[idx] += cost;
-                }
-                return;
+            let accrual = task.fixed_cost_accrual;
+            cx.spread_accrued(
+                calendar,
+                accrual,
+                &intervals,
+                task.start,
+                task.finish,
+                task.cost,
+                scheduled,
+            );
+        }
+        let base = cx
+            .baseline
+            .and_then(|n| task_baseline(task, n))
+            .filter(|b| b.cost > 0.0);
+        if let (Some(target), Some(b)) = (baseline.as_mut(), base) {
+            let intervals = baseline_intervals(b);
+            let accrual = task.fixed_cost_accrual;
+            cx.spread_accrued(
+                calendar, accrual, &intervals, b.start, b.finish, b.cost, target,
+            );
+        }
+        if let Some(target) = actual.as_mut() {
+            if task.actual_cost > 0.0 {
+                cx.spread_done(task, task.actual_cost, target);
             }
-
-            let min_start = intervals.iter().map(|(s, _)| *s).min().unwrap_or(task.start);
-            let max_finish = intervals.iter().map(|(_, f)| *f).max().unwrap_or(task.finish);
-
-            let (mut d, _) = civil(min_start);
-            let (end_d, _) = civil(max_finish);
-
-            let mut accumulated = 0i64;
-            let mut prev_cost = 0.0f64;
-
-            while let Some(next) = d.succ_opt() {
-                let day_mins = split::working_within(calendar, &intervals, compose(d, 0), compose(next, 0));
-                accumulated += day_mins;
-
-                let cur_cost = (cost * accumulated as f64) / total_mins as f64;
-                let day_cost = cur_cost - prev_cost;
-                prev_cost = cur_cost;
-
-                if day_cost > 0.0 {
-                    if let Some(idx) = (buckets.index_of)(d) {
-                        target[idx] += day_cost;
-                    }
-                }
-
-                if d >= end_d {
-                    break;
-                }
-                d = next;
+        }
+        if let (Some(target), Some(b)) = (earned.as_mut(), base) {
+            let pct = task.percent_complete.clamp(0.0, 100.0);
+            if pct > 0.0 {
+                cx.spread_done(task, b.cost * pct / 100.0, target);
             }
         }
     }
 }
 
-/// Distributes task baseline cost across buckets according to fixed_cost_accrual.
-fn distribute_baseline_cost(
-    project: &Project,
-    task: &Task,
-    baseline: &Baseline,
-    buckets: &Buckets,
-    target: &mut [f64],
-) {
-    let cost = baseline.cost;
-    match task.fixed_cost_accrual {
-        Accrual::Start => {
-            let d = civil(baseline.start).0;
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += cost;
-            }
-        }
-        Accrual::End => {
-            let d = civil(baseline.finish).0;
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += cost;
-            }
-        }
-        Accrual::Prorated => {
-            let calendar = project.task_calendar(task);
-            let intervals: Vec<(i64, i64)> = if !baseline.segments.is_empty() {
-                baseline.segments.iter().map(|s| (s.start, s.finish)).collect()
-            } else {
-                vec![(baseline.start, baseline.finish)]
-            };
-
-            let total_mins = split::working_within(calendar, &intervals, i64::MIN, i64::MAX);
-            if total_mins <= 0 {
-                let d = civil(baseline.finish).0;
-                if let Some(idx) = (buckets.index_of)(d) {
-                    target[idx] += cost;
-                }
-                return;
-            }
-
-            let min_start = intervals.iter().map(|(s, _)| *s).min().unwrap_or(baseline.start);
-            let max_finish = intervals.iter().map(|(_, f)| *f).max().unwrap_or(baseline.finish);
-
-            let (mut d, _) = civil(min_start);
-            let (end_d, _) = civil(max_finish);
-
-            let mut accumulated = 0i64;
-            let mut prev_cost = 0.0f64;
-
-            while let Some(next) = d.succ_opt() {
-                let day_mins = split::working_within(calendar, &intervals, compose(d, 0), compose(next, 0));
-                accumulated += day_mins;
-
-                let cur_cost = (cost * accumulated as f64) / total_mins as f64;
-                let day_cost = cur_cost - prev_cost;
-                prev_cost = cur_cost;
-
-                if day_cost > 0.0 {
-                    if let Some(idx) = (buckets.index_of)(d) {
-                        target[idx] += day_cost;
-                    }
-                }
-
-                if d >= end_d {
-                    break;
-                }
-                d = next;
-            }
-        }
-    }
-}
-
-/// Distributes actual cost or EV over progress intervals up to status date.
-fn distribute_actual_cost(
-    project: &Project,
-    task: &Task,
-    cost: f64,
-    status_date: i64,
-    status_day: NaiveDate,
-    buckets: &Buckets,
-    target: &mut [f64],
-) {
-    let Some(intervals) = progress_intervals(project, task) else {
-        return;
-    };
-    let calendar = project.task_calendar(task);
-    let cut: Vec<(i64, i64)> = intervals
-        .iter()
-        .map(|(low, high)| ((*low).min(status_date), (*high).min(status_date)))
-        .filter(|(low, high)| high > low)
-        .collect();
-
-    let total_working_mins = split::working_within(calendar, &cut, i64::MIN, i64::MAX);
-    if total_working_mins <= 0 {
-        let d = civil(task.actual_start.unwrap_or(task.start)).0;
-        if d <= status_day {
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += cost;
-            }
-        }
-        return;
-    }
-
-    let min_start = cut.iter().map(|(s, _)| *s).min().unwrap_or(task.start);
-    let max_finish = cut.iter().map(|(_, f)| *f).max().unwrap_or(task.finish);
-
-    let (mut d, _) = civil(min_start);
-    let (end_d, _) = civil(max_finish);
-
-    let mut accumulated = 0i64;
-    let mut prev_cost = 0.0f64;
-
-    while let Some(next) = d.succ_opt() {
-        if d > status_day {
-            break;
-        }
-        let day_mins = split::working_within(calendar, &cut, compose(d, 0), compose(next, 0));
-        accumulated += day_mins;
-
-        let cur_cost = (cost * accumulated as f64) / total_working_mins as f64;
-        let day_cost = cur_cost - prev_cost;
-        prev_cost = cur_cost;
-
-        if day_cost > 0.0 {
-            if let Some(idx) = (buckets.index_of)(d) {
-                target[idx] += day_cost;
-            }
-        }
-
-        if d >= end_d {
-            break;
-        }
-        d = next;
-    }
-}
-
-/// Normalizes Work periods into Progress percentage (0..100%).
-#[allow(clippy::too_many_arguments)]
-fn compute_progress_periods(
-    project: &Project,
-    buckets: &Buckets,
-    target_resources: Option<&HashSet<u32>>,
-    baseline_num: u8,
-    has_any_baseline: bool,
-    status_day: Option<NaiveDate>,
+/// Turns work hours into percent of the total: the baseline's when there is one with work,
+/// else the scheduled work.
+fn to_percent(
     scheduled: &mut [f64],
     baseline: &mut Option<Vec<f64>>,
     actual: &mut Option<Vec<f64>>,
 ) {
-    // 1. Compute work hours first
-    compute_work_periods(
-        project,
-        buckets,
-        target_resources,
-        baseline_num,
-        has_any_baseline,
-        status_day,
-        scheduled,
-        baseline,
-        actual,
-    );
-
-    // 2. Determine normalizing denominator: total baselined work if baseline exists, else scheduled
-    let total_baseline_work = baseline.as_ref().map(|v| v.iter().sum::<f64>()).unwrap_or(0.0);
-    let total_sched_work = scheduled.iter().sum::<f64>();
-
-    let total_work = if has_any_baseline && total_baseline_work > 0.0 {
-        total_baseline_work
+    let total_baseline: f64 = baseline.as_ref().map_or(0.0, |v| v.iter().sum());
+    let total = if total_baseline > 0.0 {
+        total_baseline
     } else {
-        total_sched_work
+        scheduled.iter().sum()
     };
-
-    if total_work <= 0.0 {
-        // Zero work: leave all at 0.0
+    if total <= 0.0 {
         return;
     }
-
-    let factor = 100.0 / total_work;
-
-    for s in scheduled.iter_mut() {
-        *s *= factor;
+    let factor = 100.0 / total;
+    let scale = |values: &mut [f64]| values.iter_mut().for_each(|v| *v *= factor);
+    scale(scheduled);
+    if let Some(v) = baseline.as_mut() {
+        scale(v);
     }
-
-    if let Some(ref mut base_vec) = baseline {
-        for b in base_vec.iter_mut() {
-            *b *= factor;
-        }
-    }
-
-    if let Some(ref mut act_vec) = actual {
-        for a in act_vec.iter_mut() {
-            *a *= factor;
-        }
+    if let Some(v) = actual.as_mut() {
+        scale(v);
     }
 }

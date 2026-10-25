@@ -99,6 +99,10 @@ pub struct Baseline {
 pub struct AssignmentBaseline {
     pub number: u8,
     pub work: i64,
+    /// The assignment's cost when the baseline was set; 0 in baselines saved before it was
+    /// kept (engine revision 7), where readers fall back to the work at today's rate.
+    #[serde(default)]
+    pub cost: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
