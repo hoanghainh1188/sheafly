@@ -12,5 +12,6 @@ rust_xlsxwriter = "0.99.1"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-# The tests read the workbook back.
+# The tests read the workbook back and check cell formats.
 calamine = { version = "0.36.1", features = ["dates"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }

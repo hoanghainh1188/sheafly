@@ -39,6 +39,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     clipboard: null,
     setClipboard: vi.fn(),
     fillField: "duration",
+    reportingPro: true,
     ...overrides,
   };
 }
@@ -120,6 +121,20 @@ describe("handleMenuAction", () => {
       handleMenuAction(id, ctx);
     }
     expect(ctx.startFileDialog).toHaveBeenCalledTimes(9);
+  });
+
+  it("opens the license dialog when exporting excel without pro license", () => {
+    const ctx = context({ reportingPro: false });
+    handleMenuAction("export-excel", ctx);
+    expect(ctx.openLicense).toHaveBeenCalledOnce();
+    expect(ctx.startFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("opens the file dialog when exporting excel with pro license", () => {
+    const ctx = context({ reportingPro: true });
+    handleMenuAction("export-excel", ctx);
+    expect(ctx.openLicense).not.toHaveBeenCalled();
+    expect(ctx.startFileDialog).toHaveBeenCalledOnce();
   });
 
   it("opens the table import", () => {

@@ -122,6 +122,7 @@ export default function App() {
     if (inTauri()) void licenseStatus().then(setLicense, () => setLicense(null));
   }, []);
   const capacityPro = license?.features.includes("capacity") ?? false;
+  const reportingPro = license?.features.includes("reporting") ?? false;
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
   const [workingTime, setWorkingTime] = useState<{ id: number; start: number } | null>(null);
   // The resource Khả dụng is open for and the history cursor to roll back to.
@@ -426,8 +427,9 @@ export default function App() {
         clipboard,
         setClipboard,
         fillField,
+        reportingPro,
       }),
-    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, infoStart, workingTime, availability, assignmentStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline],
+    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, infoStart, workingTime, availability, assignmentStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro],
   );
   menuRef.current = handleMenu;
 

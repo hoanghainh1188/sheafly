@@ -170,3 +170,100 @@ fn the_tasks_sheet_keeps_dates_effort_and_baseline() {
     let task = doc.project.tasks.iter().find(|t| t.uid == leaf).unwrap();
     assert_eq!(baseline.and_utc().timestamp_millis(), task.finish);
 }
+
+#[test]
+fn resource_loading_highlights_overallocated_months() {
+    let (mut doc, alice, leaf) = project();
+    // Add a second task for Alice in parallel on Monday 2026-01-26, so she is overloaded in January.
+    doc.apply(Command::AddTask {
+        name: "Parallel".into(),
+        after_uid: Some(leaf),
+    })
+    .unwrap();
+    let parallel = doc.project.tasks.last().unwrap().uid;
+    doc.apply(Command::SetDuration {
+        uid: parallel,
+        minutes: 5 * DAY,
+    })
+    .unwrap();
+    doc.apply(Command::AssignResource {
+        task_uid: parallel,
+        resource_uid: alice,
+        units: 1.0,
+    })
+    .unwrap();
+    assert!(
+        !doc.project.overallocations.is_empty(),
+        "the engine must flag overallocations"
+    );
+
+    let bytes = excel_workbook(&doc.project, Lang::En).expect("export");
+    let mut zip = zip::ZipArchive::new(Cursor::new(&bytes)).expect("valid zip");
+
+    // 1. Verify xl/styles.xml defines the red overallocation style (fill FEE2E2, text B91C1C).
+    let mut styles_xml = String::new();
+    std::io::Read::read_to_string(
+        &mut zip.by_name("xl/styles.xml").expect("styles.xml"),
+        &mut styles_xml,
+    )
+    .unwrap();
+    assert!(
+        styles_xml.contains("FEE2E2"),
+        "styles.xml must define the red overallocation background fill"
+    );
+    assert!(
+        styles_xml.contains("B91C1C"),
+        "styles.xml must define the red overallocation font color"
+    );
+
+    // 2. Locate which cellXfs index uses the overallocation fill.
+    // In OpenXML, <fills> lists <fill> items. Find the 0-based fillId with FEE2E2.
+    let fill_index = styles_xml
+        .split("<fill>")
+        .skip(1)
+        .position(|f| f.contains("FEE2E2"))
+        .expect("must find fill with FEE2E2");
+
+    let expected_fill_attr = format!("fillId=\"{fill_index}\"");
+    let cell_xfs_xml = styles_xml
+        .split("<cellXfs")
+        .nth(1)
+        .and_then(|s| s.split("</cellXfs>").next())
+        .expect("must find <cellXfs>");
+
+    let over_style_id = cell_xfs_xml
+        .split("<xf ")
+        .skip(1)
+        .position(|xf| xf.contains(&expected_fill_attr))
+        .expect("must find cellXfs with overallocation fillId");
+
+    // 3. Inspect xl/worksheets/sheet4.xml (Resource Loading sheet).
+    let mut sheet_xml = String::new();
+    std::io::Read::read_to_string(
+        &mut zip.by_name("xl/worksheets/sheet4.xml").expect("sheet4.xml"),
+        &mut sheet_xml,
+    )
+    .unwrap();
+
+    // Alice's Work is on row 2, columns: A2 (Alice), B2 (Backend), C2 (Work (h)), D2 (2026-01), E2 (2026-02), F2 (Total).
+    // The overloaded month cell D2 must reference the overallocated style id.
+    let target_cell = format!("r=\"D2\" s=\"{over_style_id}\"");
+    assert!(
+        sheet_xml.contains(&target_cell),
+        "January work cell D2 must have the overallocated style {over_style_id}: {sheet_xml}"
+    );
+
+    // February work cell E2 (not overloaded) must NOT have the overallocated style.
+    let feb_work_cell = format!("r=\"E2\" s=\"{over_style_id}\"");
+    assert!(
+        !sheet_xml.contains(&feb_work_cell),
+        "February work cell E2 must not have the overallocated style"
+    );
+
+    // Alice's Capacity row (row 3, cell D3) must NOT have the overallocated style.
+    let capacity_cell = format!("r=\"D3\" s=\"{over_style_id}\"");
+    assert!(
+        !sheet_xml.contains(&capacity_cell),
+        "Capacity row must not have the overallocated style"
+    );
+}

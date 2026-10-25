@@ -25,6 +25,9 @@
 //! `-- import [<tasks>]` times `check_import` and `ImportRows` for a table of people and
 //! tasks (default 5000 tasks in groups of ten, one person per ten tasks, each leaf with
 //! effort, one person and, every other row, a wait on the row above).
+//!
+//! `-- excel [<people> <tasks>]` times the multi-sheet Excel export (#168) for a capacity
+//! backlog (default 100 people, 1000 tasks).
 
 use std::time::{Duration, Instant};
 
@@ -483,6 +486,23 @@ fn main() {
         project_summaries(people, tasks);
         return;
     }
+    if args.iter().any(|arg| arg == "excel" || arg == "report") {
+        let people = numbers.first().copied().unwrap_or(100).max(1) as u32;
+        let tasks = numbers.get(1).copied().unwrap_or(1000) as u32;
+        let mut doc = Document::from_project(capacity(people, tasks, false, true, false, true));
+        doc.apply(Command::SetBaseline { number: 0 }).expect("baseline");
+        let project = &doc.project;
+        let (bytes, duration) = timed(&format!("excel_workbook ({people} người, {tasks} việc)"), || {
+            sheafly_report::excel_workbook(project, sheafly_engine::Lang::Vi).expect("excel workbook")
+        });
+        println!(
+            "{:<28} {:>10.1} KB, {:.1} ms",
+            "kích thước file",
+            bytes.len() as f64 / 1024.0,
+            duration.as_secs_f64() * 1000.0
+        );
+        return;
+    }
     if args.iter().any(|arg| arg == "import") {
         import(numbers.first().copied().unwrap_or(5000).max(1) as u32);
         return;
@@ -570,6 +590,10 @@ fn main() {
         "undo sau khi mở (chậm nhất/50)",
         slowest.as_secs_f64() * 1000.0
     );
+    let (excel, _) = timed("excel_workbook (1000 việc)", || {
+        sheafly_report::excel_workbook(&loaded.project, sheafly_engine::Lang::Vi).expect("excel")
+    });
+    println!("{:<28} {:>10.1} KB", "kích thước Excel", excel.len() as f64 / 1024.0);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
