@@ -34,6 +34,8 @@ export interface ToolbarStates {
   remove: CommandState;
   project: CommandState;
   evm: CommandState;
+  /** The Recommendations panel (AI). */
+  ai: CommandState;
   exportPdf: CommandState;
   copyTask: CommandState;
   pasteTask: CommandState;
@@ -97,6 +99,7 @@ export function toolbarStates({
       remove: none,
       project: none,
       evm: none,
+      ai: none,
       exportPdf: none,
       copyTask: none,
       pasteTask: none,
@@ -168,6 +171,7 @@ export function toolbarStates({
     remove: needsTask() ?? ON,
     project: ON,
     evm: ON,
+    ai: ON,
     exportPdf: !PDF_VIEWS.includes(view)
       ? off(reasons.pdfView)
       : fileDialogBusy

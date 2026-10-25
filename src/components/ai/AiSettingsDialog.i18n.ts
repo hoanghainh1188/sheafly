@@ -5,7 +5,6 @@ export const aiSettingsMessages = defineMessages(
     title: "Gợi ý AI",
     intro:
       "Sheafly có thể nhờ Claude (Anthropic) giải thích rủi ro của dự án và đề xuất cách sửa, bằng khóa API của chính bạn. Engine kiểm chứng mọi đề xuất, và không gì thay đổi trước khi bạn bấm Áp dụng.",
-    comingSoon: "Panel Gợi ý sẽ có trong bản cập nhật sau; tại đây bạn thiết lập trước khóa API và model.",
     enable: "Bật gợi ý AI",
     noticeTitle: "Dữ liệu được gửi đi",
     noticeSent:
@@ -39,7 +38,6 @@ export const aiSettingsMessages = defineMessages(
     title: "AI Recommendations",
     intro:
       "Sheafly can ask Claude (Anthropic) to explain the project's risks and propose fixes, with your own API key. The engine verifies every proposal, and nothing changes before you click Apply.",
-    comingSoon: "The Recommendations panel comes in a later update; here you can set up the API key and model in advance.",
     enable: "Turn on AI recommendations",
     noticeTitle: "What is sent",
     noticeSent:

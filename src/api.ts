@@ -7,6 +7,7 @@ import { isThemeChoice, type ThemeChoice } from "./theme";
 import type {
   AiCheck,
   AiSettings,
+  RiskReport,
   AssignmentMatrix,
   CurveBucket,
   CurveFilter,
@@ -252,6 +253,19 @@ export function aiForgetKey(): Promise<void> {
 /** Check the saved key and model with one small request (needs Sheafly Pro and AI turned on). */
 export function aiTest(): Promise<AiCheck> {
   return invoke<AiCheck>("ai_test");
+}
+
+/**
+ * Explain the risks of the project as it is now; `null` when stopped (by `aiCancel` or a newer
+ * call). Not queued behind edits (`inOrder`): it takes many seconds and changes nothing.
+ */
+export function aiRisks(): Promise<RiskReport | null> {
+  return invoke<RiskReport | null>("ai_risks");
+}
+
+/** Stop the request `aiRisks` is running. */
+export function aiCancel(): Promise<void> {
+  return invoke<void>("ai_cancel");
 }
 
 /** Whether a key is saved for the site; the key itself is never sent back. */

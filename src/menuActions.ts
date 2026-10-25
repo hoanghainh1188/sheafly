@@ -37,6 +37,8 @@ export interface MenuContext {
   /** One zoom step of the Gantt timeline in (1) or out (-1), or back to the scale (0). */
   zoomTimeline: (direction: 1 | -1 | 0) => void;
   setEvmOpen: (open: boolean) => void;
+  /** Show the Recommendations panel (AI) beside the Gantt. */
+  setAiOpen: (open: boolean) => void;
   openProjectInfo: () => void;
   /** Thông tin dự án, on its custom fields tab. */
   openCustomFields: () => void;
@@ -190,6 +192,10 @@ function viewAction(id: string, ctx: MenuContext): boolean {
     case "view-evm":
       ctx.setView((current) => (current === "gantt" || current === "tracking" ? current : "gantt"));
       ctx.setEvmOpen(true);
+      return true;
+    case "view-ai":
+      ctx.setView((current) => (current === "gantt" || current === "tracking" ? current : "gantt"));
+      ctx.setAiOpen(true);
       return true;
     case "project-info":
       ctx.openProjectInfo();

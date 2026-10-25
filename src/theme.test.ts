@@ -51,6 +51,7 @@ const TEXT_PAIRS: [string, string[]][] = [
   ...["pass", "fail", "info", "na"].map((status): [string, string[]] => [`--health-${status}`, [`--health-${status}-bg`]]),
   ["--matrix-rule", ["--matrix-rule-bg", "--surface-sunken"]],
   ["--text", ["--matrix-assigned-bg"]],
+  ...["high", "medium", "low"].map((risk): [string, string[]] => [`--risk-${risk}`, [`--risk-${risk}-bg`, "--surface"]]),
   ...["history", "create", "edit", "danger", "project", "report"].flatMap(
     (tone): [string, string[]][] => [
       [`--tone-${tone}`, [`--tone-${tone}-bg`]],

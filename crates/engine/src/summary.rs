@@ -256,6 +256,13 @@ pub(crate) struct Lookup {
 
 impl Lookup {
     fn new(project: &Project) -> Self {
+        let mut lookup = Self::without_weeks(project);
+        lookup.weeks = WeekTable::new(project, &lookup.overloaded);
+        lookup
+    }
+
+    /// The indexes without the weekly load, for reads of one task (`summary_tools.rs`).
+    pub(crate) fn without_weeks(project: &Project) -> Self {
         let mut people: HashMap<u32, Vec<u32>> = HashMap::new();
         let mut work: HashMap<u32, i64> = HashMap::new();
         for assignment in &project.assignments {
@@ -286,14 +293,13 @@ impl Lookup {
         for (at, dependency) in project.dependencies.iter().enumerate() {
             links.entry(dependency.successor_uid).or_default().push(at);
         }
-        let weeks = WeekTable::new(project, &overloaded);
         Self {
             people,
             work,
             overloaded,
             index,
             links,
-            weeks,
+            weeks: WeekTable::default(),
         }
     }
 
@@ -382,7 +388,7 @@ fn critical_path(project: &Project) -> Vec<String> {
         .collect()
 }
 
-fn task_line(project: &Project, lookup: &Lookup, task: &Task, mask: bool) -> TaskLine {
+pub(crate) fn task_line(project: &Project, lookup: &Lookup, task: &Task, mask: bool) -> TaskLine {
     let after = lookup
         .links
         .get(&task.uid)
@@ -430,7 +436,7 @@ fn task_line(project: &Project, lookup: &Lookup, task: &Task, mask: bool) -> Tas
     }
 }
 
-fn link_text(predecessor_uid: u32, kind: DepKind, lag: i64) -> String {
+pub(crate) fn link_text(predecessor_uid: u32, kind: DepKind, lag: i64) -> String {
     let id = task_ref(predecessor_uid);
     if kind == DepKind::Fs && lag == 0 {
         return id;
@@ -451,7 +457,7 @@ fn link_text(predecessor_uid: u32, kind: DepKind, lag: i64) -> String {
     }
 }
 
-fn constraint_text(task: &Task) -> Option<String> {
+pub(crate) fn constraint_text(task: &Task) -> Option<String> {
     let kind = match task.constraint_type {
         ConstraintType::Asap => return None,
         ConstraintType::Alap => return Some("ALAP".into()),
@@ -475,11 +481,7 @@ fn resource_line(
     mask: bool,
 ) -> ResourceLine {
     let machine = resource.kind == ResourceKind::Machine;
-    let name = match (mask, machine) {
-        (false, _) => resource.name.clone(),
-        (true, false) => format!("Person {}", resource.uid),
-        (true, true) => format!("Machine {}", resource.uid),
-    };
+    let name = resource_name(resource, mask);
     let focus = focus_of(project, resource);
     ResourceLine {
         id: resource_ref(resource.uid),
@@ -492,6 +494,15 @@ fn resource_line(
         work_h: hours(lookup.work.get(&resource.uid).copied().unwrap_or(0)),
         overallocated: lookup.overallocated(resource.uid),
         overloaded_weeks: overloaded_weeks(lookup, resource.uid),
+    }
+}
+
+/// The name a summary gives a resource: its own, or `Person 7`/`Machine 3` when masked.
+pub(crate) fn resource_name(resource: &Resource, mask: bool) -> String {
+    match (mask, resource.kind == ResourceKind::Machine) {
+        (false, _) => resource.name.clone(),
+        (true, false) => format!("Person {}", resource.uid),
+        (true, true) => format!("Machine {}", resource.uid),
     }
 }
 

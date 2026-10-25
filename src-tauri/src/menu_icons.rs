@@ -43,6 +43,7 @@ pub const SYMBOLS: &[(&str, &str)] = &[
     ("view-curves", "chart.xyaxis.line"),
     ("view-forecast", "chart.bar.xaxis.ascending"),
     ("view-evm", "chart.line.uptrend.xyaxis"),
+    ("view-ai", "sparkles.rectangle.stack"),
     ("timescale", "calendar"),
     ("zoom-in", "plus.magnifyingglass"),
     ("zoom-out", "minus.magnifyingglass"),

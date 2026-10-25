@@ -4,6 +4,7 @@
 //! Durations and lags are working minutes. Calendars convert between the two.
 //! The engine is the source of truth: the UI sends commands and renders the result.
 
+pub mod advice;
 pub mod assignment_matrix;
 pub mod autosave;
 pub mod availability;
@@ -59,6 +60,7 @@ pub mod summary;
 mod summary_fit;
 mod summary_load;
 mod summary_rules;
+pub mod summary_tools;
 pub mod store;
 pub mod sync;
 pub mod timeutil;
