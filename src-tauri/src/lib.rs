@@ -91,6 +91,8 @@ struct AppState {
     forecast_cancel: Mutex<Arc<AtomicBool>>,
     /// Stops the pull from a tracker still fetching when it is cancelled or a newer one starts.
     tracker_cancel: Mutex<Arc<AtomicBool>>,
+    /// Stops the AI recommendation request running when a newer one starts or it is stopped.
+    ai_cancel: Mutex<Arc<AtomicBool>>,
     /// The push `tracker_push_preview` last made: `tracker_push` writes exactly that plan,
     /// and only while the project and the settings are still the ones it was made for.
     push_base: Mutex<Option<tracker_commands::PushBase>>,
@@ -128,6 +130,7 @@ impl AppState {
             plan_base: Mutex::new(None),
             forecast_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             tracker_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
+            ai_cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             push_base: Mutex::new(None),
             delta: delta::Delta::default(),
             license,
@@ -1492,6 +1495,8 @@ pub fn run() {
             ai_commands::ai_has_key,
             ai_commands::ai_forget_key,
             ai_commands::ai_test,
+            ai_commands::ai_risks,
+            ai_commands::ai_cancel,
             tracker_commands::tracker_save_key,
             tracker_commands::tracker_has_key,
             tracker_commands::tracker_forget_key,

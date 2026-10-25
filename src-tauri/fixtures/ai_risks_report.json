@@ -1,0 +1,36 @@
+{
+  "id": "msg_02",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5-5",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_04",
+      "name": "report_risks",
+      "input": {
+        "cards": [
+          {
+            "severity": "high",
+            "title": "T4 misses its deadline",
+            "what": "The handover T4 is due 2026-01-08 17:00 but finishes 2026-01-09 17:00.",
+            "why": "T1 and T2 run back to back on R1 with no slack.",
+            "chain": ["T1", "T2", "T4"],
+            "focus": "Shorten T2 or add a second person to it.",
+            "people": ["R1"]
+          },
+          {
+            "severity": "low",
+            "title": "T3 has nobody",
+            "what": "T3 has no one assigned.",
+            "why": "No rule matches it.",
+            "focus": "Assign T3.",
+            "tasks": ["T3"]
+          }
+        ]
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": { "input_tokens": 400, "output_tokens": 300, "cache_read_input_tokens": 1800 }
+}

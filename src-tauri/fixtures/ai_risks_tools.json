@@ -1,0 +1,14 @@
+{
+  "id": "msg_01",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5-5",
+  "content": [
+    { "type": "text", "text": "Checking the critical path first." },
+    { "type": "tool_use", "id": "toolu_01", "name": "task_detail", "input": { "task": "T2" } },
+    { "type": "tool_use", "id": "toolu_02", "name": "critical_chain", "input": { "task": "T4" } },
+    { "type": "tool_use", "id": "toolu_03", "name": "resource_load", "input": { "resource": "R1", "from": "2026-01-05", "to": "2026-01-18" } }
+  ],
+  "stop_reason": "tool_use",
+  "usage": { "input_tokens": 2100, "output_tokens": 120, "cache_creation_input_tokens": 1800, "cache_read_input_tokens": 0 }
+}

@@ -1,14 +1,18 @@
 //! Stub of the Sheafly Pro modules (plan part 20G).
 //!
-//! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, and later ones) are
+//! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, the AI
+//! recommendations of sheafly-pro#1, and later ones) are
 //! closed source, in the private repository `sheafly-pro`. This crate has the same public
 //! functions and the same dependencies, so the app builds from this repository alone;
 //! each function answers that this build has no Pro modules. Release builds copy the
 //! private crate over this directory. Add a function here, with the same signature,
 //! whenever the private crate gains one, and keep the shared computations in the engine.
 
+use serde_json::Value;
+use sheafly_engine::advice::AdviceStep;
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
+use sheafly_engine::summary::ProjectSummary;
 use sheafly_engine::Lang;
 
 /// Whether this build has the Pro modules: never, for the stub.
@@ -34,6 +38,22 @@ pub fn schedule_health(_project: &Project, lang: Lang) -> Result<HealthReport, S
     Err(unavailable(lang))
 }
 
+/// The first request to explain a project's risks (sheafly-pro#1). The stub has none.
+pub fn risks_request(_summary: &ProjectSummary, _model: &str, lang: Lang) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// Read a reply to a request to explain risks. The stub has none.
+pub fn risks_next(
+    _body: &Value,
+    _reply: &Value,
+    _project: &Project,
+    _mask: bool,
+    lang: Lang,
+) -> Result<AdviceStep, String> {
+    Err(unavailable(lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -47,5 +67,9 @@ mod tests {
         assert_eq!(excel_workbook(&doc.project, Lang::En), Err(unavailable(Lang::En)));
         assert_eq!(schedule_health(&doc.project, Lang::En), Err(unavailable(Lang::En)));
         assert!(unavailable(Lang::En).starts_with("This Sheafly build"));
+        let summary = sheafly_engine::summary::project_summary(&doc.project, &Default::default());
+        assert_eq!(risks_request(&summary, "m", Lang::En), Err(unavailable(Lang::En)));
+        let empty = serde_json::json!({});
+        assert_eq!(risks_next(&empty, &empty, &doc.project, false, Lang::Vi), Err(unavailable(Lang::Vi)));
     }
 }

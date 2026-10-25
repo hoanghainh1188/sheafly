@@ -27,6 +27,7 @@ import { linkAbove, resourceCommand } from "./appCommands";
 import { BaselineDialog } from "./components/BaselineDialog";
 import { LicenseDialog } from "./components/license/LicenseDialog";
 import { AiSettingsDialog } from "./components/ai/AiSettingsDialog";
+import { RecommendationsPanel } from "./components/ai/RecommendationsPanel";
 import { HealthDialog } from "./components/health/HealthDialog";
 import { useScheduleHealth } from "./components/health/useScheduleHealth";
 import { EvmPanel } from "./components/EvmPanel";
@@ -157,6 +158,9 @@ export default function App() {
   // UID of the task the split dialog is open for.
   const [splitDialog, setSplitDialog] = useState<number | null>(null);
   const [evmOpen, setEvmOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  // Bumped when the AI settings dialog closes, so the Recommendations panel reads them again.
+  const [aiSettingsKey, setAiSettingsKey] = useState(0);
   const [metrics, setMetrics] = useState<ProjectMetrics | null>(null);
   const [networkSummaries, setNetworkSummaries] = useState(false);
   const [interruptsColumn, setInterruptsColumn] = useState(false);
@@ -407,6 +411,7 @@ export default function App() {
         setScale,
         zoomTimeline,
         setEvmOpen,
+        setAiOpen,
         openProjectInfo: () => void openProjectInfo(),
         openCustomFields: () => void openProjectInfo("fields"),
         openLevelingOrder: () => void openProjectInfo("leveling"),
@@ -674,6 +679,7 @@ export default function App() {
       <Toolbar
         states={toolbarStates({ snap, task, view, fileDialogBusy, selection, hasClipboard: clipboard != null, fillField })}
         evmOpen={evmOpen}
+        aiOpen={aiOpen}
         onUndo={() => void run(undo)}
         onRedo={() => void run(redo)}
         onAddTask={() =>
@@ -695,6 +701,10 @@ export default function App() {
         onToggleEvm={() => {
           if (!evmOpen && view !== "gantt" && view !== "tracking") setView("gantt");
           setEvmOpen((open) => !open);
+        }}
+        onToggleAi={() => {
+          if (!aiOpen && view !== "gantt" && view !== "tracking") setView("gantt");
+          setAiOpen((open) => !open);
         }}
         onExportPdf={() => exportPdfRef.current()}
       />
@@ -907,6 +917,17 @@ export default function App() {
             onClose={() => setEvmOpen(false)}
           />
         )}
+        {project && aiOpen && (view === "gantt" || view === "tracking") && (
+          <RecommendationsPanel
+            project={project}
+            aiPro={license?.features.includes("ai") ?? false}
+            settingsKey={aiSettingsKey}
+            onOpenLicense={() => setLicenseOpen(true)}
+            onOpenSettings={() => setAiSettingsOpen(true)}
+            onPickTask={selectOne}
+            onClose={() => setAiOpen(false)}
+          />
+        )}
       </div>
       <StatusBar snap={snap} />
       {infoStart != null && project && (
@@ -1082,9 +1103,13 @@ export default function App() {
       {aiSettingsOpen && (
         <AiSettingsDialog
           aiPro={license?.features.includes("ai") ?? false}
-          onClose={() => setAiSettingsOpen(false)}
+          onClose={() => {
+            setAiSettingsOpen(false);
+            setAiSettingsKey((key) => key + 1);
+          }}
           onOpenLicense={() => {
             setAiSettingsOpen(false);
+            setAiSettingsKey((key) => key + 1);
             setLicenseOpen(true);
           }}
         />

@@ -11,6 +11,7 @@ import {
   Redo2,
   Repeat,
   Scissors,
+  Sparkles,
   Trash2,
   Undo2,
   Unlink2,
@@ -22,6 +23,7 @@ import type { ButtonHTMLAttributes } from "react";
 import type { ToolbarStates } from "../toolbarState";
 import type { DepKind } from "../types";
 import { useMessages } from "../i18n";
+import { ProBadge } from "./license/ProBadge";
 import { MenuButton } from "./MenuButton";
 import { toolbarMessages } from "./Toolbar.i18n";
 
@@ -40,12 +42,14 @@ export interface ToolbarActions {
   onProjectInfo: () => void;
   onAssignByRules: () => void;
   onToggleEvm: () => void;
+  onToggleAi: () => void;
   onExportPdf: () => void;
 }
 
 interface Props extends ToolbarActions {
   states: ToolbarStates;
   evmOpen: boolean;
+  aiOpen: boolean;
 }
 
 /**
@@ -70,13 +74,18 @@ interface ToolProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   tone: Tone;
   Icon: LucideIcon;
   label: string;
+  /** A Sheafly Pro feature: shows the Pro badge after the label. */
+  pro?: boolean;
 }
 
-function Tool({ tone, Icon, label, className, ...rest }: ToolProps) {
+function Tool({ tone, Icon, label, pro, className, ...rest }: ToolProps) {
   return (
     <button type="button" className={["tool", `tone-${tone}`, className].filter(Boolean).join(" ")} {...rest}>
       {icon(Icon)}
-      <span>{label}</span>
+      <span>
+        {label}
+        {pro && <ProBadge />}
+      </span>
     </button>
   );
 }
@@ -86,7 +95,7 @@ function Tool({ tone, Icon, label, className, ...rest }: ToolProps) {
  * selected task, the project, and reports. System commands and shortcuts stay in the
  * macOS menu. A command that cannot run is disabled with its reason as the tooltip.
  */
-export function Toolbar({ states, evmOpen, ...actions }: Props) {
+export function Toolbar({ states, evmOpen, aiOpen, ...actions }: Props) {
   const m = useMessages(toolbarMessages);
   const tip = (key: keyof ToolbarStates, fallback: string) => states[key].reason ?? fallback;
   return (
@@ -210,6 +219,17 @@ export function Toolbar({ states, evmOpen, ...actions }: Props) {
           disabled={!states.evm.enabled}
           title={tip("evm", m.evmTip)}
           onClick={actions.onToggleEvm}
+        />
+        <Tool
+          tone="report"
+          Icon={Sparkles}
+          label={m.ai}
+          pro
+          className={aiOpen ? "on" : undefined}
+          aria-pressed={aiOpen}
+          disabled={!states.ai.enabled}
+          title={tip("ai", m.aiTip)}
+          onClick={actions.onToggleAi}
         />
         <Tool
           tone="report"

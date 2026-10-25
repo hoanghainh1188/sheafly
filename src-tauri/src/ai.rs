@@ -10,11 +10,15 @@
 //! What a request holds (the project summary, the tools, the reading of a reply) is the
 //! Pro crate's part from PR C on; this module only carries a body and its answer, through
 //! `AiApi`, so it is tested against handwritten replies and CI makes no network call.
+//! `run_advice` is the loop of one recommendation request (PR C): send, add up the
+//! tokens, let the Pro crate read the reply, and stop when asked between requests.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::{json, Value};
+use sheafly_engine::advice::{AdviceStep, RiskCard, MAX_TOOL_ROUNDS};
 use sheafly_engine::Lang;
 
 use crate::settings::AiSettings;
@@ -262,6 +266,61 @@ pub fn check(api: &dyn AiApi, model: &str) -> Result<AiCheck, AiError> {
     }
 }
 
+/// What one recommendation request found, and what it cost.
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct AdviceRun {
+    pub cards: Vec<RiskCard>,
+    /// Input tokens of every request, the cached prefix included.
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub requests: u32,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum RunError {
+    /// Stopped between two requests: a newer request, or the panel closed.
+    Cancelled,
+    Ai(AiError),
+    /// What the Pro crate said about a reply, already in the user's language.
+    Reply(String),
+}
+
+/// Input and output tokens a reply says it took.
+fn tokens(reply: &Value) -> (u64, u64) {
+    let usage = |name: &str| reply.pointer(&format!("/usage/{name}")).and_then(Value::as_u64).unwrap_or(0);
+    (
+        usage("input_tokens") + usage("cache_creation_input_tokens") + usage("cache_read_input_tokens"),
+        usage("output_tokens"),
+    )
+}
+
+/// One recommendation request: send `first`, hand each reply to `next` (the Pro crate's
+/// reading) and send the body it asks for, until it has the cards. `cancel` is checked
+/// before every request; at most one more request than `MAX_TOOL_ROUNDS` goes out, since
+/// the reading forces the answer after the last tool round.
+pub fn run_advice(
+    api: &dyn AiApi,
+    first: Value,
+    next: impl Fn(&Value, &Value) -> Result<AdviceStep, String>,
+    cancel: &AtomicBool,
+) -> Result<AdviceRun, RunError> {
+    let (mut body, mut input_tokens, mut output_tokens) = (first, 0, 0);
+    for requests in 1..=MAX_TOOL_ROUNDS as u32 + 1 {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(RunError::Cancelled);
+        }
+        let reply = api.messages(&body).map_err(RunError::Ai)?;
+        let (input, output) = tokens(&reply);
+        input_tokens += input;
+        output_tokens += output;
+        match next(&body, &reply).map_err(RunError::Reply)? {
+            AdviceStep::Done(cards) => return Ok(AdviceRun { cards, input_tokens, output_tokens, requests }),
+            AdviceStep::Ask(more) => body = more,
+        }
+    }
+    Err(RunError::Ai(AiError::BadResponse))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,6 +414,96 @@ mod tests {
         for lang in [Lang::Vi, Lang::En] {
             assert!(!error.message(lang).contains("SECRET"));
         }
+    }
+
+    /// Answers with handwritten replies in turn and keeps every body it was sent; sets
+    /// `cancel_after` once that many requests went out.
+    struct Script {
+        replies: Vec<Result<Value, AiError>>,
+        sent: RefCell<Vec<Value>>,
+        cancel_after: Option<(usize, &'static AtomicBool)>,
+    }
+
+    impl AiApi for Script {
+        fn messages(&self, body: &Value) -> Result<Value, AiError> {
+            let mut sent = self.sent.borrow_mut();
+            sent.push(body.clone());
+            if let Some((_, flag)) = self.cancel_after.filter(|(count, _)| sent.len() >= *count) {
+                flag.store(true, Ordering::Relaxed);
+            }
+            self.replies[(sent.len() - 1).min(self.replies.len() - 1)].clone()
+        }
+    }
+
+    fn script(names: &[&str]) -> Script {
+        Script { replies: names.iter().map(|name| Ok(fixture(name))).collect(), sent: RefCell::new(vec![]), cancel_after: None }
+    }
+
+    fn card() -> RiskCard {
+        RiskCard {
+            severity: sheafly_engine::advice::Severity::High,
+            title: "T4".into(),
+            what: "w".into(),
+            why: "y".into(),
+            chain: vec!["T1".into()],
+            focus: "f".into(),
+            tasks: vec![],
+            people: vec![],
+        }
+    }
+
+    /// Stands in for the Pro crate: the answer is done, a tool call asks for round n + 1.
+    fn reading(body: &Value, reply: &Value) -> Result<AdviceStep, String> {
+        if reply.pointer("/content/0/name").and_then(Value::as_str) == Some("report_risks") {
+            return Ok(AdviceStep::Done(vec![card()]));
+        }
+        let round = body["round"].as_u64().unwrap_or(0);
+        Ok(AdviceStep::Ask(json!({ "round": round + 1 })))
+    }
+
+    #[test]
+    fn a_request_runs_its_rounds_and_adds_up_the_tokens() {
+        let api = script(&["ai_risks_tools.json", "ai_risks_tools.json", "ai_risks_report.json"]);
+        let cancel = AtomicBool::new(false);
+        let run = run_advice(&api, json!({ "round": 0 }), reading, &cancel).unwrap();
+        assert_eq!(run.cards, vec![card()]);
+        assert_eq!(run.requests, 3);
+        // Each tool reply: 2100 + 1800 cached; the answer: 400 + 1800 read from the cache.
+        assert_eq!(run.input_tokens, 2 * 3900 + 2200);
+        assert_eq!(run.output_tokens, 2 * 120 + 300);
+        let rounds: Vec<u64> = api.sent.borrow().iter().map(|body| body["round"].as_u64().unwrap()).collect();
+        assert_eq!(rounds, [0, 1, 2], "each request sends the body the reading asked for");
+    }
+
+    #[test]
+    fn a_cancelled_request_stops_before_the_next_send() {
+        let api = script(&["ai_risks_tools.json"]);
+        let cancel = AtomicBool::new(true);
+        assert_eq!(run_advice(&api, json!({}), reading, &cancel), Err(RunError::Cancelled));
+        assert!(api.sent.borrow().is_empty());
+
+        static STOP: AtomicBool = AtomicBool::new(false);
+        let api = Script { cancel_after: Some((1, &STOP)), ..script(&["ai_risks_tools.json", "ai_risks_report.json"]) };
+        assert_eq!(run_advice(&api, json!({}), reading, &STOP), Err(RunError::Cancelled));
+        assert_eq!(api.sent.borrow().len(), 1, "the reply in flight is the last");
+    }
+
+    #[test]
+    fn errors_of_the_network_and_of_the_reading_end_the_request() {
+        let cancel = AtomicBool::new(false);
+        let offline = Script { replies: vec![Err(AiError::Offline)], sent: RefCell::new(vec![]), cancel_after: None };
+        assert_eq!(run_advice(&offline, json!({}), reading, &cancel), Err(RunError::Ai(AiError::Offline)));
+        let api = script(&["ai_risks_tools.json"]);
+        let refuse = |_: &Value, _: &Value| -> Result<AdviceStep, String> { Err("Không đọc được câu trả lời của AI".into()) };
+        assert_eq!(run_advice(&api, json!({}), refuse, &cancel), Err(RunError::Reply("Không đọc được câu trả lời của AI".into())));
+    }
+
+    #[test]
+    fn a_model_that_never_answers_stops_after_the_last_round() {
+        let api = script(&["ai_risks_tools.json"]);
+        let cancel = AtomicBool::new(false);
+        assert_eq!(run_advice(&api, json!({}), reading, &cancel), Err(RunError::Ai(AiError::BadResponse)));
+        assert_eq!(api.sent.borrow().len(), MAX_TOOL_ROUNDS + 1);
     }
 
     #[test]

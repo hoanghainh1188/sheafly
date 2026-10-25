@@ -170,7 +170,6 @@ export function AiSettingsDialog({ onClose, aiPro, onOpenLicense }: AiSettingsDi
     >
       <div className="ai-settings">
         <p>{m.intro}</p>
-        <p className="meta">{m.comingSoon}</p>
         <label className="ai-check">
           <input
             type="checkbox"

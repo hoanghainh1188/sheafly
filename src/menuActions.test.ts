@@ -19,6 +19,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     setScale: vi.fn(),
     zoomTimeline: vi.fn(),
     setEvmOpen: vi.fn(),
+    setAiOpen: vi.fn(),
     openProjectInfo: vi.fn(),
     openCustomFields: vi.fn(),
     openLevelingOrder: vi.fn(),
@@ -115,6 +116,14 @@ describe("handleMenuAction", () => {
     const update = vi.mocked(ctx.setView).mock.calls[0][0] as (view: string) => string;
     expect([update("resources"), update("tracking")]).toEqual(["gantt", "tracking"]);
     expect(ctx.setEvmOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("opens the Recommendations panel beside a Gantt view", () => {
+    const ctx = context({ view: "load" });
+    handleMenuAction("view-ai", ctx);
+    const update = vi.mocked(ctx.setView).mock.calls[0][0] as (view: string) => string;
+    expect([update("load"), update("gantt")]).toEqual(["gantt", "gantt"]);
+    expect(ctx.setAiOpen).toHaveBeenCalledWith(true);
   });
 
   it("runs file commands through the file dialog and recent files by index", () => {

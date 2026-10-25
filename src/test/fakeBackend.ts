@@ -1,6 +1,7 @@
 import type {
   AiCheck,
   AiSettings,
+  RiskReport,
   AssignmentMatrix,
   Command,
   CurvesReport,
@@ -82,6 +83,8 @@ class FakeBackend {
   ai: AiSettings = defaultAiSettings();
   aiKey = false;
   aiCheck: AiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
+  /** What `ai_risks` answers (null is a stopped request). */
+  aiRisks: RiskReport | null = emptyRiskReport();
   /** What `pick_table` answers (null is a cancelled dialog); `read_table_sheet` reads it too. */
   table: ImportSheet | null = null;
   /** What `check_autosave` restores; null when there is no autosave. */
@@ -130,6 +133,7 @@ class FakeBackend {
     this.ai = defaultAiSettings();
     this.aiKey = false;
     this.aiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
+    this.aiRisks = emptyRiskReport();
     this.failures.clear();
     this.holds.clear();
     this.autosave = null;
@@ -248,6 +252,10 @@ class FakeBackend {
         return undefined;
       case "ai_test":
         return structuredClone(this.aiCheck);
+      case "ai_risks":
+        return structuredClone(this.aiRisks);
+      case "ai_cancel":
+        return undefined;
       case "tracker_has_key":
         return this.trackerKeys.has(args?.site as string);
       case "tracker_save_key":
@@ -679,6 +687,10 @@ class FakeBackend {
 function setValue(task: Task, fieldId: number, value: FieldValue | null): void {
   const { [fieldId]: _old, ...rest } = task.values;
   task.values = value === null || value === "" ? rest : { ...rest, [fieldId]: value };
+}
+
+function emptyRiskReport(): RiskReport {
+  return { cards: [], input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
 }
 
 function defaultAiSettings(): AiSettings {

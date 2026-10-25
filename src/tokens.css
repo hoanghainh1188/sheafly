@@ -116,6 +116,13 @@
   --health-info-bg: #fdf1de;
   --health-na: #55555f;
   --health-na-bg: #efeff3;
+  /* Severity of an AI risk card: the label, and the strip beside the card. */
+  --risk-high: #b3261e;
+  --risk-high-bg: #fdecea;
+  --risk-medium: #8a5300;
+  --risk-medium-bg: #fdf1de;
+  --risk-low: #0b5fc0;
+  --risk-low-bg: #e7f0fc;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
   --matrix-rule: #985800;
@@ -213,6 +220,12 @@
   --health-info-bg: #37290f;
   --health-na: #b8b8c2;
   --health-na-bg: #2c2c31;
+  --risk-high: #ff8a80;
+  --risk-high-bg: #3d1b19;
+  --risk-medium: #f2b660;
+  --risk-medium-bg: #37290f;
+  --risk-low: #70b2ff;
+  --risk-low-bg: #152a42;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
   --matrix-rule: #f2b660;

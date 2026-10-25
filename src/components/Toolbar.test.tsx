@@ -22,6 +22,7 @@ function actions(): ToolbarActions {
     onProjectInfo: vi.fn(),
     onAssignByRules: vi.fn(),
     onToggleEvm: vi.fn(),
+    onToggleAi: vi.fn(),
     onExportPdf: vi.fn(),
   };
 }
@@ -36,18 +37,18 @@ describe("Toolbar", () => {
     const rule = { conditions: [], target: { type: "resource" as const, uid: 1 }, units: 1 };
     const ruled = makeSnapshot(makeProject({ tasks: [first], assignment_rules: [rule] }));
     const { rerender } = render(
-      <Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} {...handlers} />,
+      <Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} aiOpen={false} {...handlers} />,
     );
     const button = screen.getByRole("button", { name: "Giao theo quy tắc…" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "Dự án chưa có quy tắc giao việc; tạo ở Dự án → Quy tắc giao việc…");
-    rerender(<Toolbar states={toolbarStates({ snap: ruled, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} {...handlers} />);
+    rerender(<Toolbar states={toolbarStates({ snap: ruled, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} aiOpen={false} {...handlers} />);
     await userEvent.setup().click(screen.getByRole("button", { name: "Giao theo quy tắc…" }));
     expect(handlers.onAssignByRules).toHaveBeenCalled();
   });
 
   it("groups the commands and disables those that cannot run, saying why", () => {
-    render(<Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} {...actions()} />);
+    render(<Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} aiOpen={false} {...actions()} />);
     for (const group of ["Lịch sử", "Tạo công việc", "Công việc đang chọn", "Dự án", "Báo cáo"]) {
       expect(screen.getByRole("group", { name: group })).toBeInTheDocument();
     }
@@ -60,7 +61,7 @@ describe("Toolbar", () => {
   it("links the selected task to the one above with the chosen type", async () => {
     const user = userEvent.setup();
     const handlers = actions();
-    render(<Toolbar states={toolbarStates({ snap, task: second, view: "gantt", fileDialogBusy: false })} evmOpen {...handlers} />);
+    render(<Toolbar states={toolbarStates({ snap, task: second, view: "gantt", fileDialogBusy: false })} evmOpen aiOpen={false} {...handlers} />);
     await user.click(screen.getByRole("button", { name: /Liên kết/ }));
     expect(screen.getByRole("menuitem", { name: "Gỡ liên kết với việc liền trước" })).toBeDisabled();
     await user.click(screen.getByRole("menuitem", { name: "Bắt đầu → bắt đầu (SS)" }));
@@ -71,9 +72,18 @@ describe("Toolbar", () => {
   it("adds a milestone from the Add menu", async () => {
     const user = userEvent.setup();
     const handlers = actions();
-    render(<Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} {...handlers} />);
+    render(<Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} aiOpen={false} {...handlers} />);
     await user.click(screen.getByRole("button", { name: /Thêm việc/ }));
     await user.click(screen.getByRole("menuitem", { name: "Mốc" }));
     expect(handlers.onAddMilestone).toHaveBeenCalledOnce();
+  });
+
+  it("toggles the AI panel from the reports group, marked Pro", async () => {
+    const handlers = actions();
+    render(<Toolbar states={toolbarStates({ snap, task: null, view: "gantt", fileDialogBusy: false })} evmOpen={false} aiOpen {...handlers} />);
+    const button = screen.getByRole("button", { name: "Gợi ý AI Pro" });
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    await userEvent.setup().click(button);
+    expect(handlers.onToggleAi).toHaveBeenCalledOnce();
   });
 });

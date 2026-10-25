@@ -365,6 +365,7 @@ pub const VIEW_MENU: &[Entry] = &[
         "Earned Value and Burn-down",
         None,
     ),
+    item("view-ai", "Gợi ý AI (Pro)", "AI Recommendations (Pro)", None),
     Entry::Separator,
     group(
         "timescale",

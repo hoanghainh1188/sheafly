@@ -1275,6 +1275,34 @@ export interface AiCheck {
   output_tokens: number;
 }
 
+/** How serious a risk card is (`advice::Severity`). */
+export type RiskSeverity = "high" | "medium" | "low";
+
+/** One risk the AI found (`advice::RiskCard`); tasks are `T42` and people `R7`, in the text too. */
+export interface RiskCard {
+  severity: RiskSeverity;
+  title: string;
+  what: string;
+  why: string;
+  /** The tasks driving the risk, earliest first. */
+  chain: string[];
+  focus: string;
+  tasks: string[];
+  people: string[];
+}
+
+/** What `ai_risks` answers (`ai_commands::RiskReport`). */
+export interface RiskReport {
+  cards: RiskCard[];
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+  /** The summary sent was cut to its size limit. */
+  truncated: boolean;
+  omitted_tasks: number;
+  omitted_resources: number;
+}
+
 /** The license of this computer, as `license_status` reports it (`license::LicenseView`). */
 export interface LicenseView {
   /** `none`: Free, no key; `active`: Pro on this build; `inactive`: a key that does not work here. */

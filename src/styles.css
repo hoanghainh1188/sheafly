@@ -410,6 +410,52 @@ body.pane-resizing { cursor: col-resize; user-select: none; }
   color: var(--text-secondary);
   background: var(--surface);
 }
+/* The Recommendations panel (AI) shares the EVM panel's frame; cards carry a strip in their severity's colour. */
+.ai-panel { width: 340px; }
+.ai-panel-text { margin: 0; line-height: 1.45; }
+.ai-panel-actions { display: flex; gap: 6px; }
+.ai-panel-error { margin: 0; color: var(--tone-danger); }
+.ai-tokens { font-size: 11px; font-variant-numeric: tabular-nums; }
+.ai-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ai-card {
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--risk-low);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.ai-card-high { border-left-color: var(--risk-high); }
+.ai-card-medium { border-left-color: var(--risk-medium); }
+.ai-card-head { display: flex; align-items: baseline; gap: 6px; }
+.ai-card-head h3 { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.ai-severity {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ai-severity-high { color: var(--risk-high); background: var(--risk-high-bg); }
+.ai-severity-medium { color: var(--risk-medium); background: var(--risk-medium-bg); }
+.ai-severity-low { color: var(--risk-low); background: var(--risk-low-bg); }
+.ai-card dl { margin: 6px 0 0; display: grid; gap: 2px; }
+.ai-card dt { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.ai-card dd { margin: 0; line-height: 1.45; }
+.ai-chain { margin: 0; padding-left: 18px; }
+.ai-task-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--tone-edit);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ai-task-link:hover { text-decoration-color: currentColor; }
 .evm-table { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 6px; }
 .evm-table th { position: static; background: transparent; font-weight: 400; color: var(--text-secondary); white-space: normal; }
 .evm-table td { text-align: right; font-variant-numeric: tabular-nums; }
