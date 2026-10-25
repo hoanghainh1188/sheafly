@@ -846,7 +846,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Baseline tải (21 PR 4) | lưu Free, xem `capacity` | `SetBaseline` ghi `AssignmentBaseline` trên mọi bản; đọc: lệnh Tauri trả tải baseline |
 | Biểu đồ tải theo kỳ, theo vai trò/kỹ năng (21 PR 5) | `capacity` | đọc: chế độ mới của `load_map` (tháng, gộp, baseline); màn Tải theo người/ngày/tuần như hiện nay vẫn Free |
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
-| Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (issue #100; chốt Pro 24/10/2026, chưa có pha) | `Feature` riêng (tên đặt khi thiết kế) | chưa thiết kế; theo nguyên tắc trên: gate đọc ở lệnh Tauri gọi mô hình, áp dụng đề xuất là lệnh thường nên không chặn |
+| Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue #100) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
 | Sau này: nhiều dự án dùng chung kho nguồn lực, báo cáo tùy biến/xuất Excel, đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
@@ -894,6 +894,38 @@ Thứ tự: 20A và 20C làm song song được (khác tệp); 20B sau 20A (cùn
   - **Xong (24/10/2026).** `curves.rs`: lệnh Tauri `curves(measure, bucket, filter, baseline)`. Chỉ số: Chi phí (`cost`), Giờ công (`work`), % Tiến độ (`progress`). Kỳ: Ngày (`day`), Tuần (`week`), Tháng (`month`). Bộ lọc: Toàn dự án (`project`), Theo người (`person`), Theo vai trò (`group`), Theo kỹ năng (`skill` với cấp độ tối thiểu). Các chuỗi số liệu: Baseline planned, Scheduled hiện tại, Actual thực tế đến ngày hiện trạng (`status_date`), và Earned Value (EV) cho chi phí. Hỗ trợ hiển thị Lũy kế (S-curve) và Theo kỳ (Periodic bar distribution). Benches 500 người / 5.000 việc: cost/tuần 0.2 ms, work/ngày 1.2 ms, progress/tháng 1.1 ms (đều $\le$ 1.2 ms, xa dưới ngưỡng 100 ms). Giao diện `CurvesView.tsx` ("Đường cong S"): thanh toolbar điều khiển các tham số lọc/kỳ/chỉ số/baseline/dạng hiển thị, biểu đồ vector SVG chuẩn màu CSS token (`--chart-ideal`, `--chart-planned`, `--chart-actual`, `--chart-ev`), vạch ngày hiện trạng, tương tác rê chuột xem tooltip chi tiết, bảng số liệu chi tiết và dòng tổng cộng. Thêm menu Xem → Đường cong S, icon `ChartLine` trên thanh góc nhìn. 7 test engine (`tests/curves.rs`), 5 test frontend (`CurvesView.test.tsx`). Hoàn thành trọn vẹn Issue #150.
 
 Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6.
+
+### Pha 22: Gợi ý AI (AI Recommendations) — Issue #100, Pro (`ai`)
+
+**Mục tiêu:** Giúp người lập kế hoạch nhanh chóng nhận biết các rủi ro trong dự án (trễ hạn, quá tải nguồn lực, ước lượng bất thường) và giải thích nguyên nhân, đề xuất cách xử lý cụ thể.
+**Nguyên tắc cốt lõi ("The AI proposes, the engine verifies, the user decides"):**
+1. **AI không tự tính ngày:** Đề xuất thay đổi của AI là danh sách các `Command` sẵn có. Engine chạy thử nghiệm (`trial run`), đo lường tác động thực tế (ngày dời, mốc trễ, quá tải còn lại). Đề xuất làm tình trạng tệ hơn hoặc bị engine từ chối sẽ bị loại bỏ hoặc cảnh báo rõ ràng.
+2. **Áp dụng là một bước Undo:** Nhật ký dự án chỉ lưu các `Command` thuần túy trong 1 bước undo duy nhất. Prompt và phản hồi của AI không lưu vào tệp, bảo đảm replay luôn tất định và ngoại tuyến.
+3. **Cục bộ & Riêng tư:** Lệnh mạng chạy ở tầng Tauri Rust, lưu API key trong OS Credential Store (`keyring`). Mặc định tắt; thông báo quyền riêng tư trước lượt gọi đầu tiên; hỗ trợ mặt nạ hóa tên công việc/người.
+4. **Bản quyền Pro (`ai`):** Gate đọc ở lệnh gọi AI. Giao diện có `ProBadge` và nút mở kích hoạt license. Áp dụng đề xuất là các lệnh thông thường nên tệp sau khi sửa vẫn mở và lưu bình thường trên bản Free.
+
+**Lộ trình PRs:**
+- **PR 1 (A) — `feat/ai-project-summary`:**
+  - Engine đọc `project_summary`: tổng hợp dữ liệu súc tích (đường găng, mốc trễ, phân bổ độ chùng, năng lực nguồn lực, các kỳ quá tải từ `load_map`, quy tắc giao việc, vi phạm span). Đảm bảo 5.000 việc vẫn gọn trong context window.
+  - Test engine và bench đọc summary trên 5.000 việc < 100 ms.
+- **PR 2 (B) — `feat/ai-provider-keyring`:**
+  - Thêm `Feature::Ai` ("ai") vào `crates/license`.
+  - Client gọi Claude Messages API ở tầng Tauri (`src-tauri`).
+  - Quản lý API key qua `keyring` (như thông tin đăng nhập tracker ở #99).
+  - Cài đặt bật/tắt, hộp thoại chính sách dữ liệu trước lượt gọi đầu tiên, tùy chọn ẩn danh tên việc/người (masking).
+- **PR 3 (C) — `feat/ai-panel-risks`:**
+  - Panel Recommendations bên cạnh biểu đồ Gantt (`RecommendationsPanel.tsx`).
+  - Kind 1 (Giải thích rủi ro, read-only): thẻ vấn đề, giải thích lý do, tác động chuỗi găng / mốc trễ.
+  - Hỗ trợ song ngữ vi/en, huy hiệu `ProBadge` cho bản Free.
+- **PR 4 (D) — `feat/ai-propose-verify`:**
+  - Schema tool `propose(commands, reason)`.
+  - Engine chạy thử nghiệm trên bản sao dự án và tính toán `PlanOutcome`.
+  - Giao diện xem trước tác động, nút "Áp dụng" (1 bước Undo) và "Bỏ qua".
+  - Kind 2: Xử lý quá tải và trễ deadline.
+- **PR 5 (E) — `feat/ai-wbs-reports`:**
+  - Kind 3: Rà soát ước lượng bất thường, việc cô lập, deadline bất khả thi.
+  - Kind 4: Dựng WBS từ văn bản mô tả qua `ImportRows`.
+  - Kind 5: Tạo báo cáo tổng kết tình trạng dự án cho các bên liên quan dựa trên EVM và độ chùng.
 
 ### Tiếng Anh (sau v1.0.0) — đã xong
 
