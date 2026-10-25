@@ -1,4 +1,4 @@
-//! The project summary for AI recommendations (phase 22, PR A, #100): tasks and people by
+//! The project summary for AI recommendations (phase 22, PR A, sheafly-pro#1): tasks and people by
 //! UID, dates and hours, slack, critical path, overloaded weeks, skills and rules, masking
 //! of names (D3) and cutting the summary to a size limit (D7).
 

@@ -48,15 +48,18 @@ pub enum Feature {
     Trackers,
     /// Capacity planning: the productivity factor of the project and of each resource.
     Capacity,
+    /// Executive reporting, corporate branding, and multi-sheet Excel export.
+    Reporting,
 }
 
 impl Feature {
-    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity];
+    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting];
 
     pub fn code(self) -> &'static str {
         match self {
             Feature::Trackers => "trackers",
             Feature::Capacity => "capacity",
+            Feature::Reporting => "reporting",
         }
     }
 

@@ -1,0 +1,19 @@
+[package]
+name = "sheafly-pro"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Stub of the Sheafly Pro modules: same functions and dependencies, no Pro code (plan part 20G)"
+publish = false
+
+# The same dependencies as the closed-source crate release builds copy over this one, so
+# Cargo.lock and THIRD_PARTY_LICENSES.txt do not change. The private repository's CI
+# checks that the two lists match; change both together.
+[dependencies]
+sheafly-engine = { path = "../engine" }
+rust_xlsxwriter = "0.99.1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+calamine = { version = "0.36.1", features = ["dates"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }

@@ -1,6 +1,7 @@
 import {
   compactHistory,
   copyTasks,
+  exportExcel,
   exportMspdi,
   importMspdi,
   newProject,
@@ -66,6 +67,8 @@ export interface MenuContext {
   setClipboard: (clipboard: TaskClipboard) => void;
   /** The column fill-down copies: the sheet column whose cell had focus last. */
   fillField: FillField | null;
+  /** Whether this computer's license unlocks Sheafly Pro reporting features. */
+  reportingPro?: boolean;
 }
 
 const VIEWS: Record<string, ViewId> = {
@@ -115,6 +118,15 @@ function documentAction(id: string, ctx: MenuContext): boolean {
     case "export-xml":
       ctx.startFileDialog(async () => {
         await exportMspdi();
+      });
+      return true;
+    case "export-excel":
+      if (!ctx.reportingPro) {
+        ctx.openLicense();
+        return true;
+      }
+      ctx.startFileDialog(async () => {
+        await exportExcel();
       });
       return true;
     case "export-pdf":

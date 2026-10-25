@@ -1,4 +1,4 @@
-//! The project summary sent to an AI model (phase 22, PR A, #100): a compact read of the
+//! The project summary sent to an AI model (phase 22, PR A, sheafly-pro#1): a compact read of the
 //! scheduled project for recommendations. A read, never logged.
 //!
 //! Tasks and people are always named by UID (`T42`, `R7`) so the commands a model answers

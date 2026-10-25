@@ -21,6 +21,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 sheafly-engine = { path = "../crates/engine" }
 sheafly-license = { path = "../crates/license" }
+sheafly-pro = { path = "../crates/pro" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
