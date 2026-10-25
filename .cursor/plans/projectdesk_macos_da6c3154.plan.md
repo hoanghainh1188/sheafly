@@ -848,7 +848,7 @@ Mục tiêu: bán được bản Pro mà không đổi bản chất của app (c
 | Đường cong S (21 PR 6) | `capacity` | đọc: `curves`; đường S của bảng EVM vẫn Free dù dùng chung hàm |
 | Gợi ý AI: giải thích rủi ro, đề xuất cách sửa để engine kiểm chứng (Pha 22, issue sheafly-pro#1) | `ai` | đọc: lệnh gọi gợi ý AI; panel Recommendations có ProBadge; áp dụng đề xuất là các lệnh thường nên không chặn |
 | Xuất Excel nhiều sheet (Pha 24 PR 1, issue sheafly-pro#3) | `reporting` | lệnh: `export_excel`; menu ghi "(Pro)" |
-| Dòng tiền và lịch thanh toán theo mốc (Pha 25, issue sheafly-pro#5; kế hoạch) | lưu Free, xem `cashflow` (đề xuất) | ba `Command` dữ liệu không chặn; đọc: `cash_flow`, `export_cash_flow`; màn Dòng tiền có ProBadge |
+| Dòng tiền và lịch thanh toán theo mốc (Pha 25, issue sheafly-pro#5; kế hoạch đã chốt) | lưu Free, xem `cashflow` | ba `Command` dữ liệu không chặn; đọc: `cash_flow`, `export_cash_flow`; màn Dòng tiền có ProBadge |
 | Sau này: nhiều dự án dùng chung kho nguồn lực, dashboard một trang và nhận diện thương hiệu (sheafly-pro#3), đọc `.mpp` | mỗi cái một `Feature` riêng | theo D1-B (crate riêng tư) |
 
 **Định dạng license.**
@@ -1016,7 +1016,7 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 - **PR 2 — dashboard một trang:** chưa làm. KPI (SV, CV, CPI, SPI, ngày xong dự kiến, tổng công và chi phí), đường S thu nhỏ, mốc sắp tới/đã xong/trễ, việc găng hàng đầu, tóm tắt quá tải; PDF/PNG với phông Be Vietnam Pro.
 - **PR 3 — nhận diện thương hiệu:** chưa làm. Logo (PNG/SVG), tên tổ chức, phiên bản tài liệu, ghi chú bảo mật trên đầu/chân trang PDF và trang bìa Excel.
 
-### Pha 25 — dòng tiền và lịch thanh toán theo mốc (issue sheafly-pro#5, Pro `cashflow` đề xuất) — kế hoạch, chưa làm (25/10/2026)
+### Pha 25 — dòng tiền và lịch thanh toán theo mốc (issue sheafly-pro#5, Pro `cashflow`) — kế hoạch đã chốt, chưa làm (25/10/2026)
 
 **Mục tiêu.** Cho người quản lý dự án thấy *tiền vào khi nào, tiền ra khi nào*, không chỉ ngày xong. Hợp đồng trọn gói hay theo mốc thu tiền khi đạt mốc ("30 % khi xong thiết kế giai đoạn 1"); một việc găng trễ ba tuần làm mốc trễ, khoản thu trễ theo, còn lương và nhà thầu vẫn phải trả. Người dùng nhận được:
 - **Lịch thanh toán**: các khoản thu gắn với mốc hoặc việc tóm tắt (số tiền hoặc phần trăm giá trị hợp đồng, hạn thanh toán sau khi mốc xong như Net 30, giữ lại bảo hành), ngày lập hóa đơn và ngày đến hạn tự dời theo lịch.
@@ -1073,7 +1073,7 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
   - *Free*: Dự án → Thiết lập dự án → Lịch thanh toán… (menu id `payment-schedule`, `PaymentScheduleDialog.tsx` trên `Modal`, giao dịch kiểu "Giao việc": ghi `history_cursor` lúc mở, Hủy undo về đó, gửi cả danh sách qua `SetPayments` bằng `usePendingList.ts`): giá trị hợp đồng, số dư đầu kỳ, giữ lại; bảng khoản thu (tên, số tiền hoặc %, mốc chọn trong danh sách việc với mốc và tóm tắt lên trước, đầu hay cuối, Net ngày, giữ lại), mỗi dòng hiện ngày lập hóa đơn và ngày đến hạn theo lịch do engine trả (`payment_dates`, D7), đã thu và nút Ghi nhận thu tiền (`SetPaymentReceipts`). Số tiền là `MoneyInput`, phần trăm đọc như `focusPercent.ts`. Thanh tra của một mốc có nhóm nhỏ "Thanh toán" liệt kê khoản gắn vào nó, mở hộp thoại.
   - *Pro*: màn Dòng tiền (`ViewId` "cashflow", Xem → Dòng tiền (Pro), menu id `view-cashflow`, `components/cashflow/`, `ProBadge` trên tab, "(Pro)" trong `i18n.rs`, SF Symbol): thanh công cụ chọn kỳ (Ngày/Tuần/Tháng/Quý), baseline (không có hoặc 0–10), chuỗi (Dự báo, Thực tế, Baseline); biểu đồ SVG cột chồng vào/ra quanh trục 0 với đường lũy kế, vùng kỳ thâm hụt tô bằng token (`--cash-in`, `--cash-out`, `--cash-net`, `--cash-deficit` trong `tokens.css`, cả hai theme, cặp chữ mới thêm vào `theme.test.ts`); bảng số theo kỳ; danh sách khoản thu (đến hạn theo lịch so với baseline, trễ bao nhiêu ngày, quá hạn, bấm tên mốc thì chọn việc và chuyển sang Gantt). Hỏi lại `cash_flow` mỗi khi dự án đổi, chỉ khi màn đang mở (như `useForecast`), bỏ câu trả lời cũ; không có license thì phần giới thiệu và nút License như panel Gợi ý AI. `toolbarState.ts`/`proFeatures.ts` nối `view-cashflow` và `export-cash-flow` với `cashflow`.
 
-**Quyết định đề xuất (chờ chủ dự án chốt).**
+**Quyết định đã chốt (25/10/2026).**
 - **D1 — Mã tính năng: `cashflow` mới, không dùng `reporting`.** Lý do: `reporting` là trình bày và xuất (Excel, dashboard, thương hiệu) cho số đã có; dòng tiền là phân tích mới với dữ liệu riêng (hợp đồng, khoản thu), người mua khác (quản lý tài chính dự án, nhà thầu). Mã riêng cho phép bán lẻ, và key không ghi `features` (nghĩa là mọi tính năng) tự có nó; key chỉ ghi `reporting` thì không. Nếu muốn ít mã hơn, phương án khác là gộp vào `reporting`.
 - **D2 — Khoản thu ở cấp dự án, gắn vào việc**, không phải trường trên `Task`. Lý do: một mốc có thể có nhiều khoản (thu và giải ngân giữ lại), có khoản theo ngày cố định không gắn việc nào, và danh sách có thứ tự như hợp đồng; giữ `Task` gọn và copy/paste không phải lo. Phương án khác: `Task.payments` (giống MS Project dùng trường tùy chỉnh), dễ hiện cột trong bảng việc nhưng khó với khoản theo ngày.
 - **D3 — Net tính bằng ngày lịch**, không phải ngày làm việc của lịch dự án. Lý do: điều khoản hóa đơn (Net 30) là ngày lịch; đến hạn rơi vào cuối tuần thì giữ nguyên (tiền vào khi khách trả, không theo lịch làm việc). Có thể thêm "dời sang ngày làm việc kế tiếp" sau.
@@ -1092,17 +1092,17 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 
 Thứ tự: A trước (B cần kiểu và `cost_timephased`), B rồi C; D sau C. A không chạm Pha 22 và không chạm `Command` của AI; nếu PR khác tăng `FORMAT_VERSION` trước thì A lấy số kế tiếp.
 
-**Câu hỏi mở (chủ dự án quyết).**
-1. Mã tính năng `cashflow` riêng hay gộp vào `reporting`? *Đề xuất: `cashflow` (D1).*
-2. Issue ghi "Engine computation"; theo 20G phần cộng theo kỳ, giữ lại, quá hạn và so baseline là logic Pro trong crate riêng, chỉ dữ liệu, ngày của khoản và chi phí theo thời gian ở engine công khai. Có đồng ý cách chia này không? *Đề xuất: đồng ý; nó giữ đúng nguyên tắc "phép tính chung vào engine công khai" mà vẫn không để lộ phần bán.*
-3. Ngày đến hạn từng khoản ở Free (D7) hay chỉ ở Pro? *Đề xuất: Free trong hộp thoại sửa.*
-4. Issue nói "milestones or summary tasks"; có cho gắn vào việc lá thường và vào ngày cố định không? *Đề xuất: có cả hai (tạm ứng khi ký hợp đồng là ngày cố định), giao diện gợi ý mốc và tóm tắt trước.*
-5. Issue nhắc "customer billings" bên cạnh khoản theo mốc. Có cần hóa đơn theo tiến độ (thu theo % hoàn thành hay theo chi phí cộng phí, kiểu time-and-materials) ngay bản đầu không? *Đề xuất: không; bản đầu chỉ khoản theo mốc và ngày cố định. Thu theo tiến độ để giai đoạn 2 (một `PaymentAnchor::Progress` dùng EV theo kỳ).*
-6. Net theo ngày lịch (D3) và khoản quá hạn dời về ngày trạng thái (D4)? *Đề xuất: như D3, D4.*
-7. Tiền ra trả chậm (Net với nhà cung cấp, D6) có cần ở bản đầu không? *Đề xuất: không.*
-8. Thêm kỳ Quý vào `Bucket` chung (issue có Quarterly; hiện chỉ có ngày/tuần/tháng): chỉ dùng cho dòng tiền ở bản đầu hay mở luôn cho màn Tải và Đường cong S? *Đề xuất: thêm ở engine, giao diện chỉ mở ở Dòng tiền; hai màn kia mở sau nếu được hỏi (đều là chế độ Pro `capacity`, nên không đụng Free).*
-9. Xóa việc được gắn: chuyển thành ngày cố định (D5) hay xóa khoản? *Đề xuất: chuyển thành ngày cố định.*
-10. Có cần nhập lịch thanh toán từ bảng (CSV/Excel) ngay không? *Đề xuất: chưa; thêm khi có người hỏi.*
+**Câu hỏi đã chốt (chủ dự án đồng ý cả 10 đề xuất, 25/10/2026).**
+1. Mã tính năng riêng `cashflow`, không gộp vào `reporting` (D1).
+2. Chia theo 20G như trên: dữ liệu, ngày của khoản và chi phí theo thời gian ở engine công khai; cộng theo kỳ, giữ lại, quá hạn và so baseline là logic Pro trong crate riêng.
+3. Ngày đến hạn từng khoản hiện ở Free trong hộp thoại sửa (D7).
+4. Khoản gắn được vào mốc, việc tóm tắt, việc lá thường và ngày cố định; giao diện gợi ý mốc và tóm tắt trước.
+5. Bản đầu chỉ có khoản theo mốc và ngày cố định; thu theo tiến độ (`PaymentAnchor::Progress`, EV theo kỳ) để giai đoạn 2.
+6. Net theo ngày lịch (D3); khoản quá hạn chưa thu dời về ngày trạng thái trong chuỗi dự báo (D4).
+7. Không có tiền ra trả chậm (Net với nhà cung cấp) ở bản đầu (D6).
+8. `Bucket::Quarter` thêm ở engine; giao diện chỉ mở kỳ Quý ở màn Dòng tiền, màn Tải và Đường cong S mở sau nếu được hỏi.
+9. Xóa việc được gắn thì khoản chuyển thành ngày cố định (D5).
+10. Chưa có nhập lịch thanh toán từ bảng (CSV/Excel); thêm khi có người hỏi.
 
 ### Tiếng Anh (sau v1.0.0) — đã xong
 
