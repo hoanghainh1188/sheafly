@@ -1,7 +1,7 @@
 //! Stub of the Sheafly Pro modules (plan part 20G).
 //!
 //! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, the AI
-//! recommendations of sheafly-pro#1, and later ones) are
+//! recommendations of sheafly-pro#1, the cash flow of sheafly-pro#5, and later ones) are
 //! closed source, in the private repository `sheafly-pro`. This crate has the same public
 //! functions and the same dependencies, so the app builds from this repository alone;
 //! each function answers that this build has no Pro modules. Release builds copy the
@@ -10,6 +10,7 @@
 
 use serde_json::Value;
 use sheafly_engine::advice::AdviceStep;
+use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -35,6 +36,16 @@ pub fn excel_workbook(_project: &Project, lang: Lang) -> Result<Vec<u8>, String>
 
 /// The schedule health check, DCMA's 14 points (sheafly-pro#7). The stub has none.
 pub fn schedule_health(_project: &Project, lang: Lang) -> Result<HealthReport, String> {
+    Err(unavailable(lang))
+}
+
+/// The cash flow by period (sheafly-pro#5). The stub has none.
+pub fn cash_flow(_project: &Project, _options: &CashFlowOptions, lang: Lang) -> Result<CashFlowReport, String> {
+    Err(unavailable(lang))
+}
+
+/// The cash flow as an `.xlsx` workbook (sheafly-pro#5). The stub has none.
+pub fn cash_flow_workbook(_project: &Project, _options: &CashFlowOptions, lang: Lang) -> Result<Vec<u8>, String> {
     Err(unavailable(lang))
 }
 
@@ -66,6 +77,14 @@ mod tests {
         assert_eq!(excel_workbook(&doc.project, Lang::Vi), Err(unavailable(Lang::Vi)));
         assert_eq!(excel_workbook(&doc.project, Lang::En), Err(unavailable(Lang::En)));
         assert_eq!(schedule_health(&doc.project, Lang::En), Err(unavailable(Lang::En)));
+        let options = CashFlowOptions {
+            bucket: sheafly_engine::load_map::Bucket::Month,
+            baseline: None,
+            from: None,
+            to: None,
+        };
+        assert_eq!(cash_flow(&doc.project, &options, Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(cash_flow_workbook(&doc.project, &options, Lang::En), Err(unavailable(Lang::En)));
         assert!(unavailable(Lang::En).starts_with("This Sheafly build"));
         let summary = sheafly_engine::summary::project_summary(&doc.project, &Default::default());
         assert_eq!(risks_request(&summary, "m", Lang::En), Err(unavailable(Lang::En)));

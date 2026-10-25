@@ -109,6 +109,9 @@ fn small_fields(project: &Project) -> Project {
         forecast: project.forecast.clone(),
         focus_factor: project.focus_factor,
         source: project.source.clone(),
+        cash_flow: project.cash_flow.clone(),
+        payments: project.payments.clone(),
+        next_payment_id: project.next_payment_id,
     }
 }
 

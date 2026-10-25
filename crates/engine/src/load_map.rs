@@ -34,6 +34,8 @@ pub enum Bucket {
     Week,
     /// Whole calendar months.
     Month,
+    /// Calendar quarters (January to March, …).
+    Quarter,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -164,42 +166,36 @@ pub(crate) fn compute_buckets(from: NaiveDate, to: NaiveDate, bucket: Bucket) ->
             });
             Ok(Buckets { first, last, count, keys, index_of })
         }
-        Bucket::Month => {
-            let first = NaiveDate::from_ymd_opt(from.year(), from.month(), 1).ok_or(Invalid::BadDate)?;
-            let next_month = if to.month() == 12 {
-                NaiveDate::from_ymd_opt(to.year() + 1, 1, 1)
-            } else {
-                NaiveDate::from_ymd_opt(to.year(), to.month() + 1, 1)
-            }
-            .ok_or(Invalid::BadDate)?;
-            let last = next_month.pred_opt().ok_or(Invalid::BadDate)?;
-            let count = ((last.year() - first.year()) * 12 + (last.month() as i32 - first.month() as i32) + 1) as usize;
-            if count > MAX_BUCKETS {
-                return Err(Invalid::DateRangeTooLong.into());
-            }
-            let keys = (0..count)
-                .map(|i| {
-                    let total_m = first.month() as i32 - 1 + i as i32;
-                    let year = first.year() + total_m / 12;
-                    let month = (total_m % 12 + 1) as u32;
-                    date_key(NaiveDate::from_ymd_opt(year, month, 1).unwrap_or(first))
-                })
-                .collect();
-            let index_of = Box::new(move |date: NaiveDate| {
-                if date >= first && date <= last {
-                    let m = (date.year() - first.year()) * 12 + (date.month() as i32 - first.month() as i32);
-                    if m >= 0 && (m as usize) < count {
-                        Some(m as usize)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            });
-            Ok(Buckets { first, last, count, keys, index_of })
-        }
+        Bucket::Month => months(from, to, 1),
+        Bucket::Quarter => months(from, to, 3),
     }
+}
+
+/// Buckets of `span` whole calendar months, the first starting on a multiple of `span`
+/// (quarters start in January, April, July and October).
+fn months(from: NaiveDate, to: NaiveDate, span: u32) -> Result<Buckets, EngineError> {
+    let month_of = |date: NaiveDate| date.year() * 12 + date.month0() as i32;
+    let span_i = span as i32;
+    let start_month = month_of(from) - (from.month0() % span) as i32;
+    let end_month = month_of(to) - (to.month0() % span) as i32 + span_i;
+    let day_one = |index: i32| NaiveDate::from_ymd_opt(index.div_euclid(12), index.rem_euclid(12) as u32 + 1, 1);
+    let first = day_one(start_month).ok_or(Invalid::BadDate)?;
+    let last = day_one(end_month).and_then(|d| d.pred_opt()).ok_or(Invalid::BadDate)?;
+    let count = ((end_month - start_month) / span_i) as usize;
+    if count > MAX_BUCKETS {
+        return Err(Invalid::DateRangeTooLong.into());
+    }
+    let keys = (0..count)
+        .map(|i| date_key(day_one(start_month + i as i32 * span_i).unwrap_or(first)))
+        .collect();
+    let index_of = Box::new(move |date: NaiveDate| {
+        if date >= first && date <= last {
+            Some(((month_of(date) - start_month) / span_i) as usize)
+        } else {
+            None
+        }
+    });
+    Ok(Buckets { first, last, count, keys, index_of })
 }
 
 fn build_person_rows(

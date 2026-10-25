@@ -38,11 +38,10 @@ use serde::{Deserialize, Serialize};
 use crate::baseline_load::assignment_baseline_days;
 use crate::calendar::Calendar;
 use crate::error::EngineError;
-use crate::evm::{actual_parts, progress_intervals};
+use crate::cost_timephased::{self, baseline_intervals, CostSeries};
 use crate::load_map::{compute_buckets, Buckets};
 use crate::model::{Accrual, Assignment, Baseline, Project, Task, UsageDay};
 use crate::skill_levels::qualifies;
-use crate::split;
 use crate::timeutil::{civil, compose, parse_date_key};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,19 +109,6 @@ pub struct CurvesReport {
 /// Helper to get baseline for a task by baseline number.
 fn task_baseline(task: &Task, baseline_number: u8) -> Option<&Baseline> {
     task.baselines.iter().find(|b| b.number == baseline_number)
-}
-
-/// The periods a baseline was planned to work: its segments, else its start to finish.
-fn baseline_intervals(baseline: &Baseline) -> Vec<(i64, i64)> {
-    if baseline.segments.is_empty() {
-        vec![(baseline.start, baseline.finish)]
-    } else {
-        baseline
-            .segments
-            .iter()
-            .map(|s| (s.start, s.finish))
-            .collect()
-    }
 }
 
 /// Collects target resource UIDs matching the given filter.
@@ -238,90 +224,18 @@ impl<'a> Context<'a> {
         fallback: NaiveDate,
         target: &mut [f64],
     ) {
-        let total = split::working_within(calendar, intervals, i64::MIN, i64::MAX);
-        if total <= 0 {
-            self.add(target, fallback, amount);
-            return;
-        }
-        let (Some(first), Some(last)) = (
-            intervals.iter().map(|(s, _)| *s).min(),
-            intervals.iter().map(|(_, f)| *f).max(),
-        ) else {
-            return;
-        };
-        let (mut day, _) = civil(first);
-        let (end, _) = civil(last);
-        let mut accumulated = 0i64;
-        let mut placed = 0.0f64;
-        while let Some(next) = day.succ_opt() {
-            accumulated +=
-                split::working_within(calendar, intervals, compose(day, 0), compose(next, 0));
-            let reached = amount * accumulated as f64 / total as f64;
-            if reached > placed {
-                self.add(target, day, reached - placed);
-                placed = reached;
-            }
-            if day >= end {
-                break;
-            }
-            day = next;
-        }
+        let mut add = |day, amount| self.add(target, day, amount);
+        cost_timephased::spread(calendar, intervals, amount, fallback, &mut add);
     }
 
-    /// Spreads by `accrual`: all at the start, all at the finish, or over the working time.
-    #[allow(clippy::too_many_arguments)]
-    fn spread_accrued(
-        &self,
-        calendar: &Calendar,
-        accrual: Accrual,
-        intervals: &[(i64, i64)],
-        start: i64,
-        finish: i64,
-        amount: f64,
-        target: &mut [f64],
-    ) {
-        match accrual {
-            Accrual::Start => self.add(target, civil(start).0, amount),
-            Accrual::End => self.add(target, civil(finish).0, amount),
-            Accrual::Prorated => self.spread(calendar, intervals, amount, civil(finish).0, target),
-        }
-    }
-
-    /// Spreads an amount done so far (actual work or cost, earned value) over the task's
-    /// progress windows cut at the status date: with the working time for prorated, on the
-    /// first day for start, on the last for end. With no working time in them it goes on
-    /// the actual start (or start) when that is not after the status date.
+    /// Spreads an amount done so far over the task's progress windows cut at the status
+    /// date (`cost_timephased::spread_done`); nothing without a status date.
     fn spread_done(&self, task: &Task, amount: f64, accrual: Accrual, target: &mut [f64]) {
-        let Some((status, status_day)) = self.status else {
+        let Some(status) = self.status else {
             return;
         };
-        let Some(intervals) = progress_intervals(self.project, task) else {
-            return;
-        };
-        let cut: Vec<(i64, i64)> = intervals
-            .iter()
-            .map(|(low, high)| ((*low).min(status), (*high).min(status)))
-            .filter(|(low, high)| high > low)
-            .collect();
-        let calendar = self.project.task_calendar(task);
-        if split::working_within(calendar, &cut, i64::MIN, i64::MAX) <= 0 {
-            let day = civil(task.actual_start.unwrap_or(task.start)).0;
-            if day <= status_day {
-                self.add(target, day, amount);
-            }
-            return;
-        }
-        match accrual {
-            Accrual::Prorated => self.spread(calendar, &cut, amount, status_day, target),
-            Accrual::Start => {
-                let first = cut.iter().map(|(low, _)| *low).min().unwrap_or(status);
-                self.add(target, civil(first).0, amount);
-            }
-            Accrual::End => {
-                let last = cut.iter().map(|(_, high)| *high).max().unwrap_or(status);
-                self.add(target, civil(last).0, amount);
-            }
-        }
+        let mut add = |day, amount| self.add(target, day, amount);
+        cost_timephased::spread_done(self.project, task, amount, accrual, status, false, &mut add);
     }
 
     /// An assignment's baseline: its work by day (minutes) and its cost. A task read at task
@@ -715,48 +629,24 @@ fn cost_periods(
         return;
     }
 
-    // The accrual is the fixed cost's; labour is spent with the working time.
-    for task in cx.leaves() {
-        let calendar = project.task_calendar(task);
-        let accrual = task.fixed_cost_accrual;
-        if task.cost > 0.0 {
-            let intervals = split::work_intervals(task);
-            let fixed = task.fixed_cost.clamp(0.0, task.cost);
-            let (start, finish) = (task.start, task.finish);
-            cx.spread_accrued(
-                calendar, accrual, &intervals, start, finish, fixed, scheduled,
-            );
-            let labour = task.cost - fixed;
-            cx.spread(calendar, &intervals, labour, civil(finish).0, scheduled);
-        }
-        let base = cx
-            .baseline
-            .and_then(|n| task_baseline(task, n))
-            .filter(|b| b.cost > 0.0);
-        if let (Some(target), Some(b)) = (baseline.as_mut(), base) {
-            let intervals = baseline_intervals(b);
-            let fixed = b.fixed_part(task);
-            cx.spread_accrued(
-                calendar, accrual, &intervals, b.start, b.finish, fixed, target,
-            );
-            cx.spread(
-                calendar,
-                &intervals,
-                b.cost - fixed,
-                civil(b.finish).0,
-                target,
-            );
-        }
-        if let Some(target) = actual.as_mut() {
-            let (labour, fixed) = actual_parts(project, task);
-            if labour > 0.0 {
-                cx.spread_done(task, labour, Accrual::Prorated, target);
-            }
-            if fixed > 0.0 {
-                cx.spread_done(task, fixed, accrual, target);
-            }
-        }
-        if let (Some(target), Some(b)) = (earned.as_mut(), base) {
+    // The accrual is the fixed cost's; labour is spent with the working time
+    // (`cost_timephased`, which the cash flow reads too).
+    let into = |series: CostSeries, target: &mut [f64]| {
+        let mut add = |day, amount| cx.add(target, day, amount);
+        cost_timephased::spread_series(project, series, cx.status, false, &mut add);
+    };
+    into(CostSeries::Scheduled, scheduled);
+    if let (Some(target), Some(number)) = (baseline.as_mut(), cx.baseline) {
+        into(CostSeries::Baseline { number }, target);
+    }
+    if let Some(target) = actual.as_mut() {
+        into(CostSeries::Actual, target);
+    }
+    if let (Some(target), Some(n)) = (earned.as_mut(), cx.baseline) {
+        for task in cx.leaves() {
+            let Some(b) = task_baseline(task, n).filter(|b| b.cost > 0.0) else {
+                continue;
+            };
             let pct = task.percent_complete.clamp(0.0, 100.0);
             if pct > 0.0 {
                 cx.spread_done(task, b.cost * pct / 100.0, Accrual::Prorated, target);

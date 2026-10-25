@@ -149,6 +149,9 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     forecast: { field: null, group: "medium", common: "low" },
     focus_factor: 1,
     source: null,
+    cash_flow: { contract_value: null, opening_balance: 0, retention: null },
+    payments: [],
+    next_payment_id: 1,
     ...overrides,
   };
 }

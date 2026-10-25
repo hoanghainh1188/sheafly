@@ -308,8 +308,11 @@ export interface TaskAssignment {
   units: number;
 }
 
-/** Mirror of `load_map::Bucket`. */
+/** The periods the Load view offers, of `load_map::Bucket`. */
 export type LoadBucket = "day" | "week" | "month";
+
+/** Mirror of `load_map::Bucket`: quarters too, which only the cash flow will offer. */
+export type Bucket = LoadBucket | "quarter";
 
 /** Mirror of `load_map::LoadGroup`. */
 export type LoadGroup =
@@ -684,6 +687,63 @@ export interface Project {
   focus_factor: number;
   /** The external task tracker the project is pulled from, if any. */
   source: Source | null;
+  /** Contract value, opening balance and retention of the cash flow. */
+  cash_flow: CashFlowSettings;
+  /** Payments by milestone or date, in the user's order. */
+  payments: Payment[];
+  next_payment_id: number;
+}
+
+/** Mirror of `payments::PaymentAnchor`: the date a payment is invoiced on. */
+export type PaymentAnchor =
+  | { type: "finish"; task: number }
+  | { type: "start"; task: number }
+  | { type: "date"; at: number };
+
+/** Mirror of `payments::PaymentAmount`: money, or a percent of the contract value. */
+export type PaymentAmount = { fixed: number } | { percent: number };
+
+/** Mirror of `payments::Retention`: a share kept back from `retained` payments, released once. */
+export interface Retention {
+  percent: number;
+  release: PaymentAnchor;
+  lag_days: number;
+}
+
+/** Mirror of `payments::CashFlowSettings`. */
+export interface CashFlowSettings {
+  contract_value: number | null;
+  opening_balance: number;
+  retention: Retention | null;
+}
+
+/** Mirror of `payments::Receipt`: money received for a payment. */
+export interface Receipt {
+  date: number;
+  amount: number;
+}
+
+/** Mirror of `payments::Payment`. `lag_days` are calendar days from invoice to due date. */
+export interface Payment {
+  id: number;
+  name: string;
+  amount: PaymentAmount;
+  anchor: PaymentAnchor;
+  lag_days: number;
+  retained: boolean;
+  received: Receipt[];
+  /** Its task was deleted; it is now a fixed date. */
+  detached?: boolean;
+}
+
+/** Mirror of `payments::PaymentInput`: `id` keeps a payment and its receipts, none adds one. */
+export interface PaymentInput {
+  id?: number | null;
+  name: string;
+  amount: PaymentAmount;
+  anchor: PaymentAnchor;
+  lag_days: number;
+  retained: boolean;
 }
 
 /** Mirror of `source::TrackerKind`. */
@@ -1016,7 +1076,10 @@ export type Command =
   | { type: "apply_pull"; rows: PullTask[]; pulled_at: number; resolutions?: Resolution[] }
   | { type: "record_push"; entries: PushedEntry[] }
   | { type: "import_rows"; after_uid: number | null; resources: ImportResource[]; tasks: ImportTask[] }
-  | { type: "apply_plan"; assignments: TaskAssignment[]; delays: LevelingDelay[]; splits: LevelingSplits[] };
+  | { type: "apply_plan"; assignments: TaskAssignment[]; delays: LevelingDelay[]; splits: LevelingSplits[] }
+  | { type: "set_cash_flow_settings"; settings: CashFlowSettings }
+  | { type: "set_payments"; payments: PaymentInput[] }
+  | { type: "set_payment_receipts"; id: number; receipts: Receipt[] };
 
 /** Mirror of `clipboard::TaskCopy`: one copied task, its level relative to the copy. */
 export interface TaskCopy {

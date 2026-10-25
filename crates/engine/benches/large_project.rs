@@ -38,7 +38,7 @@ use sheafly_engine::import::{check_import, ImportAssignee, ImportResource, Impor
 use sheafly_engine::level::level_project;
 use sheafly_engine::level_order::{Criterion, SortKey};
 use sheafly_engine::load_map::{load_map, Bucket, LoadGroup};
-use sheafly_engine::model::{Assignment, ConstraintType, DepKind, Dependency, Resource, ResourceKind, Task, TaskType};
+use sheafly_engine::model::{Accrual, Assignment, ConstraintType, DepKind, Dependency, Resource, ResourceKind, Task, TaskType};
 use sheafly_engine::skills::{AssignmentRule, Condition, RuleTarget, SkillDef};
 use sheafly_engine::suggest::suggest;
 use sheafly_engine::store::{load, save};
@@ -477,6 +477,10 @@ fn main() {
         });
         return;
     }
+    if args.iter().any(|arg| arg == "cashflow") {
+        cash_flow_bench(&numbers);
+        return;
+    }
     if args.iter().any(|arg| arg == "summary") {
         let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
         let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
@@ -643,5 +647,107 @@ fn project_summaries(people: u32, tasks: u32) {
         });
         let json = serde_json::to_string(&whole).expect("json");
         println!("{:<28} {:>10.1} KB", "summary đầy đủ", json.len() as f64 / 1024.0);
+    }
+}
+
+/// The engine's share of a cash flow: costs over time for every series and the dates of
+/// 200 payments, on a leveled capacity project with progress up to a status date.
+fn cash_flow_bench(numbers: &[usize]) {
+    use sheafly_engine::cost_timephased::{cost_timephased, CostSeries};
+    use chrono::Datelike;
+    use sheafly_engine::command::apply_one;
+    use sheafly_engine::payments::{payment_dates, DateBasis, PaymentAmount, PaymentAnchor, PaymentInput};
+
+    let people = numbers.first().copied().unwrap_or(500).max(1) as u32;
+    let tasks = numbers.get(1).copied().unwrap_or(5000) as u32;
+    let mut costed = capacity(people, tasks, false, true, false, false);
+    for (i, resource) in costed.resources.iter_mut().enumerate() {
+        resource.standard_rate = 100_000.0 + (i % 7) as f64 * 25_000.0;
+        resource.overtime_rate = resource.standard_rate * 1.5;
+    }
+    for (i, task) in costed.tasks.iter_mut().enumerate().filter(|(i, _)| i % 10 == 0) {
+        task.fixed_cost = 2_000_000.0;
+        task.fixed_cost_accrual = [Accrual::Start, Accrual::Prorated, Accrual::End][i % 3];
+    }
+    let mut doc = Document::from_project(costed);
+    doc.apply(Command::SetBaseline { number: 0 }).expect("baseline");
+    let leaves: Vec<(u32, i64, i64)> = doc
+        .project
+        .tasks
+        .iter()
+        .filter(|t| !t.summary)
+        .map(|t| (t.uid, t.start, t.finish))
+        .collect();
+    let first = leaves.iter().map(|l| l.1).min().unwrap_or(doc.project.start);
+    let last = leaves.iter().map(|l| l.2).max().unwrap_or(first);
+    let status = first + (last - first) / 3;
+    // Progress straight on the project, scheduled once: a command each would schedule
+    // thousands of times.
+    let mut tracked = doc.project.clone();
+    apply_one(&mut tracked, &Command::SetStatusDate { date: Some(status) }).expect("status");
+    for (uid, start, finish) in leaves.iter().copied() {
+        let percent = if finish <= status { 100.0 } else if start < status { 50.0 } else { continue };
+        apply_one(&mut tracked, &Command::SetPercentComplete { uid, percent }).expect("progress");
+    }
+    schedule(&mut tracked).expect("schedule");
+    let mut doc = Document::from_project(tracked);
+    let step = (leaves.len() / 200).max(1);
+    let payments: Vec<PaymentInput> = leaves
+        .iter()
+        .step_by(step)
+        .take(200)
+        .map(|(uid, _, _)| PaymentInput {
+            id: None,
+            name: format!("Mốc {uid}"),
+            amount: PaymentAmount::Percent(0.5),
+            anchor: PaymentAnchor::Finish { task: *uid },
+            lag_days: 30,
+            retained: true,
+        })
+        .collect();
+    doc.apply(Command::SetPayments { payments }).expect("payments");
+    let project = &doc.project;
+    let from = sheafly_engine::timeutil::civil(first).0;
+    let to = sheafly_engine::timeutil::civil(last).0 + chrono::Duration::days(60);
+    println!("{} việc lá, {} ngày, {} khoản thu", leaves.len(), (to - from).num_days(), project.payments.len());
+    let dates = || {
+        project
+            .payments
+            .iter()
+            .filter_map(|p| {
+                let now = payment_dates(project, p.anchor, p.lag_days, DateBasis::Scheduled)?;
+                let base = payment_dates(project, p.anchor, p.lag_days, DateBasis::Baseline { number: 0 });
+                Some((now, base))
+            })
+            .count()
+    };
+    timed("cash flow: ngày của 200 khoản thu", dates);
+    for (label, series) in [
+        ("cost_timephased dự báo", CostSeries::Forecast),
+        ("cost_timephased thực tế", CostSeries::Actual),
+        ("cost_timephased còn lại", CostSeries::Remaining),
+        ("cost_timephased baseline 0", CostSeries::Baseline { number: 0 }),
+        ("cost_timephased theo lịch", CostSeries::Scheduled),
+    ] {
+        timed(label, || cost_timephased(project, series, from, to));
+    }
+    // Everything the cash flow reads from the engine: three series of money out, the dates,
+    // then summed into months and into 731 days.
+    for (label, bucket) in [("tháng", Bucket::Month), ("731 ngày", Bucket::Day)] {
+        timed(&format!("cash flow engine, {label}"), || {
+            let mut sums = vec![0.0f64; 731];
+            for series in [CostSeries::Forecast, CostSeries::Actual, CostSeries::Baseline { number: 0 }] {
+                for (day, amount) in cost_timephased(project, series, from, to) {
+                    let index = match bucket {
+                        Bucket::Day => (day - from).num_days() as usize,
+                        _ => ((day.year() - from.year()) * 12 + day.month() as i32 - from.month() as i32) as usize,
+                    };
+                    if let Some(slot) = sums.get_mut(index) {
+                        *slot += amount;
+                    }
+                }
+            }
+            (dates(), sums)
+        });
     }
 }

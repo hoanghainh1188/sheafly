@@ -146,6 +146,14 @@ pub enum Invalid {
     PullHasConflicts,
     SyncPolicy,
     SyncSetting,
+    TooManyPayments,
+    PaymentName,
+    PaymentAmount,
+    PaymentLag,
+    RetentionPercent,
+    NoSuchPayment,
+    PaymentRepeated,
+    TooManyReceipts,
 }
 
 impl EngineError {
@@ -603,6 +611,35 @@ impl Invalid {
                 "Phần trăm đang làm phải từ 1 đến 99 và giờ phải từ 0 đến 23",
                 "The in-progress percent must be 1 to 99 and the hours 0 to 23",
             ),
+            Self::TooManyPayments => fixed(
+                "Một dự án có tối đa 500 khoản thu",
+                "A project can have at most 500 payments",
+            ),
+            Self::PaymentName => fixed(
+                "Tên khoản thu không được trống và dài tối đa 200 ký tự",
+                "A payment needs a name of at most 200 characters",
+            ),
+            Self::PaymentAmount => fixed(
+                "Số tiền phải là số không âm (phần trăm từ 0 đến 100)",
+                "An amount must be a number not below 0 (a percent 0 to 100)",
+            ),
+            Self::PaymentLag => fixed(
+                "Hạn thanh toán phải từ 0 đến 365 ngày",
+                "Payment terms must be 0 to 365 days",
+            ),
+            Self::RetentionPercent => fixed(
+                "Phần giữ lại phải từ 0 đến 50 %",
+                "The retention must be 0 to 50 percent",
+            ),
+            Self::NoSuchPayment => fixed("Không có khoản thu này", "That payment does not exist"),
+            Self::PaymentRepeated => fixed(
+                "Một khoản thu xuất hiện hai lần trong danh sách",
+                "A payment appears twice in the list",
+            ),
+            Self::TooManyReceipts => fixed(
+                "Một khoản thu có tối đa 500 lần ghi nhận tiền",
+                "A payment can have at most 500 receipts",
+            ),
         }
     }
 }
@@ -729,6 +766,14 @@ mod tests {
             PullHasConflicts,
             SyncPolicy,
             SyncSetting,
+            TooManyPayments,
+            PaymentName,
+            PaymentAmount,
+            PaymentLag,
+            RetentionPercent,
+            NoSuchPayment,
+            PaymentRepeated,
+            TooManyReceipts,
         ];
         for reason in all {
             let (vi, en) = (reason.message(Lang::Vi), reason.message(Lang::En));
