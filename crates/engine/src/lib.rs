@@ -30,6 +30,8 @@ pub mod load_map;
 pub mod model;
 pub mod mspdi;
 mod mspdi_availability;
+mod mspdi_baseline;
+
 mod mspdi_calendar_days;
 mod mspdi_cost;
 mod mspdi_fields;

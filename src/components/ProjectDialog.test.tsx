@@ -7,7 +7,8 @@ import { I18nProvider } from "../i18n";
 import { ProjectDialog } from "./ProjectDialog";
 
 function renderDialog(editable: boolean, capacityPro = true, focus_factor = 1) {
-  const send = vi.fn().mockResolvedValue(undefined);
+  // An accepted edit answers with a snapshot; nothing would mean the backend refused it.
+  const send = vi.fn().mockResolvedValue({});
   render(
     <I18nProvider lang="vi">
       <ProjectDialog
@@ -84,7 +85,8 @@ describe("ProjectDialog actual costs", () => {
 
 describe("ProjectDialog sections", () => {
   function renderWith(statistics: Parameters<typeof ProjectDialog>[0]["statistics"]) {
-    const send = vi.fn().mockResolvedValue(undefined);
+    // An accepted edit answers with a snapshot; nothing would mean the backend refused it.
+  const send = vi.fn().mockResolvedValue({});
     const onOpenWorkingTime = vi.fn();
     const project = makeProject({
       calendars: [standardCalendar(1, "Chuẩn"), standardCalendar(2, "Ca đêm")],

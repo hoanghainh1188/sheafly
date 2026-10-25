@@ -23,7 +23,12 @@ use crate::model::Project;
 /// Revision 7: `SetBaseline` also saves each assignment's work (`Assignment.baselines`,
 /// capacity plan PR 4). A checkpoint from revision 6 holds no assignment baselines for the
 /// same commands, so it must be replayed instead of reused.
-pub const ENGINE_REVISION: u32 = 7;
+/// Revision 8: review fixes to PRs 152 and 154. Regenerating a series keeps its
+/// occurrences' assignment baselines; usage spreads each assignment's work, so started work
+/// whose factor changed counts all of it; removing the last person or pasting reapplies the
+/// rates of the project it lands in; a pull keeps the assignment of an assignee who stays.
+/// Each can change derived fields or dates for the same commands.
+pub const ENGINE_REVISION: u32 = 8;
 
 /// A new checkpoint every this many commands while editing or replaying.
 pub const INTERVAL: usize = 25;

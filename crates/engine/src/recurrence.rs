@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::calendar::Calendar;
 use crate::error::{EngineError, Invalid};
-use crate::model::{ConstraintType, Project, Task};
+use crate::model::{AssignmentBaseline, ConstraintType, Project, Task};
 use crate::schedule::normalize_outline;
 use crate::timeutil::{civil, compose};
 use crate::work;
@@ -469,6 +469,20 @@ pub fn regenerate(project: &mut Project, summary_uid: u32) -> Result<(), EngineE
     project.dependencies.retain(|dep| {
         !removed.contains(&dep.predecessor_uid) && !removed.contains(&dep.successor_uid)
     });
+    // Occurrences that survive keep each person's baseline work, as they keep the
+    // task's own baselines.
+    let kept_baselines: HashMap<(u32, u32), Vec<AssignmentBaseline>> = project
+        .assignments
+        .iter()
+        .filter(|assignment| rebuilt.contains(&assignment.task_uid))
+        .filter(|assignment| !assignment.baselines.is_empty())
+        .map(|assignment| {
+            (
+                (assignment.task_uid, assignment.resource_uid),
+                assignment.baselines.clone(),
+            )
+        })
+        .collect();
     project.assignments.retain(|assignment| {
         !removed.contains(&assignment.task_uid) && !rebuilt.contains(&assignment.task_uid)
     });
@@ -492,7 +506,16 @@ pub fn regenerate(project: &mut Project, summary_uid: u32) -> Result<(), EngineE
     ordered.sort_unstable();
     for uid in ordered {
         for resource in &spec.resources {
-            work::add_assignment(project, uid, resource.uid, resource.units);
+            let assignment_uid = work::add_assignment(project, uid, resource.uid, resource.units);
+            if let Some(baselines) = kept_baselines.get(&(uid, resource.uid)) {
+                if let Some(assignment) = project
+                    .assignments
+                    .iter_mut()
+                    .find(|assignment| assignment.uid == assignment_uid)
+                {
+                    assignment.baselines = baselines.clone();
+                }
+            }
         }
     }
     Ok(())

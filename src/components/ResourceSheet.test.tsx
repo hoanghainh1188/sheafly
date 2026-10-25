@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -84,9 +84,26 @@ describe("ResourceSheet", () => {
     expect(handlers.onChangeFocus).not.toHaveBeenCalled();
     expect(an_).toHaveAttribute("aria-invalid", "true");
     expect(an_).toHaveAttribute("title", expect.stringContaining("Cần Sheafly Pro"));
+    // 100% of one's own is still an override of a project at 80%.
+    await user.clear(an_);
+    await user.type(an_, "100");
+    await user.tab();
+    expect(handlers.onChangeFocus).not.toHaveBeenCalled();
+    expect(an_).toHaveAttribute("aria-invalid", "true");
     await user.clear(screen.getByRole("textbox", { name: "Năng suất của Bình" }));
     await user.tab();
     expect(handlers.onChangeFocus).toHaveBeenLastCalledWith(12, null);
+  });
+
+  it("shows the factor it had again when the backend refuses a new one", async () => {
+    const { handlers, user } = renderSheet([makeResource({ uid: 12, name: "Bình", focus: 0.9 }), an]);
+    handlers.onChangeFocus.mockResolvedValue(undefined);
+    const own = screen.getByRole("textbox", { name: "Năng suất của Bình" });
+    await user.clear(own);
+    await user.type(own, "70");
+    await user.tab();
+    expect(handlers.onChangeFocus).toHaveBeenLastCalledWith(12, 0.7);
+    await waitFor(() => expect(own).toHaveValue("90%"));
   });
 
   it("shows each resource's skills by name, in the project's order", () => {

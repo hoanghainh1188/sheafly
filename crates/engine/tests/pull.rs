@@ -347,6 +347,34 @@ fn units_set_by_hand_stay_while_the_assignee_is_the_same() {
 }
 
 #[test]
+fn an_assignee_who_stays_keeps_their_assignment_when_another_person_goes() {
+    let mut doc = doc();
+    pull(&mut doc, sample()).unwrap();
+    let child = by_key(&doc.project, "P-2").clone();
+    let an = resource_of(&doc.project, "An");
+    let binh = resource_of(&doc.project, "Bình");
+    doc.apply(Command::AssignResource { task_uid: child.uid, resource_uid: binh, units: 1.0 }).unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    let kept = doc
+        .project
+        .assignments
+        .iter()
+        .find(|a| a.task_uid == child.uid && a.resource_uid == an)
+        .unwrap()
+        .clone();
+    assert_eq!(kept.baselines.len(), 1);
+
+    let mut rows = sample();
+    rows[2].name = "Sau (đổi)".into();
+    pull(&mut doc, rows).unwrap();
+    let child = by_key(&doc.project, "P-2");
+    assert_eq!(assignees(&doc.project, child), vec![an]);
+    let after = doc.project.assignments.iter().find(|a| a.task_uid == child.uid).unwrap();
+    assert_eq!(after.uid, kept.uid);
+    assert_eq!(after.baselines, kept.baselines);
+}
+
+#[test]
 fn issues_missing_from_the_pull_are_marked_gone_and_come_back() {
     let mut doc = doc();
     pull(&mut doc, sample()).unwrap();

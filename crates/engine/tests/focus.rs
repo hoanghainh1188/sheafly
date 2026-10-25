@@ -376,3 +376,65 @@ fn factors_survive_a_file_and_old_projects_work_full_time() {
     let sent = r#"{"type":"set_focus_factor","factor":0.8}"#;
     assert!(serde_json::from_str::<Command>(sent).is_ok());
 }
+
+#[test]
+fn usage_of_started_work_matches_its_work_after_the_factor_changes() {
+    let mut doc = doc(1, 4, TaskType::FixedWork);
+    assign(&mut doc, 1, 1, 1.0);
+    apply(&mut doc, Command::SetPercentComplete { uid: 1, percent: 25.0 }).unwrap();
+    factor(&mut doc, 0.8).unwrap();
+    let work = doc.project.assignments[0].work;
+    assert_eq!(work, 4 * DAY);
+    for row in &doc.project.usage {
+        let total: f64 = row.days.iter().map(|day| day.hours).sum();
+        assert!((total - work as f64 / 60.0).abs() < 1e-6, "{row:?}");
+    }
+    let days = task(&doc, 1).duration / DAY;
+    let map = load_map(
+        &doc.project,
+        monday(),
+        monday() + chrono::Duration::days(days + 2),
+        Bucket::Day,
+        LoadGroup::Person,
+        None,
+    )
+    .unwrap();
+    let assigned: i64 = map.rows[0].cells.iter().map(|cell| cell.work).sum();
+    assert_eq!(assigned, work);
+}
+
+#[test]
+fn removing_the_last_person_leaves_the_task_as_if_nobody_had_been_on_it() {
+    let mut doc = doc(1, 4, TaskType::FixedWork);
+    apply(
+        &mut doc,
+        Command::AddResource {
+            name: "Máy in".into(),
+            kind: ResourceKind::Machine,
+        },
+    )
+    .unwrap();
+    factor(&mut doc, 0.8).unwrap();
+    let never_assigned = task(&doc, 1).clone();
+    assert_eq!(never_assigned.duration, 5 * DAY);
+    assign(&mut doc, 1, 3, 1.0);
+    assert_eq!(task(&doc, 1).duration, 4 * DAY);
+    let assignment = doc.project.assignments[0].uid;
+    apply(&mut doc, Command::RemoveAssignment { uid: assignment }).unwrap();
+    assert_eq!(task(&doc, 1).duration, never_assigned.duration);
+    assert_eq!(task(&doc, 1).work, never_assigned.work);
+}
+
+#[test]
+fn a_paste_into_a_project_with_another_factor_takes_its_rate() {
+    use sheafly_engine::clipboard::copy_tasks;
+    let mut doc = doc(1, 4, TaskType::FixedWork);
+    assign(&mut doc, 1, 1, 1.0);
+    let clipboard = copy_tasks(&doc.project, &[1]);
+    factor(&mut doc, 0.8).unwrap();
+    assert_eq!(task(&doc, 1).duration, 5 * DAY);
+    apply(&mut doc, Command::PasteTasks { after_uid: Some(1), clipboard }).unwrap();
+    let pasted = doc.project.tasks.last().unwrap();
+    assert_eq!(pasted.work, 4 * DAY);
+    assert_eq!(pasted.duration, 5 * DAY);
+}
