@@ -31,7 +31,8 @@ interface Props {
   /** Set (or, empty, clear) the resource's role or team. */
   onChangeGroup: (uid: number, group: string) => void;
   /** Set (or, `null`, clear) the resource's own productivity factor. */
-  onChangeFocus: (uid: number, focus: number | null) => void;
+  /** Resolves to nothing when the backend refused the factor. */
+  onChangeFocus: (uid: number, focus: number | null) => Promise<unknown> | void;
   onDelete: (uid: number) => void;
   onEditCalendar: (calendarId: number) => void;
   onCreateCalendar: (resource: Resource) => void;

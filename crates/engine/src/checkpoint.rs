@@ -23,11 +23,15 @@ use crate::model::Project;
 /// Revision 7: `SetBaseline` also saves each assignment's work (`Assignment.baselines`,
 /// capacity plan PR 4). A checkpoint from revision 6 holds no assignment baselines for the
 /// same commands, so it must be replayed instead of reused.
-/// Revision 8: an assignment baseline also keeps the assignment's cost (S-curves by person,
-/// role or skill); a checkpoint from revision 7 holds none.
-/// Revision 9: a task's accrual applies to its fixed cost only, so a started task accruing at
-/// start or end now has labour actual cost in step with its progress; a baseline also keeps
-/// its fixed-cost part (`Baseline.fixed_cost`).
+/// Revision 8: review fixes to PRs 152 and 154. Regenerating a series keeps its
+/// occurrences' assignment baselines; usage spreads each assignment's work, so started work
+/// whose factor changed counts all of it; removing the last person or pasting reapplies the
+/// rates of the project it lands in; a pull keeps the assignment of an assignee who stays.
+/// Each can change derived fields or dates for the same commands.
+/// Revision 9: an assignment baseline also keeps the assignment's cost (S-curves by person,
+/// role or skill) and a task baseline its fixed-cost part (`Baseline.fixed_cost`); a task's
+/// accrual applies to its fixed cost only, so a started task accruing at start or end now has
+/// labour actual cost in step with its progress.
 pub const ENGINE_REVISION: u32 = 9;
 
 /// A new checkpoint every this many commands while editing or replaying.

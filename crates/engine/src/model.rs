@@ -94,7 +94,7 @@ pub struct Baseline {
     #[serde(default)]
     pub segments: Vec<Segment>,
     /// The fixed-cost part of `cost` when the baseline was set; `None` in baselines saved
-    /// before it was kept (engine revision 8) and from MSPDI, where readers take the task's
+    /// before it was kept (engine revision 9) and from MSPDI, where readers take the task's
     /// current fixed cost, at most `cost` (`Baseline::fixed_part`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fixed_cost: Option<f64>,
@@ -114,7 +114,7 @@ pub struct AssignmentBaseline {
     pub number: u8,
     pub work: i64,
     /// The assignment's cost when the baseline was set; 0 in baselines saved before it was
-    /// kept (engine revision 7), where readers fall back to the work at today's rate.
+    /// kept (engine revision 9), where readers fall back to the work at today's rate.
     #[serde(default)]
     pub cost: f64,
 }

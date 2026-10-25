@@ -16,6 +16,8 @@ use crate::model::{
     Accrual, Assignment, ConstraintType, DepKind, Dependency, Project, Task, TaskType,
 };
 use crate::schedule::normalize_outline;
+use crate::focus;
+use crate::work::{self, Changed};
 use crate::split::{self, Split};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -53,6 +55,11 @@ pub struct TaskCopy {
     #[serde(default)]
     pub work_high: Option<i64>,
     pub assignments: Vec<AssignmentCopy>,
+    /// The productivity factor the task worked at with no one on it (the project's), so a
+    /// paste into a project with another factor reapplies the work rules. Absent in copies
+    /// made before factors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus: Option<f64>,
     /// Custom field values by field name: a paste into another project keeps those whose
     /// field has the same name there and can hold the value.
     #[serde(default)]
@@ -67,6 +74,9 @@ pub struct AssignmentCopy {
     pub resource_name: String,
     pub units: f64,
     pub work: i64,
+    /// The resource's productivity factor where it was copied (`TaskCopy::focus`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus: Option<f64>,
 }
 
 /// A link between two copied tasks, by their positions in the copy.
@@ -186,8 +196,10 @@ fn task_copy(project: &Project, task: &Task, base: u32) -> TaskCopy {
                     .unwrap_or_default(),
                 units: assignment.units,
                 work: assignment.work,
+                focus: Some(focus::focus_of_uid(project, assignment.resource_uid)),
             })
             .collect(),
+        focus: Some(project.focus_factor),
         values: project
             .fields
             .iter()
@@ -248,8 +260,23 @@ pub fn paste_tasks(
         project.tasks.insert(index, task);
         index += 1;
         uids.push(uid);
+        // Work done at another rate takes another time here: reapply the rules, as a
+        // change of factor does.
+        let rate_changed = if kept.is_empty() {
+            copy.assignments.is_empty()
+                && copy.focus.is_some_and(|focus| focus != project.focus_factor)
+        } else {
+            kept.iter().any(|(resource_uid, assignment)| {
+                assignment
+                    .focus
+                    .is_some_and(|focus| focus != focus::focus_of_uid(project, *resource_uid))
+            })
+        };
         for (resource_uid, assignment) in kept {
             push_assignment(project, uid, resource_uid, assignment);
+        }
+        if rate_changed && !copy.manual {
+            work::apply_change(project, uid, Changed::Units);
         }
     }
     for link in &clipboard.links {

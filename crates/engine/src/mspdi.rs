@@ -11,6 +11,7 @@ use crate::model::{
     ResourceKind, Task, TaskType,
 };
 use crate::mspdi_availability::{self, PeriodBuilder};
+use crate::mspdi_baseline::{self, BaselineReader};
 use crate::mspdi_calendar_days;
 use crate::mspdi_cost;
 use crate::mspdi_fields::{self, FieldReader};
@@ -207,6 +208,7 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
     let mut fields = FieldReader::default();
     let mut skills = SkillReader::default();
     let mut effort_ranges = RangeReader::default();
+    let mut baseline_pieces = BaselineReader::default();
 
     loop {
         match reader.read_event() {
@@ -423,10 +425,21 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
                     }
                     "TimephasedData" => {
                         // Types 1 and 2 are remaining and actual assignment work.
-                        if let (Some(owner), Some(item)) = (assignment.as_mut(), period.take()) {
-                            if matches!(item.kind, 1 | 2) {
-                                owner.periods.push(item);
+                        match (assignment.as_mut(), task.as_ref(), period.take()) {
+                            (Some(owner), _, Some(item)) => {
+                                if matches!(item.kind, 1 | 2) {
+                                    owner.periods.push(item);
+                                }
                             }
+                            // A task's own timephased data: the pieces of a split baseline.
+                            (None, Some(owner), Some(item)) => baseline_pieces.add(
+                                owner.uid,
+                                item.kind,
+                                item.start,
+                                item.finish,
+                                item.minutes,
+                            ),
+                            _ => {}
                         }
                     }
                     "Assignment" => {
@@ -541,6 +554,7 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
     for (index, task_splits) in splits {
         project.tasks[index].splits = task_splits;
     }
+    baseline_pieces.finish(&mut project);
     if !project.editable_actual_costs {
         // The file's actual costs are Project's own calculation, not entries.
         for task in &mut project.tasks {
@@ -1118,6 +1132,7 @@ fn write_task(xml: &mut String, project: &Project, task: &Task) {
         el(xml, "Cost", &format_number(baseline.cost));
         xml.push_str("</Baseline>\n");
     }
+    mspdi_baseline::write(xml, project, task);
     xml.push_str("</Task>\n");
 }
 

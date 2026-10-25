@@ -315,6 +315,11 @@ pub fn remove_assignment(project: &mut Project, assignment_uid: u32) -> bool {
             task.duration,
         )
     });
+    let removed_focus = project
+        .assignments
+        .iter()
+        .find(|assignment| assignment.uid == assignment_uid)
+        .map(|assignment| focus::focus_of_uid(project, assignment.resource_uid));
     project
         .assignments
         .retain(|assignment| assignment.uid != assignment_uid);
@@ -332,6 +337,12 @@ pub fn remove_assignment(project: &mut Project, assignment_uid: u32) -> bool {
                 if task.units <= 0.0 {
                     task.units = 1.0;
                 }
+            }
+            // With no one on it the task works at the project's factor: when that is not
+            // the rate the last person worked at, the rules decide again, as for a task
+            // that never had anyone.
+            if removed_focus.is_some_and(|focus| focus != project.focus_factor) {
+                apply_change(project, task_uid, Changed::Units);
             }
         } else {
             apply_change(project, task_uid, Changed::Units);
@@ -651,77 +662,60 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
         if task.summary {
             continue;
         }
-        let cal = project.task_calendar(task);
         let assignments: Vec<&Assignment> = assignments_of(by_task, task.uid)
             .iter()
             .map(|&position| &project.assignments[position])
             .collect();
-        // Each assignment works at its rate, units × the resource's factor (`focus.rs`).
-        let rates: Vec<f64> = assignments
-            .iter()
-            .map(|a| a.units * focus::focus_of_uid(project, a.resource_uid))
-            .collect();
-        let total_units: f64 = rates.iter().sum();
-        let mut task_days: Vec<UsageDay> = Vec::new();
-        // Split gaps carry no work, so only the segments are distributed.
-        let intervals = split::work_intervals(task);
-        if task.finish > task.start {
-            let (mut date, _) = civil(task.start);
-            let (end_date, _) = civil(task.finish);
-            for _ in 0..3660 {
-                let day_start = compose(date, 0);
-                let next = date.succ_opt().unwrap_or(date);
-                let day_end = compose(next, 0);
-                let minutes = split::working_within(cal, &intervals, day_start, day_end);
-                if minutes > 0 {
-                    let hours = if assignments.is_empty() {
-                        minutes as f64 / 60.0 * project.focus_factor
+        let days = working_days(project, task);
+        let total_minutes: i64 = days.iter().map(|(_, minutes)| minutes).sum();
+        // Each row spreads its work over the task's working time, so the hours always add
+        // up to the work, also where a change of factor left started work as it was. Work
+        // that does not fit (none recorded) falls back to the rate, units × the resource's
+        // factor (`focus.rs`).
+        let spread = |work: i64, rate: f64| -> Vec<UsageDay> {
+            days.iter()
+                .map(|(date, minutes)| UsageDay {
+                    date: date.clone(),
+                    hours: if work > 0 && total_minutes > 0 {
+                        work as f64 / 60.0 * *minutes as f64 / total_minutes as f64
                     } else {
-                        rates.iter().map(|rate| minutes as f64 / 60.0 * rate).sum()
-                    };
-                    task_days.push(UsageDay {
-                        date: date_key(date),
-                        hours,
-                    });
-                }
-                if date >= end_date {
-                    break;
-                }
-                date = next;
-            }
-        }
+                        *minutes as f64 / 60.0 * rate
+                    },
+                })
+                .collect()
+        };
+        let assignment_rows: Vec<(&Assignment, Vec<UsageDay>)> = assignments
+            .iter()
+            .map(|a| {
+                let rate = a.units * focus::focus_of_uid(project, a.resource_uid);
+                (*a, spread(a.work, rate))
+            })
+            .collect();
+        let task_days = if assignment_rows.is_empty() {
+            spread(task.work, project.focus_factor)
+        } else {
+            days.iter()
+                .enumerate()
+                .map(|(index, (date, _))| UsageDay {
+                    date: date.clone(),
+                    hours: assignment_rows.iter().map(|(_, row)| row[index].hours).sum(),
+                })
+                .collect()
+        };
         rows.push(UsageRow {
             task_uid: task.uid,
             assignment_uid: None,
             resource_uid: None,
             label: task.name.clone(),
-            days: task_days.clone(),
+            days: task_days,
         });
-        for (assignment, rate) in assignments.into_iter().zip(rates) {
+        for (assignment, days) in assignment_rows {
             let resource_name = project
                 .resources
                 .iter()
                 .find(|r| r.uid == assignment.resource_uid)
                 .map(|r| r.name.clone())
                 .unwrap_or_else(|| format!("NL {}", assignment.resource_uid));
-            let days = task_days
-                .iter()
-                .map(|day| UsageDay {
-                    date: day.date.clone(),
-                    hours: {
-                        // Rebuild from duration hours × units. Task row hours already include units,
-                        // so recover duration hours by dividing back out when possible.
-                        let duration_hours: f64 = {
-                            if total_units > 0.0 {
-                                day.hours / total_units
-                            } else {
-                                0.0
-                            }
-                        };
-                        duration_hours * rate
-                    },
-                })
-                .collect();
             rows.push(UsageRow {
                 task_uid: task.uid,
                 assignment_uid: Some(assignment.uid),
@@ -732,4 +726,29 @@ fn build_usage(project: &Project, by_task: &HashMap<u32, Vec<usize>>) -> Vec<Usa
         }
     }
     rows
+}
+
+/// The days `task` works on, as usage keys, with its working minutes on each; split gaps
+/// carry no work, so only the segments count.
+fn working_days(project: &Project, task: &Task) -> Vec<(String, i64)> {
+    let mut days = Vec::new();
+    if task.finish <= task.start {
+        return days;
+    }
+    let cal = project.task_calendar(task);
+    let intervals = split::work_intervals(task);
+    let (mut date, _) = civil(task.start);
+    let (end_date, _) = civil(task.finish);
+    for _ in 0..3660 {
+        let next = date.succ_opt().unwrap_or(date);
+        let minutes = split::working_within(cal, &intervals, compose(date, 0), compose(next, 0));
+        if minutes > 0 {
+            days.push((date_key(date), minutes));
+        }
+        if date >= end_date {
+            break;
+        }
+        date = next;
+    }
+    days
 }

@@ -622,6 +622,30 @@ fn add_task(
 }
 
 /// Bring the linked task `uid` in line with the row; the fields that changed.
+/// Leave `person` the only one on the task. Their own assignment stays as it is (units,
+/// baselines, an actual cost entered); anyone else's goes, and they join at 1 unit when
+/// they were not on it.
+fn assign_only(project: &mut Project, uid: u32, person: u32) -> Result<(), EngineError> {
+    let others: Vec<u32> = project
+        .assignments
+        .iter()
+        .filter(|assignment| assignment.task_uid == uid && assignment.resource_uid != person)
+        .map(|assignment| assignment.uid)
+        .collect();
+    let kept = project
+        .assignments
+        .iter()
+        .any(|assignment| assignment.task_uid == uid && assignment.resource_uid == person);
+    // The others go first, so a new person takes over the task's work.
+    for assignment in others {
+        apply_one(project, &Command::RemoveAssignment { uid: assignment })?;
+    }
+    if !kept {
+        work::add_assignment(project, uid, person, 1.0);
+    }
+    Ok(())
+}
+
 fn update_task(
     project: &mut Project,
     state: &mut State,
@@ -647,16 +671,7 @@ fn update_task(
                 .map(|assignment| assignment.resource_uid)
                 .collect();
             if current != [person] {
-                let old: Vec<u32> = project
-                    .assignments
-                    .iter()
-                    .filter(|assignment| assignment.task_uid == uid)
-                    .map(|assignment| assignment.uid)
-                    .collect();
-                for assignment in old {
-                    apply_one(project, &Command::RemoveAssignment { uid: assignment })?;
-                }
-                work::add_assignment(project, uid, person, 1.0);
+                assign_only(project, uid, person)?;
                 changed.push(PullField::Assignee);
             }
         }
@@ -811,16 +826,7 @@ fn apply_field(
         }
         SyncField::Assignee => {
             if let Some(person) = checked.assignee {
-                let old: Vec<u32> = project
-                    .assignments
-                    .iter()
-                    .filter(|assignment| assignment.task_uid == uid)
-                    .map(|assignment| assignment.uid)
-                    .collect();
-                for assignment in old {
-                    apply_one(project, &Command::RemoveAssignment { uid: assignment })?;
-                }
-                work::add_assignment(project, uid, person, 1.0);
+                assign_only(project, uid, person)?;
             }
         }
         SyncField::Field(id) => {

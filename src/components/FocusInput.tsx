@@ -16,11 +16,16 @@ interface Props {
   allowEmpty?: boolean;
   /**
    * Without Sheafly Pro the field shows the factor and only takes it back to the default
-   * (empty, or 100%), which the backend also allows; anything else is marked `lockedTitle`.
+   * (empty where `allowEmpty`, else 100%), which the backend also allows; anything else is
+   * marked `lockedTitle`.
    */
   locked?: boolean;
   lockedTitle?: string;
-  onCommit: (factor: number | null) => void;
+  /**
+   * Sends the factor. A promise that resolves to nothing means the backend refused it, and
+   * the field shows the factor it had again.
+   */
+  onCommit: (factor: number | null) => unknown;
 }
 
 /**
@@ -55,9 +60,19 @@ export function FocusInput({
       onChange={() => setBad(null)}
       onBlur={(event) => {
         const text = event.target.value.trim();
+        const input = event.target;
+        const commit = (factor: number | null) => {
+          const sent = onCommit(factor);
+          if (sent instanceof Promise) {
+            void sent.then((done) => {
+              // An accepted factor remounts the field with the engine's value.
+              if (!done) input.value = shown;
+            });
+          }
+        };
         if (text === "") {
-          if (allowEmpty && value != null) onCommit(null);
-          else event.target.value = shown;
+          if (allowEmpty && value != null) commit(null);
+          else input.value = shown;
           return;
         }
         const factor = parseFocus(text);
@@ -65,12 +80,13 @@ export function FocusInput({
           setBad(badTitle);
           return;
         }
-        if (locked && factor !== 1) {
+        // A resource's own factor is Pro at any value; only clearing it is free.
+        if (locked && (allowEmpty || factor !== 1)) {
           setBad(lockedTitle ?? badTitle);
           return;
         }
-        event.target.value = formatFocus(factor);
-        if (factor !== value) onCommit(factor);
+        input.value = formatFocus(factor);
+        if (factor !== value) commit(factor);
       }}
     />
   );

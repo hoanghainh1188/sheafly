@@ -306,3 +306,89 @@ fn the_load_of_every_resource_matches_asking_for_each_one() {
     assert_eq!(all[&1], project_baseline_load_by_day(&doc.project, 0));
     assert!(baseline_load_by_resource(&doc.project, 1).is_empty());
 }
+
+#[test]
+fn regenerating_a_series_keeps_the_baseline_load_of_its_occurrences() {
+    use sheafly_engine::recurrence::{
+        RecurrenceEnd, RecurrencePattern, RecurrenceSpec, SeriesResource,
+    };
+    let mut doc = Document::new_default();
+    doc.apply(Command::AddResource {
+        name: "An".into(),
+        kind: ResourceKind::Person,
+    })
+    .unwrap();
+    let spec = RecurrenceSpec {
+        name: "Họp".into(),
+        duration: 120,
+        start: doc.project.start,
+        pattern: RecurrencePattern::Daily { every: 1 },
+        end: RecurrenceEnd::Count { count: 3 },
+        calendar_id: None,
+        resource_uids: Vec::new(),
+        resources: vec![SeriesResource { uid: 1, units: 1.0 }],
+        background: false,
+    };
+    doc.apply(Command::CreateRecurringTask {
+        after_uid: None,
+        spec: spec.clone(),
+    })
+    .unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    let total = |doc: &Document| -> i64 {
+        resource_baseline_load_by_day(&doc.project, 1, 0).values().sum()
+    };
+    assert_eq!(total(&doc), 360);
+
+    let summary = doc
+        .project
+        .tasks
+        .iter()
+        .find(|task| task.recurrence.is_some())
+        .unwrap()
+        .uid;
+    doc.apply(Command::UpdateRecurringTask {
+        uid: summary,
+        spec: RecurrenceSpec {
+            name: "Họp tuần".into(),
+            ..spec
+        },
+    })
+    .unwrap();
+    assert_eq!(total(&doc), 360);
+    assert!(doc
+        .project
+        .assignments
+        .iter()
+        .all(|assignment| assignment.baselines.len() == 1));
+}
+
+#[test]
+fn mspdi_round_trip_keeps_the_days_of_a_split_baseline() {
+    let mut doc = one_person_on_one_task(960);
+    let cal = doc.project.task_calendar(&doc.project.tasks[0]);
+    let split_at = cal.add_working(doc.project.tasks[0].start, 240);
+    doc.apply(Command::SplitTask {
+        uid: 1,
+        at: split_at,
+        gap: 480,
+    })
+    .unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    doc.apply(Command::SetBaseline { number: 3 }).unwrap();
+    let before = baseline_load_by_resource(&doc.project, 0);
+
+    let xml = write_mspdi(&doc.project).unwrap();
+    let imported = read_mspdi(&xml).unwrap();
+    let task = imported.task(1).unwrap();
+    for number in [0, 3] {
+        let baseline = task.baselines.iter().find(|b| b.number == number).unwrap();
+        let original = doc.project.tasks[0]
+            .baselines
+            .iter()
+            .find(|b| b.number == number)
+            .unwrap();
+        assert_eq!(baseline.segments, original.segments, "baseline {number}");
+    }
+    assert_eq!(baseline_load_by_resource(&imported, 0), before);
+}
