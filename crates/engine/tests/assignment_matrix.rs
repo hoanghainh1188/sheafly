@@ -285,3 +285,92 @@ fn multi_level_summary_rollups_are_correct() {
     assert_eq!(matrix.total_work, 480);
     assert_eq!(matrix.columns[0].total_work, 480);
 }
+
+#[test]
+fn summary_own_assignment_counts_in_row_and_totals() {
+    let mut doc = Document::new_default();
+    doc.apply(Command::AddResource {
+        name: "An".into(),
+        kind: ResourceKind::Person,
+    })
+    .unwrap();
+    let an_uid = doc.project.resources.last().unwrap().uid;
+
+    // Parent is assigned first, then a child is indented under it: the parent becomes a
+    // summary that keeps its own assignment.
+    doc.apply(Command::AddTask {
+        name: "Parent".into(),
+        after_uid: None,
+    })
+    .unwrap();
+    let parent_uid = doc.project.tasks.last().unwrap().uid;
+    doc.apply(Command::AssignResource {
+        task_uid: parent_uid,
+        resource_uid: an_uid,
+        units: 1.0,
+    })
+    .unwrap();
+    doc.apply(Command::AddTask {
+        name: "Child".into(),
+        after_uid: Some(parent_uid),
+    })
+    .unwrap();
+    let child_uid = doc.project.tasks.last().unwrap().uid;
+    doc.apply(Command::Indent { uid: child_uid }).unwrap();
+    doc.apply(Command::AssignResource {
+        task_uid: child_uid,
+        resource_uid: an_uid,
+        units: 1.0,
+    })
+    .unwrap();
+
+    let own = doc
+        .project
+        .assignments
+        .iter()
+        .find(|a| a.task_uid == parent_uid)
+        .expect("the summary keeps its assignment")
+        .clone();
+    let child = doc
+        .project
+        .assignments
+        .iter()
+        .find(|a| a.task_uid == child_uid)
+        .unwrap()
+        .clone();
+    assert!(own.work > 0);
+    let all = own.work + child.work;
+
+    for group in [false, true] {
+        let matrix = assignment_matrix(&doc.project, group);
+        let row = matrix
+            .rows
+            .iter()
+            .find(|r| r.task_uid == parent_uid)
+            .unwrap();
+        assert!(row.summary);
+        let cell = row.cells[0].as_ref().unwrap();
+        assert_eq!(cell.work, all, "group = {group}");
+        assert_eq!(row.role_cells[0].as_ref().unwrap().work, all);
+        assert_eq!(row.total_work, all);
+        if group {
+            assert_eq!(cell.assignment_uid, None);
+        } else {
+            assert_eq!(cell.assignment_uid, Some(own.uid));
+        }
+        assert_eq!(matrix.columns[0].total_work, all);
+        assert_eq!(matrix.roles[0].total_work, all);
+        assert_eq!(matrix.total_work, all);
+    }
+
+    // A summary without its own assignment carries no uid.
+    doc.apply(Command::RemoveAssignment { uid: own.uid }).unwrap();
+    let matrix = assignment_matrix(&doc.project, false);
+    let row = matrix
+        .rows
+        .iter()
+        .find(|r| r.task_uid == parent_uid)
+        .unwrap();
+    assert_eq!(row.cells[0].as_ref().unwrap().assignment_uid, None);
+    assert_eq!(matrix.total_work, child.work);
+}

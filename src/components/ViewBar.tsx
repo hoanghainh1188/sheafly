@@ -2,7 +2,7 @@ import { ChartColumnIncreasing, ChartGantt, ChartLine, Grid2x2, Grid3x3, ListChe
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
 import { distinctValues, formatFieldValue, valueKey } from "../fieldValues";
-import { getLang, useMessages } from "../i18n";
+import { useMessages } from "../i18n";
 import { lastFinish, type SpanEnd } from "../spanFit";
 import type { Project, Scale, ViewId } from "../types";
 import { fieldMode, fieldOfMode, type FilterMode, type GroupMode, type HighlightMode } from "../viewRows";
@@ -226,7 +226,7 @@ export function ViewBar(props: Props) {
                   aria-pressed={!props.matrixGroup}
                   onClick={() => props.onMatrixGroup?.(false)}
                 >
-                  {getLang() === "en" ? "Person × Task" : "Người × việc"}
+                  {m.matrixByPerson}
                 </button>
                 <button
                   type="button"
@@ -234,7 +234,7 @@ export function ViewBar(props: Props) {
                   aria-pressed={props.matrixGroup}
                   onClick={() => props.onMatrixGroup?.(true)}
                 >
-                  {getLang() === "en" ? "Role × Task (RACI)" : "Vai trò × việc"}
+                  {m.matrixByRole}
                 </button>
               </div>
             )

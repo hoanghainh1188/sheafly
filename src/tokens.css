@@ -109,6 +109,9 @@
   --pro-badge-border: #cfc2f2;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
+  --matrix-rule: #985800;
+  --matrix-rule-bg: #fdf1de;
+  --matrix-assigned-bg: #f0f6fe;
 }
 
 :root[data-theme="dark"] {
@@ -195,4 +198,7 @@
   --pro-badge-border: #4a3c78;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
+  --matrix-rule: #f2b660;
+  --matrix-rule-bg: #37290f;
+  --matrix-assigned-bg: #1c2633;
 }
