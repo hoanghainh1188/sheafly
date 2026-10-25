@@ -1122,10 +1122,15 @@ fn about_metadata(app: &tauri::AppHandle, text: &i18n::Text) -> AboutMetadata<'s
     // macOS shows `short_version` as the version and `version` as a build number in
     // parentheses, so set only one; Windows and Linux show `version`.
     let licensed = app.try_state::<AppState>().and_then(|state| state.license.active());
-    let about = match licensed {
+    let mut about = match licensed {
         Some(license) => format!("{}\n\n{}", i18n::licensed_to(text, license.plan, &license.name), text.about_text),
         None => text.about_text.to_string(),
     };
+    // A release build has the closed-source Pro crate in place of the MIT stub (plan part 20G).
+    let pro = sheafly_pro::available();
+    if pro {
+        about = format!("{about}\n\n{}", text.about_pro);
+    }
     let (version, short_version) = if cfg!(target_os = "macos") {
         (None, Some(version))
     } else {
@@ -1137,8 +1142,8 @@ fn about_metadata(app: &tauri::AppHandle, text: &i18n::Text) -> AboutMetadata<'s
         short_version,
         comments: Some(about.clone()),
         credits: Some(about),
-        copyright: Some(text.copyright.into()),
-        license: Some("MIT".into()),
+        copyright: Some(if pro { text.copyright_pro } else { text.copyright }.into()),
+        license: Some(if pro { "MIT; Sheafly Pro modules: proprietary" } else { "MIT" }.into()),
         ..Default::default()
     }
 }
