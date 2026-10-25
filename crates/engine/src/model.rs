@@ -93,6 +93,20 @@ pub struct Baseline {
     /// Segments of a split task when the baseline was set; empty when it was not split.
     #[serde(default)]
     pub segments: Vec<Segment>,
+    /// The fixed-cost part of `cost` when the baseline was set; `None` in baselines saved
+    /// before it was kept (engine revision 8) and from MSPDI, where readers take the task's
+    /// current fixed cost, at most `cost` (`Baseline::fixed_part`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fixed_cost: Option<f64>,
+}
+
+impl Baseline {
+    /// The fixed-cost part of the baseline cost, which follows the task's accrual; the rest
+    /// is labour, spent in step with the work.
+    pub fn fixed_part(&self, task: &Task) -> f64 {
+        let cost = self.cost.max(0.0);
+        self.fixed_cost.unwrap_or(task.fixed_cost).clamp(0.0, cost)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -364,6 +364,8 @@ fn set_baseline_zero(task: &mut Task, cost: f64) {
         work: task.work,
         cost,
         segments: Vec::new(),
+        // These tests price the task by the accrual alone: all of it is fixed cost.
+        fixed_cost: Some(cost),
     });
 }
 
@@ -411,18 +413,22 @@ fn actual_cost_is_cut_at_the_status_date() {
     close(m.cpi.unwrap(), 2.0);
     close(doc.burndown.last().unwrap().ac, 50.0);
 
-    // Accrual at end: nothing is incurred before the actual finish.
+    // Accrual at end: the fixed cost is incurred at the actual finish; labour as it works.
     doc.apply(Command::SetFixedCost { uid: 1, cost: 40.0, accrual: Accrual::End }).unwrap();
     doc.apply(Command::SetPercentComplete { uid: 1, percent: 100.0 }).unwrap();
     assert_eq!(doc.project.task(1).unwrap().actual_finish, Some(at(1, 17, 0)));
-    close(evm_at(&doc.project, at(1, 12, 0)).ac, 0.0);
+    close(evm_at(&doc.project, at(1, 12, 0)).ac, 120.0); // 720 / 960 × 160 labour
     close(evm_at(&doc.project, at(1, 17, 0)).ac, 200.0);
 
-    // Accrual at start: all of it from the actual start on.
+    // Accrual at start: the fixed cost from the actual start on, labour as it works.
     doc.apply(Command::SetFixedCost { uid: 1, cost: 40.0, accrual: Accrual::Start }).unwrap();
     doc.apply(Command::SetActualStart { uid: 1, start: Some(at(0, 13, 0)) }).unwrap();
     close(evm_at(&doc.project, at(0, 12, 0)).ac, 0.0);
-    close(evm_at(&doc.project, at(0, 13, 0)).ac, 200.0);
+    close(evm_at(&doc.project, at(0, 13, 0)).ac, 40.0);
+    // Starting at 13:00 the work runs to Wednesday noon: by Tuesday 17:00 720 of 960 minutes.
+    close(evm_at(&doc.project, at(1, 17, 0)).ac, 160.0);
+    let finish = doc.project.task(1).unwrap().finish;
+    close(evm_at(&doc.project, finish).ac, 200.0);
 }
 
 fn point(date: i64, pv: f64, progress: Option<(f64, f64)>) -> SCurvePoint {

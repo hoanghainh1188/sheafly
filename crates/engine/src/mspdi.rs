@@ -240,6 +240,7 @@ pub fn read_mspdi_with_report(xml: &str) -> Result<(Project, ImportReport), Engi
                             work: 0,
                             cost: 0.0,
                             segments: Vec::new(),
+                            fixed_cost: None,
                         })
                     }
                     Some("Resource") => resource = Some(ResourceBuilder::default()),

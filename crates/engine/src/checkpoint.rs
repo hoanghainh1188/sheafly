@@ -25,7 +25,10 @@ use crate::model::Project;
 /// same commands, so it must be replayed instead of reused.
 /// Revision 8: an assignment baseline also keeps the assignment's cost (S-curves by person,
 /// role or skill); a checkpoint from revision 7 holds none.
-pub const ENGINE_REVISION: u32 = 8;
+/// Revision 9: a task's accrual applies to its fixed cost only, so a started task accruing at
+/// start or end now has labour actual cost in step with its progress; a baseline also keeps
+/// its fixed-cost part (`Baseline.fixed_cost`).
+pub const ENGINE_REVISION: u32 = 9;
 
 /// A new checkpoint every this many commands while editing or replaying.
 pub const INTERVAL: usize = 25;

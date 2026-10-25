@@ -1037,6 +1037,7 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
                     work: task.work,
                     cost: task.cost,
                     segments: task.segments.clone(),
+                    fixed_cost: Some(task.fixed_cost),
                 });
             }
             for assignment in &mut project.assignments {

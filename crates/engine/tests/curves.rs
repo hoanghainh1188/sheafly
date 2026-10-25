@@ -404,3 +404,91 @@ fn a_baseline_without_assignment_baselines_is_read_from_the_task() {
     let cost = curves(&project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Person { uid: alice }, Some(0)).unwrap();
     assert!(close(cost.total_baseline.unwrap(), 290.0), "{:?}", cost.total_baseline);
 }
+
+/// One person at 10/h on a four-day task (320 labour) with 200 fixed cost accruing at
+/// `accrual`, baselined, half done on Wednesday noon (the status date).
+fn labour_and_fixed(accrual: Accrual) -> Document {
+    let mut doc = setup_base_document();
+    doc.apply(Command::AddResource { name: "An".into(), kind: ResourceKind::Person }).unwrap();
+    let person = doc.project.resources[0].uid;
+    doc.apply(Command::UpdateResource {
+        uid: person,
+        name: "An".into(),
+        kind: ResourceKind::Person,
+        max_units: 1.0,
+        calendar_id: None,
+        standard_rate: 10.0,
+        overtime_rate: 0.0,
+        cost_per_use: 0.0,
+    })
+    .unwrap();
+    doc.apply(Command::AddTask { name: "Lắp đặt".into(), after_uid: None }).unwrap();
+    let task = doc.project.tasks[0].uid;
+    doc.apply(Command::SetDuration { uid: task, minutes: 4 * DAY }).unwrap();
+    doc.apply(Command::AssignResource { task_uid: task, resource_uid: person, units: 1.0 }).unwrap();
+    doc.apply(Command::SetFixedCost { uid: task, cost: 200.0, accrual }).unwrap();
+    doc.apply(Command::SetBaseline { number: 0 }).unwrap();
+    doc.apply(Command::SetStatusDate { date: Some(at(2, 12, 0)) }).unwrap();
+    doc.apply(Command::SetPercentComplete { uid: task, percent: 50.0 }).unwrap();
+    doc
+}
+
+#[test]
+fn accrual_moves_only_the_fixed_cost() {
+    // End: labour is spent day by day (80 a day), the 200 fixed on the last day.
+    let doc = labour_and_fixed(Accrual::End);
+    let task = &doc.project.tasks[0];
+    assert!(close(task.cost, 520.0));
+    assert_eq!(task.baselines[0].fixed_cost, Some(200.0));
+    // Half done: half the labour is spent, the fixed cost not yet.
+    assert!(close(task.actual_cost, 160.0), "{}", task.actual_cost);
+    let rep = curves(&doc.project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Project, Some(0)).unwrap();
+    let scheduled: Vec<f64> = rep.points.iter().map(|p| p.scheduled_period).collect();
+    let baseline: Vec<f64> = rep.points.iter().map(|p| p.baseline_period.unwrap()).collect();
+    for periods in [&scheduled, &baseline] {
+        assert!(periods.iter().zip([80.0, 80.0, 80.0, 280.0]).all(|(a, b)| close(*a, b)), "{periods:?}");
+    }
+    assert!(close(rep.total_actual.unwrap(), 160.0));
+
+    // Start: the fixed cost lands on the first day, planned and actual; labour as before.
+    let doc = labour_and_fixed(Accrual::Start);
+    assert!(close(doc.project.tasks[0].actual_cost, 360.0));
+    let rep = curves(&doc.project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Project, Some(0)).unwrap();
+    let first = &rep.points[0];
+    assert!(close(first.scheduled_period, 280.0) && close(first.baseline_period.unwrap(), 280.0));
+    assert!(close(first.actual_period.unwrap(), 280.0), "{:?}", first.actual_period);
+    assert!(close(rep.total_actual.unwrap(), 360.0));
+}
+
+#[test]
+fn evm_splits_fixed_cost_from_labour_and_matches_the_curve() {
+    let doc = labour_and_fixed(Accrual::End);
+    // Tuesday 17:00: two of four baseline days. Labour 160 is planned, the fixed cost not yet.
+    assert!(close(evm::evm_at(&doc.project, at(1, 17, 0)).pv, 160.0));
+    assert!(close(evm::evm_at(&doc.project, at(3, 17, 0)).pv, 520.0));
+    // Wednesday 12:00 (status): AC is the labour done, 160; nothing fixed until the finish.
+    let m = doc.metrics().evm.metrics.unwrap();
+    assert!(close(m.ac, 160.0), "{}", m.ac);
+    assert!(close(m.pv, 200.0), "{}", m.pv); // 2.5 of 4 days of labour
+    // The S-curve's cumulative PV and AC reach the same numbers on the status day.
+    let rep = curves(&doc.project, CurveMeasure::Cost, Bucket::Day, CurveFilter::Project, Some(0)).unwrap();
+    let wed = rep.points.iter().find(|p| p.label == "2026-03-04").unwrap();
+    assert!(close(wed.actual_cumulative.unwrap(), m.ac));
+    assert!(close(wed.baseline_cumulative.unwrap(), 240.0)); // whole Wednesday planned
+}
+
+#[test]
+fn a_baseline_saved_before_its_fixed_part_was_kept_uses_the_task_fixed_cost() {
+    let doc = labour_and_fixed(Accrual::End);
+    let mut project = doc.project.clone();
+    project.tasks[0].baselines[0].fixed_cost = None;
+    assert!(close(project.tasks[0].baselines[0].fixed_part(&project.tasks[0]), 200.0));
+    assert!(close(evm::evm_at(&project, at(1, 17, 0)).pv, 160.0));
+    // Older files have no such field at all.
+    let json = r#"{"number":0,"start":0,"finish":0,"work":0,"cost":50.0}"#;
+    let old: sheafly_engine::model::Baseline = serde_json::from_str(json).unwrap();
+    assert_eq!(old.fixed_cost, None);
+    // A fixed cost raised above the old baseline cost is capped by it.
+    project.tasks[0].fixed_cost = 9_999.0;
+    assert!(close(project.tasks[0].baselines[0].fixed_part(&project.tasks[0]), 520.0));
+}

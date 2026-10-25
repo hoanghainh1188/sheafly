@@ -54,6 +54,8 @@ export interface Baseline {
   cost: number;
   /** Segments of a split task when the baseline was set; empty otherwise. */
   segments: Segment[];
+  /** Fixed-cost part of `cost`; absent in baselines saved before it was kept. */
+  fixed_cost?: number;
 }
 
 /** Interruption of a task's work; both values are working minutes. */
