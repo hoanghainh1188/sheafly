@@ -906,26 +906,39 @@ Thứ tự: 1 → 2 → 3; 4 trước 5 và 6; 20D (gate chung) trước 5 và 6
 
 **Lộ trình PRs:**
 - **PR 1 (A) — `feat/ai-project-summary`:**
-  - Engine đọc `project_summary`: tổng hợp dữ liệu súc tích (đường găng, mốc trễ, phân bổ độ chùng, năng lực nguồn lực, các kỳ quá tải từ `load_map`, quy tắc giao việc, vi phạm span). Đảm bảo 5.000 việc vẫn gọn trong context window.
+  - Engine đọc `project_summary(mask)`: tổng hợp dữ liệu súc tích (đường găng, mốc trễ, phân bổ độ chùng, năng lực nguồn lực, các kỳ quá tải từ `load_map`, kỹ năng và quy tắc giao việc, vi phạm span). Việc và người luôn tham chiếu bằng UID (`T42`, `R7`); `mask` thay tên (xem D3). Đảm bảo 5.000 việc vẫn gọn trong context window (cắt theo thứ tự ưu tiên, xem D7).
   - Test engine và bench đọc summary trên 5.000 việc < 100 ms.
 - **PR 2 (B) — `feat/ai-provider-keyring`:**
-  - Thêm `Feature::Ai` ("ai") vào `crates/license`.
-  - Client gọi Claude Messages API ở tầng Tauri (`src-tauri`).
+  - Thêm `Feature::Ai` ("ai") vào `crates/license` (`Feature::ALL`).
+  - Client gọi Claude Messages API ở tầng Tauri (`src-tauri`), sau trait `AiApi` (D7).
   - Quản lý API key qua `keyring` (như thông tin đăng nhập tracker ở #99).
-  - Cài đặt bật/tắt, hộp thoại chính sách dữ liệu trước lượt gọi đầu tiên, tùy chọn ẩn danh tên việc/người (masking).
+  - Cài đặt bật/tắt, chọn model, hộp thoại chính sách dữ liệu trước lượt gọi đầu tiên, tùy chọn ẩn danh tên việc/người (masking) (D8).
 - **PR 3 (C) — `feat/ai-panel-risks`:**
   - Panel Recommendations bên cạnh biểu đồ Gantt (`RecommendationsPanel.tsx`).
+  - Tool đọc `task_detail`, `resource_load`, `critical_chain` (D4).
   - Kind 1 (Giải thích rủi ro, read-only): thẻ vấn đề, giải thích lý do, tác động chuỗi găng / mốc trễ.
-  - Hỗ trợ song ngữ vi/en, huy hiệu `ProBadge` cho bản Free.
+  - Hỗ trợ song ngữ vi/en; `ProBadge` trên mọi bản build như các tính năng Pro khác, bản Free thấy phần giới thiệu và nút kích hoạt (D9).
 - **PR 4 (D) — `feat/ai-propose-verify`:**
-  - Schema tool `propose(commands, reason)`.
-  - Engine chạy thử nghiệm trên bản sao dự án và tính toán `PlanOutcome`.
+  - `Command::ApplyProposal` và danh sách lệnh được phép (D1, D2); `FORMAT_VERSION` tăng.
+  - Schema tool `propose(goal, commands, reason)`.
+  - Engine chạy thử nghiệm trên bản sao dự án, tính `PlanOutcome` và nhãn kết quả (D5); áp dụng kiểm tra dự án chưa đổi (D6).
   - Giao diện xem trước tác động, nút "Áp dụng" (1 bước Undo) và "Bỏ qua".
   - Kind 2: Xử lý quá tải và trễ deadline.
 - **PR 5 (E) — `feat/ai-wbs-reports`:**
-  - Kind 3: Rà soát ước lượng bất thường, việc cô lập, deadline bất khả thi.
-  - Kind 4: Dựng WBS từ văn bản mô tả qua `ImportRows`.
-  - Kind 5: Tạo báo cáo tổng kết tình trạng dự án cho các bên liên quan dựa trên EVM và độ chùng.
+  - Kind 3: Rà soát ước lượng bất thường, việc cô lập, deadline bất khả thi; dùng độ găng của dự báo (#97, đã có).
+  - Kind 4: Dựng WBS từ văn bản mô tả qua `ImportRows`, luồng riêng như hộp thoại nhập bảng (`check_import`, xem trước), không qua `propose`.
+  - Kind 5: Tạo báo cáo tổng kết tình trạng dự án cho các bên liên quan dựa trên EVM, độ chùng và P50/P80 của dự báo.
+
+**Quyết định đã chốt (25/10/2026, trước PR 1):**
+- **D1 — Lệnh gộp `ApplyProposal`.** Chưa có `Command` nào gộp danh sách lệnh tùy ý thành một bước undo (`Document::apply` nhận đúng một lệnh; `ApplyPlan` chỉ chứa giao việc và kết quả cân bằng). Thêm `Command::ApplyProposal { commands: Vec<Command> }`: `apply_one` chạy lần lượt trên cùng bản sao, một lệnh lỗi thì cả đề xuất lỗi và dự án không đổi (như `FillDown`); không lồng `ApplyProposal`. `LevelResources` không được nằm trong danh sách, vì `Document::apply` chỉ đổi nó thành `ApplyLeveling` ở tầng ngoài cùng, và replay sẽ chạy lại heuristic; khi AI muốn cân bằng lại, tầng Tauri chạy cân bằng lúc chạy thử và đưa `ApplyLeveling` vào đề xuất, như `preview_plan`. Log chỉ chứa các lệnh, không có prompt, lý do hay model. Tăng `FORMAT_VERSION`, cập nhật `types.ts` và `fakeBackend`.
+- **D2 — Lệnh được phép.** Kiểm tra hai lần: Tauri khi đọc tool call, và engine khi chạy `ApplyProposal` (`allowed_in_proposal`), nên tệp sửa tay cũng không lách được. Được phép: `AssignResource`, `UpdateAssignment`, `RemoveAssignment`, `SetWork`, `SetDuration`, `SetTaskType`, `SetPriority`, `AddDependency`, `RemoveDependency`, `SetPredecessors`, `SetConstraint`, `SetDeadline`, `SplitTask`, `SetInterrupts`, `SetLevelingDelay`, `ApplyLeveling`, `SetWorkRange`. Cấm mọi lệnh khác, cụ thể: lệnh tracker (`SetSource`, `ApplyPull`, `RecordPush`, `SetResourceEmail`), lệnh xóa (`DeleteTask`, `DeleteResource`, `DeleteField`, `DeleteSkill`), tiến độ thực tế (`SetActual*`, `SetPercentComplete`, `SetRemaining*`), baseline, lịch, thiết lập dự án (`Rename*`, `SetProjectStart`, `SetStatusDate`, `SetFocusFactor`…), `PasteTasks`, `FillDown`, `ApplyPlan`, `LevelResources`. `AddTask`/`AddMilestone` cũng cấm: chúng không mang UID nên lệnh sau không nhắc tới được việc vừa tạo; tạo việc là kind 4 (`ImportRows`, luồng riêng). `pro_feature` trong `src-tauri/src/lib.rs` phải duyệt cả các lệnh bên trong `ApplyProposal`, để lệnh gộp không thành đường lách gate.
+- **D3 — Che tên theo UID, làm ở PR 1.** Summary và tool luôn tham chiếu bằng UID; tên là trường đi kèm. Khi `mask` bật, engine thay tên việc/người bằng `Task 42`/`Person 7` và che cả tên trường tùy chỉnh, giá trị chữ, ghi chú (có thể chứa tên khách hàng). AI trả lệnh theo UID nên không cần ánh xạ ngược; giao diện thay `T42` bằng tên thật khi hiện lý do.
+- **D4 — Tool đọc (PR 3).** `task_detail(uid)` (trước/sau, người, độ chùng, ràng buộc), `resource_load(uid, from, to)` (từ `load_map`, theo tuần), `critical_chain(uid)`. Chỉ đọc, theo cờ `mask`; tối đa 8 vòng tool mỗi lượt hỏi.
+- **D5 — Thế nào là tệ hơn.** So trước/sau chạy thử theo bốn chỉ số của `PlanOutcome`: ngày kết thúc dự án, số deadline trễ, tổng giờ quá tải, số việc găng. Đề xuất khai báo `goal` (`deadline:T42`, `overallocation:R7`, `finish`). Nhãn: *cải thiện* (chỉ số mục tiêu tốt lên, không chỉ số nào xấu quá ngưỡng, ví dụ kết thúc dời ≤ 1 ngày làm việc); *đánh đổi* (có tốt có xấu, hiện kèm cảnh báo); *tệ hơn hoặc không đổi* (vào mục "Đã loại" kèm lý do, không có nút Áp dụng); *engine từ chối* (hiện `EngineError::message(lang)`, có thể gửi lỗi lại cho AI sửa một lần).
+- **D6 — Chạy thử cũ.** Như `plan_base`: `ai_trial` giữ `(project, proposal, outcome)`, `ai_apply` từ chối (`Stale`) khi dự án khác lúc chạy thử (so cả dự án như `apply_plan`); giao diện chạy thử lại khi dự án đổi (như `AssignPreviewDialog`). Mỗi thẻ có kết quả chạy thử riêng.
+- **D7 — Mạng, chi phí, test.** Chỉ `https://api.anthropic.com`, không theo redirect, `x-api-key` từ `keyring` (service `com.hoanghainh.sheafly.ai`), key không về webview (như `HttpApi` của tracker). Timeout ~120 s, `AppState.ai_cancel` như `forecast_cancel` với nút Dừng. Giới hạn `max_tokens` mỗi trả lời; summary quá ngưỡng ký tự thì cắt, giữ trước việc găng, việc gần deadline, các kỳ quá tải, và giao diện báo "summary đã rút gọn"; mỗi lượt hiện số token đã dùng. Lỗi là tập `AiError` cố định có chữ vi/en (như `TrackerError`), không hiện nguyên văn lỗi từ mạng. Trait `AiApi { fn messages(&self, body: &Value) -> Result<Value, AiError> }`; fixture viết tay `src-tauri/fixtures/ai_*.json` (tool call đúng, lệnh bị cấm, JSON hỏng, sai kiểu); CI không gọi API thật. AI tắt thì không dựng `HttpApi` và không lệnh nào gọi mạng (có test).
+- **D8 — Cài đặt và model.** `settings.json`: `ai.enabled` (mặc định tắt), `ai.model`, `ai.mask` (mặc định tắt), `ai.notice_accepted`. Model mặc định `claude-opus-5-5` (mới nhất, theo issue), có `claude-sonnet-5-5` cho rẻ và nhanh hơn, và ô "Khác" để gõ ID. ID model không ghi vào tệp dự án.
+- **D9 — License và ProBadge.** Mọi lệnh Tauri `ai_*` gọi mạng kiểm tra `grants(Feature::Ai)` (lỗi `NeedsPro`); lưu/xóa key và `apply_command` (kể cả `ApplyProposal`) không bị chặn, nên tệp đã sửa vẫn mở, undo, redo và lưu trên Free. `ProBadge` hiện trên mọi bản build (như CLAUDE.md quy định), không chỉ bản chưa có license.
 
 ### Tiếng Anh (sau v1.0.0) — đã xong
 
