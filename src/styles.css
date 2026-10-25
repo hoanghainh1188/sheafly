@@ -909,12 +909,12 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .matrix-cell-id { text-align: center; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .matrix-cell-name { text-align: left; }
 .matrix-cell-unassigned { text-align: center; }
-.matrix-rule-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.matrix-rule-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--matrix-rule-bg); color: var(--matrix-rule); }
 .matrix-empty-rule { color: var(--text-muted); font-size: 11px; }
 .matrix-cell-value { text-align: center; min-width: 80px; }
 .matrix-cell-value.editable { cursor: pointer; }
 .matrix-cell-value.editable:hover { background: var(--surface-hover); }
-.matrix-cell-value.assigned { background: rgba(59, 130, 246, 0.05); }
+.matrix-cell-value.assigned { background: var(--matrix-assigned-bg); }
 .matrix-cell-content { display: flex; align-items: baseline; justify-content: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .matrix-units { font-weight: 600; color: var(--accent); }
 .matrix-work { font-size: 11px; color: var(--text-muted); }
@@ -923,9 +923,15 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .matrix-cell-value.editable:hover .matrix-blank { opacity: 1; color: var(--accent); }
 .matrix-cell-total { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 .matrix-edit-input { width: 70px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid var(--accent); border-radius: 3px; background: var(--surface); padding: 2px 4px; outline: none; }
+.matrix-cell-value:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.matrix-cell-value.summary { position: relative; }
+.matrix-remove-btn { margin-left: 4px; padding: 0 4px; font-size: 11px; line-height: 1.4; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text-secondary); cursor: pointer; }
+.matrix-remove-btn:hover { background: var(--tone-danger-bg); color: var(--tone-danger); }
+.matrix-edit-input[aria-invalid="true"] { border-color: var(--tone-danger); }
+.matrix-edit-error { display: block; font-size: 11px; color: var(--tone-danger); white-space: normal; max-width: 160px; }
 .matrix-foot-row { position: sticky; bottom: 0; background: var(--surface-sunken); font-weight: 600; border-top: 2px solid var(--border-strong); }
 .matrix-foot-label { text-align: right; padding-right: 12px; }
-.matrix-foot-unassigned { text-align: center; color: #d97706; }
+.matrix-foot-unassigned { text-align: center; color: var(--matrix-rule); }
 .matrix-foot-total { text-align: center; font-variant-numeric: tabular-nums; }
 .matrix-foot-grand-total { text-align: right; font-variant-numeric: tabular-nums; color: var(--accent); }
 .forecast-tab section .meta { margin: 0; }

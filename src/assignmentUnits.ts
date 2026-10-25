@@ -28,6 +28,16 @@ export function parseUnits(text: string): number | null {
   return Number.isFinite(units) && units >= 0 && units <= MAX_UNITS ? units : null;
 }
 
+const PERCENT = new RegExp(`^${DECIMAL}\\s*%$`);
+
+/** Like `parseUnits`, also reading a percentage ("50%" is 0.5). */
+export function parseUnitsOrPercent(text: string): number | null {
+  const percent = PERCENT.exec(text.trim());
+  if (!percent) return parseUnits(text);
+  const units = decimal(percent[1]) / 100;
+  return Number.isFinite(units) && units <= MAX_UNITS ? units : null;
+}
+
 /** Whether `text` is how `units` are shown, so leaving the field changes nothing. */
 export function showsUnits(text: string, units: number): boolean {
   return text.trim() === formatUnits(units);

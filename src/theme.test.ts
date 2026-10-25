@@ -48,6 +48,8 @@ const TEXT_PAIRS: [string, string[]][] = [
   ["--on-accent", ["--accent-strong"]],
   ["--tone-danger", ["--surface"]],
   ["--pro-badge", ["--pro-badge-bg"]],
+  ["--matrix-rule", ["--matrix-rule-bg", "--surface-sunken"]],
+  ["--text", ["--matrix-assigned-bg"]],
   ...["history", "create", "edit", "danger", "project", "report"].flatMap(
     (tone): [string, string[]][] => [
       [`--tone-${tone}`, [`--tone-${tone}-bg`]],
