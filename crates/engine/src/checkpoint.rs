@@ -28,7 +28,11 @@ use crate::model::Project;
 /// whose factor changed counts all of it; removing the last person or pasting reapplies the
 /// rates of the project it lands in; a pull keeps the assignment of an assignee who stays.
 /// Each can change derived fields or dates for the same commands.
-pub const ENGINE_REVISION: u32 = 8;
+/// Revision 9: an assignment baseline also keeps the assignment's cost (S-curves by person,
+/// role or skill) and a task baseline its fixed-cost part (`Baseline.fixed_cost`); a task's
+/// accrual applies to its fixed cost only, so a started task accruing at start or end now has
+/// labour actual cost in step with its progress.
+pub const ENGINE_REVISION: u32 = 9;
 
 /// A new checkpoint every this many commands while editing or replaying.
 pub const INTERVAL: usize = 25;

@@ -5,12 +5,13 @@
 //! current schedule. The UI renders these numbers and does not recompute them.
 //!
 //! The engine stores no timephased actuals, only actual start/finish, % complete and
-//! the actual cost phase 3 derives from them (labour at resource rates plus fixed cost,
-//! following the task accrual). Actuals are therefore phased by assuming recorded
-//! progress was made evenly in working time from the actual start up to the progress
-//! point: p % complete is reached after p % of the duration on the task calendar, or at
-//! the actual finish once the task is finished. Actual cost is spread over that window
-//! with the task accrual, the same way PV is spread over the baseline window.
+//! the actual cost phase 3 derives from them (labour at resource rates in step with the
+//! progress, plus fixed cost following the task accrual). Actuals are therefore phased by
+//! assuming recorded progress was made evenly in working time from the actual start up to
+//! the progress point: p % complete is reached after p % of the duration on the task
+//! calendar, or at the actual finish once the task is finished. Over that window labour is
+//! spread with the working time and the fixed cost with the task accrual, the same way PV
+//! spreads the baseline's two parts over the baseline window (`Baseline::fixed_part`).
 
 use chrono::Datelike;
 use serde::{Deserialize, Serialize};
@@ -169,11 +170,18 @@ fn accrued_fraction(calendar: &Calendar, accrual: Accrual, start: i64, finish: i
     }
 }
 
-/// Share of the baseline cost planned to be spent by `status`, following the task accrual.
-/// Prorated cost follows the baseline working time, so split gaps accrue nothing.
+/// Share of the baseline cost planned to be spent by `status`. The fixed-cost part follows
+/// the task accrual; labour, and prorated fixed cost, follow the baseline working time, so
+/// split gaps accrue nothing.
 pub fn planned_fraction(project: &Project, task: &Task, baseline: &Baseline, status: i64) -> f64 {
-    match task.fixed_cost_accrual {
-        Accrual::Prorated => worked_fraction(project, task, baseline, status),
+    let cost = baseline.cost.max(0.0);
+    let worked = worked_fraction(project, task, baseline, status);
+    if cost <= 0.0 {
+        return worked;
+    }
+    let fixed = baseline.fixed_part(task);
+    let fixed_fraction = match task.fixed_cost_accrual {
+        Accrual::Prorated => worked,
         accrual => accrued_fraction(
             project.task_calendar(task),
             accrual,
@@ -181,7 +189,8 @@ pub fn planned_fraction(project: &Project, task: &Task, baseline: &Baseline, sta
             baseline.finish,
             status,
         ),
-    }
+    };
+    (fixed * fixed_fraction + (cost - fixed) * worked) / cost
 }
 
 /// Working-time windows in which the recorded progress of `task` is assumed to have
@@ -260,7 +269,8 @@ fn accrued_over(calendar: &Calendar, accrual: Accrual, intervals: &[(i64, i64)],
 }
 
 /// Actual cost of `task` incurred by `at`: its current actual cost spread over the
-/// progress windows with the task accrual.
+/// progress windows, the labour part (its assignments' actual cost) in step with the
+/// working time and the rest, the fixed cost, with the task accrual.
 pub fn actual_cost_at(project: &Project, task: &Task, at: i64) -> f64 {
     // A hand-entered cost on a task with no progress is booked on the status date.
     let entered = task.manual_actual_cost.is_some()
@@ -276,7 +286,21 @@ pub fn actual_cost_at(project: &Project, task: &Task, at: i64) -> f64 {
         return 0.0;
     };
     let calendar = project.task_calendar(task);
-    task.actual_cost * accrued_over(calendar, task.fixed_cost_accrual, &intervals, at)
+    let (labour, fixed) = actual_parts(project, task);
+    labour * accrued_over(calendar, Accrual::Prorated, &intervals, at)
+        + fixed * accrued_over(calendar, task.fixed_cost_accrual, &intervals, at)
+}
+
+/// A leaf's actual cost as labour (its assignments' actual cost) and fixed cost (the rest).
+pub fn actual_parts(project: &Project, task: &Task) -> (f64, f64) {
+    let labour: f64 = project
+        .assignments
+        .iter()
+        .filter(|assignment| assignment.task_uid == task.uid)
+        .map(|assignment| assignment.actual_cost)
+        .sum();
+    let labour = labour.clamp(0.0, task.actual_cost.max(0.0));
+    (labour, task.actual_cost.max(0.0) - labour)
 }
 
 /// Earned value of `task` by `at` for the S-curve. Earning follows progress, not the

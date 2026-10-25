@@ -213,4 +213,45 @@ describe("CurvesView", () => {
       expect(screen.getByText("Total")).toBeDefined();
     });
   });
+
+  it("asks for the curves again when the project changes", async () => {
+    const view = renderView("vi");
+    await waitFor(() => expect(screen.getByText("Bảng chi tiết số liệu")).toBeDefined());
+    const before = fakeBackend.calls.filter((c) => c.cmd === "curves").length;
+
+    const edited = { ...project, tasks: project.tasks.map((t) => ({ ...t, name: `${t.name}!` })) };
+    view.rerender(
+      <I18nProvider lang="vi">
+        <CurvesView project={edited} />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(fakeBackend.calls.filter((c) => c.cmd === "curves").length).toBe(before + 1),
+    );
+    // The chart stays on screen while the new numbers come.
+    expect(screen.getByRole("img", { name: "Biểu đồ đường cong S và phân bổ theo kỳ" })).toBeDefined();
+  });
+
+  it("shows why the curves could not be computed", async () => {
+    fakeBackend.failNext("curves", "Khoảng thời gian quá dài");
+    render(
+      <I18nProvider lang="vi">
+        <CurvesView project={project} />
+      </I18nProvider>,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Không tính được đường cong: Khoảng thời gian quá dài");
+    expect(screen.queryByText("Không có dữ liệu cho cấu hình lọc này.")).toBeNull();
+  });
+
+  it("sends no baseline when the baseline is set to none", async () => {
+    renderView("vi");
+    await waitFor(() => expect(screen.getByText("Bảng chi tiết số liệu")).toBeDefined());
+    fireEvent.change(screen.getByLabelText("Baseline:"), { target: { value: "" } });
+    await waitFor(() => {
+      const calls = fakeBackend.calls.filter((c) => c.cmd === "curves");
+      expect(calls[calls.length - 1].args?.baseline).toBeUndefined();
+    });
+  });
 });

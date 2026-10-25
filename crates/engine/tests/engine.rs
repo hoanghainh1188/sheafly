@@ -474,13 +474,16 @@ fn tracking_baseline_and_cost() {
     assert!((project.tasks[0].cost - 105.0).abs() < 0.01);
     assert!((project.tasks[0].actual_cost - 52.5).abs() < 0.01);
 
+    // The accrual is the fixed cost's only: labour (85) is half spent at 50 % whatever the
+    // accrual, and the 20 fixed is spent once started (start) or once finished (end).
     project.tasks[0].fixed_cost_accrual = Accrual::Start;
     schedule(&mut project).unwrap();
-    assert!((project.tasks[0].actual_cost - 105.0).abs() < 0.01);
+    assert!((project.tasks[0].actual_cost - 62.5).abs() < 0.01);
     project.tasks[0].fixed_cost_accrual = Accrual::End;
     project.tasks[0].percent_complete = 50.0;
     schedule(&mut project).unwrap();
-    assert!(project.tasks[0].actual_cost.abs() < 0.01);
+    assert!((project.tasks[0].actual_cost - 42.5).abs() < 0.01);
+    assert!((project.assignments[0].actual_cost - 42.5).abs() < 0.01);
 
     project.tasks[0].percent_complete = 100.0;
     schedule(&mut project).unwrap();
@@ -496,6 +499,9 @@ fn tracking_baseline_and_cost() {
         .unwrap();
     assert_eq!(saved.start, start);
     assert_eq!(saved.finish, finish);
+    // The baseline keeps its fixed-cost part beside the total.
+    assert_eq!(saved.fixed_cost, Some(20.0));
+    assert!((saved.cost - 105.0).abs() < 0.01);
     assert!(doc.project.tasks[0].baselines.iter().any(|b| b.number == 10));
 }
 
@@ -578,6 +584,7 @@ fn mspdi_roundtrip_covers_phase_fields() {
             work: task.work,
             cost: task.cost,
             segments: Vec::new(),
+            fixed_cost: None,
         }
     };
     project.tasks[0].baselines.push(baseline);
@@ -1015,6 +1022,7 @@ fn late_when_any_of_status_baseline_or_deadline_is_missed() {
         work: 0,
         cost: 0.0,
         segments: Vec::new(),
+        fixed_cost: None,
     });
     assert!(!task.is_late(None, &cal), "only baseline 0 counts");
     task.baselines.push(sheafly_engine::model::Baseline {
@@ -1024,6 +1032,7 @@ fn late_when_any_of_status_baseline_or_deadline_is_missed() {
         work: 0,
         cost: 0.0,
         segments: Vec::new(),
+        fixed_cost: None,
     });
     assert!(
         !task.is_late(None, &cal),
@@ -1037,6 +1046,7 @@ fn late_when_any_of_status_baseline_or_deadline_is_missed() {
         work: 0,
         cost: 0.0,
         segments: Vec::new(),
+        fixed_cost: None,
     });
     assert!(task.is_late(None, &cal));
 
@@ -1082,6 +1092,7 @@ fn schedule_publishes_late_from_status_date_and_baseline() {
             work: 0,
             cost: 0.0,
             segments: Vec::new(),
+            fixed_cost: None,
         });
     schedule(&mut project).unwrap();
     assert!(!project.tasks[0].late);
@@ -1566,6 +1577,8 @@ fn set_baseline_zero(task: &mut Task, cost: f64) {
         work: task.work,
         cost,
         segments: Vec::new(),
+        // These tests price the task by the accrual alone: all of it is fixed cost.
+        fixed_cost: Some(cost),
     });
 }
 

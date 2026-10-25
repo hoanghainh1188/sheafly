@@ -11,8 +11,9 @@ use sheafly_engine::mspdi::{read_mspdi, write_mspdi};
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn engine_revision_is_at_least_the_one_that_added_assignment_baselines() {
-    // Checkpoints saved before revision 7 hold no assignment baselines, so they must not be reused.
-    assert!(ENGINE_REVISION >= 7);
+    // Checkpoints saved before revision 7 hold no assignment baselines, and before 8 none with
+    // a cost, so they must not be reused.
+    assert!(ENGINE_REVISION >= 8);
 }
 
 #[test]
@@ -213,6 +214,17 @@ fn mspdi_round_trip_preserves_assignment_baselines() {
         kind: ResourceKind::Person,
     })
     .unwrap();
+    doc.apply(Command::UpdateResource {
+        uid: 1,
+        name: "Chi".into(),
+        kind: ResourceKind::Person,
+        max_units: 1.0,
+        calendar_id: None,
+        standard_rate: 100.0,
+        overtime_rate: 0.0,
+        cost_per_use: 0.0,
+    })
+    .unwrap();
     doc.apply(Command::AddTask {
         name: "Triển khai".into(),
         after_uid: None,
@@ -246,6 +258,9 @@ fn mspdi_round_trip_preserves_assignment_baselines() {
     assert_eq!(imported.assignments[0].baselines.len(), 1);
     assert_eq!(imported.assignments[0].baselines[0].number, 0);
     assert_eq!(imported.assignments[0].baselines[0].work, 480);
+    // The cost saved with the baseline (8 h at 100) crosses as the baseline's <Cost>.
+    assert_eq!(doc.project.assignments[0].baselines[0].cost, 800.0);
+    assert_eq!(imported.assignments[0].baselines[0].cost, 800.0);
 }
 
 fn one_person_on_one_task(minutes: i64) -> Document {

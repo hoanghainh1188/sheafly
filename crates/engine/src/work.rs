@@ -604,47 +604,17 @@ fn compute_costs(project: &mut Project, by_task: &HashMap<u32, Vec<usize>>) {
             .manual_actual_cost
             .filter(|_| editable)
             .map(|cost| cost.max(0.0));
-        let actual = match task.fixed_cost_accrual {
-            Accrual::Prorated => total * pct,
-            Accrual::Start => {
-                if pct > 0.0 {
-                    total
-                } else {
-                    0.0
-                }
-            }
-            Accrual::End => {
-                if pct >= 1.0 {
-                    total
-                } else {
-                    0.0
-                }
-            }
-        };
+        // The accrual is the fixed cost's only; labour is spent as the work is done.
+        let actual = labor * pct + fixed_actual(task.fixed_cost, task.fixed_cost_accrual, pct);
         let actual = manual.unwrap_or(actual);
-        let actual_labor = match task.fixed_cost_accrual {
-            _ if manual.is_some() => {
-                if total > 0.0 {
-                    labor * (actual / total).min(1.0)
-                } else {
-                    0.0
-                }
+        let actual_labor = if manual.is_some() {
+            if total > 0.0 {
+                labor * (actual / total).min(1.0)
+            } else {
+                0.0
             }
-            Accrual::Prorated => labor * pct,
-            Accrual::Start => {
-                if pct > 0.0 {
-                    labor
-                } else {
-                    0.0
-                }
-            }
-            Accrual::End => {
-                if pct >= 1.0 {
-                    labor
-                } else {
-                    0.0
-                }
-            }
+        } else {
+            labor * pct
         };
         // Assignment entries replace their computed share; the task total follows them
         // unless the task has an entry of its own.
@@ -672,6 +642,17 @@ fn compute_costs(project: &mut Project, by_task: &HashMap<u32, Vec<usize>>) {
         task.cost = total;
         task.actual_cost = actual;
         task.remaining_cost = (total - actual).max(0.0);
+    }
+}
+
+/// The part of a fixed cost spent at `pct` (0 to 1) done: by then for prorated, all of it
+/// once started for start, all of it once finished for end.
+pub(crate) fn fixed_actual(fixed: f64, accrual: Accrual, pct: f64) -> f64 {
+    match accrual {
+        Accrual::Prorated => fixed * pct,
+        Accrual::Start if pct > 0.0 => fixed,
+        Accrual::End if pct >= 1.0 => fixed,
+        Accrual::Start | Accrual::End => 0.0,
     }
 }
 
