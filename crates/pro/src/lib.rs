@@ -7,6 +7,7 @@
 //! private crate over this directory. Add a function here, with the same signature,
 //! whenever the private crate gains one, and keep the shared computations in the engine.
 
+use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::Lang;
 
@@ -28,6 +29,11 @@ pub fn excel_workbook(_project: &Project, lang: Lang) -> Result<Vec<u8>, String>
     Err(unavailable(lang))
 }
 
+/// The schedule health check, DCMA's 14 points (sheafly-pro#7). The stub has none.
+pub fn schedule_health(_project: &Project, lang: Lang) -> Result<HealthReport, String> {
+    Err(unavailable(lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,6 +45,7 @@ mod tests {
         let doc = Document::new_default();
         assert_eq!(excel_workbook(&doc.project, Lang::Vi), Err(unavailable(Lang::Vi)));
         assert_eq!(excel_workbook(&doc.project, Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(schedule_health(&doc.project, Lang::En), Err(unavailable(Lang::En)));
         assert!(unavailable(Lang::En).starts_with("This Sheafly build"));
     }
 }

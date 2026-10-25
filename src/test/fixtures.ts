@@ -1,4 +1,6 @@
 import type {
+  HealthCriterion,
+  HealthReport,
   Assignment,
   BurndownReport,
   Calendar,
@@ -282,4 +284,27 @@ export function makeProLicense(overrides: Partial<LicenseView> = {}): LicenseVie
     features: ["trackers", "capacity"],
     ...overrides,
   });
+}
+
+/** A health criterion that passes with nothing to look at. */
+export function makeHealthCriterion(number: number, overrides: Partial<HealthCriterion> = {}): HealthCriterion {
+  return {
+    number,
+    status: "pass",
+    not_applicable: null,
+    count: 0,
+    total: 10,
+    value: 0,
+    limit: { kind: "at_most", value: 0.05 },
+    tasks: [],
+    ...overrides,
+  };
+}
+
+/** A health report where every criterion passes, with `criteria` replacing some by number. */
+export function makeHealthReport(criteria: HealthCriterion[] = []): HealthReport {
+  const all = Array.from({ length: 14 }, (_, i) => criteria.find((c) => c.number === i + 1) ?? makeHealthCriterion(i + 1));
+  const passed = all.filter((c) => c.status === "pass").length;
+  const failed = all.filter((c) => c.status === "fail").length;
+  return { criteria: all, passed, applicable: passed + failed, rating: failed === 0 ? "good" : "at_risk" };
 }

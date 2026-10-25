@@ -52,10 +52,12 @@ pub enum Feature {
     Reporting,
     /// AI recommendations: calls to the AI provider with the user's own key.
     Ai,
+    /// The schedule health check (DCMA's 14 points).
+    Health,
 }
 
 impl Feature {
-    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting, Feature::Ai];
+    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting, Feature::Ai, Feature::Health];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -63,6 +65,7 @@ impl Feature {
             Feature::Capacity => "capacity",
             Feature::Reporting => "reporting",
             Feature::Ai => "ai",
+            Feature::Health => "health",
         }
     }
 

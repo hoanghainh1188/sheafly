@@ -107,6 +107,15 @@
   --pro-badge: #5b3aa8;
   --pro-badge-bg: #efeafb;
   --pro-badge-border: #cfc2f2;
+  /* Schedule health check: status chips and the overall rating. */
+  --health-pass: #157347;
+  --health-pass-bg: #e3f4ea;
+  --health-fail: #b3261e;
+  --health-fail-bg: #fdecea;
+  --health-info: #8a4f00;
+  --health-info-bg: #fdf1de;
+  --health-na: #55555f;
+  --health-na-bg: #efeff3;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
   --matrix-rule: #985800;
@@ -196,6 +205,14 @@
   --pro-badge: #cdbcff;
   --pro-badge-bg: #2a2242;
   --pro-badge-border: #4a3c78;
+  --health-pass: #63d293;
+  --health-pass-bg: #16301f;
+  --health-fail: #ff8a80;
+  --health-fail-bg: #3d1b19;
+  --health-info: #f2b660;
+  --health-info-bg: #37290f;
+  --health-na: #b8b8c2;
+  --health-na-bg: #2c2c31;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
   --matrix-rule: #f2b660;

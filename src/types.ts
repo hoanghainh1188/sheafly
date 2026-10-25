@@ -1295,3 +1295,66 @@ export interface LicenseView {
   /** Feature codes unlocked on this build, e.g. "trackers". */
   features: string[];
 }
+
+/** The schedule health check, DCMA's 14 points (`sheafly_engine::health::HealthReport`). */
+export interface HealthReport {
+  /** The 14 criteria in order, criterion `n` at index `n - 1`. */
+  criteria: HealthCriterion[];
+  /** Criteria passed out of those that apply; criterion 10 counts in neither. */
+  passed: number;
+  applicable: number;
+  /** Sheafly's rating (DCMA has no overall score); null when nothing applies. */
+  rating: HealthRating | null;
+}
+
+export type HealthRating = "good" | "acceptable" | "at_risk";
+
+export type HealthStatus = "pass" | "fail" | "info" | "not_applicable";
+
+export type HealthLimit = { kind: "at_most"; value: number } | { kind: "at_least"; value: number };
+
+export type HealthNotApplicable =
+  | "no_tasks"
+  | "no_links"
+  | "no_baseline"
+  | "no_status_date"
+  | "no_resources"
+  | "nothing_due"
+  | "no_critical_task"
+  | "no_target"
+  | "no_path_left";
+
+export type HealthReason =
+  | "no_predecessor"
+  | "no_successor"
+  | "no_links"
+  | "lead"
+  | "lag"
+  | "not_finish_to_start"
+  | "hard_constraint"
+  | "manual"
+  | "high_slack"
+  | "negative_slack"
+  | "past_deadline"
+  | "long_duration"
+  | "actual_after_status"
+  | "planned_before_status"
+  | "no_resource"
+  | "not_finished"
+  | "finished_late"
+  | "tested";
+
+export interface HealthCriterion {
+  /** 1 Logic … 14 BEI, as DCMA numbers them. */
+  number: number;
+  status: HealthStatus;
+  not_applicable: HealthNotApplicable | null;
+  /** What fails it (tasks, or links for 2–4) out of `total`; for 14 the tasks finished and due. */
+  count: number;
+  total: number;
+  /** A share for 1–11 (for 4 the share of finish-to-start links), the index for 13 and 14. */
+  value: number | null;
+  limit: HealthLimit | null;
+  /** The tasks to look at, in project order. */
+  tasks: { uid: number; reason: HealthReason }[];
+}

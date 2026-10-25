@@ -20,6 +20,7 @@ pub mod evm;
 pub mod fields;
 pub mod focus;
 pub mod forecast;
+pub mod health;
 mod graph;
 pub mod import;
 pub mod lang;
