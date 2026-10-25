@@ -88,7 +88,7 @@ cargo bench -p sheafly-engine --bench large_project -- leveling  # cân bằng 5
 
 ## Giấy phép
 
-MIT. App đóng gói các thư viện mã nguồn mở và phông Be Vietnam Pro (SIL Open Font License); thông báo bản quyền và nguyên văn giấy phép của chúng nằm trong [`src-tauri/THIRD_PARTY_LICENSES.txt`](src-tauri/THIRD_PARTY_LICENSES.txt), có trong mọi bản cài và mở được bằng Trợ giúp → Giấy phép bên thứ ba. Sau khi đổi thư viện, chạy lại `node scripts/third-party-licenses.mjs`; CI kiểm tra tệp này luôn khớp.
+Mã nguồn trong repo này theo giấy phép MIT. Bản phát hành chính thức có thêm các module Sheafly Pro, mã nguồn đóng, nằm ở một repo riêng và không theo MIT; bản build từ repo này có một stub MIT thay cho chúng (`crates/pro`), nên mọi tính năng Free đều chạy, còn tính năng Pro báo bản này không có. App đóng gói các thư viện mã nguồn mở và phông Be Vietnam Pro (SIL Open Font License); thông báo bản quyền và nguyên văn giấy phép của chúng nằm trong [`src-tauri/THIRD_PARTY_LICENSES.txt`](src-tauri/THIRD_PARTY_LICENSES.txt), có trong mọi bản cài và mở được bằng Trợ giúp → Giấy phép bên thứ ba. Sau khi đổi thư viện, chạy lại `node scripts/third-party-licenses.mjs`; CI kiểm tra tệp này luôn khớp.
 
 ## Nhãn hiệu
 

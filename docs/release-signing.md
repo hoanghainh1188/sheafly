@@ -1,6 +1,22 @@
 # Signing releases
 
-`.github/workflows/build.yml` builds the installers on `v*` tags and on manual dispatch. This page explains how the macOS app gets signed with a Developer ID and notarized by Apple, and what is still open for Windows.
+`.github/workflows/build.yml` builds the installers on `v*` tags and on manual dispatch. This page explains how release builds get the closed-source Sheafly Pro modules, how the macOS app gets signed with a Developer ID and notarized by Apple, and what is still open for Windows.
+
+## Sheafly Pro modules
+
+New Pro features live in the private repository `hoanghainh1188/sheafly-pro` (plan part 20G). This repository has an MIT stub of that crate at `crates/pro`, so it builds on its own; release builds put the private crate in its place.
+
+- The `pro` job checks out `sheafly-pro` (its `main`) with the read-only deploy key in the secret `SHEAFLY_PRO_DEPLOY_KEY`, runs its `scripts/check-stub.py` against `crates/pro` (same dependencies and the same `tests/api.rs`, so `Cargo.lock` and `THIRD_PARTY_LICENSES.txt` stay true) and passes that commit to every platform, which writes it over `crates/pro` before building. The commit is shown in the run's summary.
+- **No key** (forks, or a manual run before it is set): the installers are built with the stub and have no Pro features; the run shows a warning. **On a `v*` tag** the `pro` job fails instead, so a release never ships without the Pro modules.
+- Nothing from the private repository is uploaded as an artifact (artifacts of a public repository can be downloaded by anyone), and the key is not kept in any git config.
+- A change of the stub's functions or dependencies must reach `sheafly-pro`'s `main` before a release, or the check fails.
+
+### Setting up the deploy key
+
+1. Make a key pair with no passphrase: `ssh-keygen -t ed25519 -N "" -C "sheafly release builds" -f sheafly-pro-deploy`.
+2. In `sheafly-pro` → Settings → Deploy keys → Add deploy key: paste `sheafly-pro-deploy.pub`, leave **Allow write access** off.
+3. In this repository → Settings → Secrets and variables → Actions → New repository secret: name `SHEAFLY_PRO_DEPLOY_KEY`, value the whole of `sheafly-pro-deploy` (the private key, `BEGIN`/`END` lines included).
+4. Delete both files from your computer. A lost or leaked key is replaced by repeating these steps and removing the old deploy key; users are not affected.
 
 ## macOS
 

@@ -88,7 +88,7 @@ cargo bench -p sheafly-engine --bench large_project -- leveling  # leveling 500 
 
 ## License
 
-MIT. The app bundles open-source packages and the Be Vietnam Pro font (SIL Open Font License); their copyright notices and license texts are in [`src-tauri/THIRD_PARTY_LICENSES.txt`](src-tauri/THIRD_PARTY_LICENSES.txt), which every installer includes and Help → Third-Party Licenses opens. Regenerate it with `node scripts/third-party-licenses.mjs` after changing dependencies; CI checks that it is current.
+The source in this repository is MIT. Official releases also include the Sheafly Pro modules, which are closed source, kept in a private repository and not under the MIT License; a build from this repository has an MIT stub in their place (`crates/pro`), so every Free feature works and the Pro features say the build does not have them. The app bundles open-source packages and the Be Vietnam Pro font (SIL Open Font License); their copyright notices and license texts are in [`src-tauri/THIRD_PARTY_LICENSES.txt`](src-tauri/THIRD_PARTY_LICENSES.txt), which every installer includes and Help → Third-Party Licenses opens. Regenerate it with `node scripts/third-party-licenses.mjs` after changing dependencies; CI checks that it is current.
 
 ## Trademarks
 

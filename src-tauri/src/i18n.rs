@@ -24,6 +24,10 @@ pub struct Text {
     pub show_all: &'static str,
     pub about_text: &'static str,
     pub copyright: &'static str,
+    /// The copyright line of a build with the closed-source Pro modules (plan part 20G).
+    pub copyright_pro: &'static str,
+    /// The About text's note in such a build.
+    pub about_pro: &'static str,
     // Dialogs
     pub dialog_busy: &'static str,
     pub save: &'static str,
@@ -82,6 +86,9 @@ Engine lập lịch viết bằng Rust; giao diện Tauri 2 và React 19. \
 Biểu tượng: Lucide (ISC). Phông PDF: Be Vietnam Pro (OFL). \
 Giấy phép của mọi thành phần bên thứ ba: Trợ giúp → Giấy phép bên thứ ba.",
     copyright: "© 2026 Hoàng Hải Nguyễn · Giấy phép MIT",
+    copyright_pro: "© 2026 Hoàng Hải Nguyễn · Mã nguồn MIT, module Pro độc quyền",
+    about_pro: "Bản phát hành chính thức: có các module Sheafly Pro, mã nguồn đóng, không theo giấy phép MIT. \
+Phần còn lại là mã nguồn mở MIT.",
     dialog_busy: "Đang mở một hộp thoại. Hãy đóng nó trước.",
     save: "Lưu",
     dont_save: "Không lưu",
@@ -138,6 +145,9 @@ Scheduling engine written in Rust; interface built with Tauri 2 and React 19. \
 Icons: Lucide (ISC). PDF font: Be Vietnam Pro (OFL). \
 Licenses of all third-party components: Help → Third-Party Licenses.",
     copyright: "© 2026 Hoàng Hải Nguyễn · MIT License",
+    copyright_pro: "© 2026 Hoàng Hải Nguyễn · MIT source, proprietary Pro modules",
+    about_pro: "Official release: includes the Sheafly Pro modules, which are closed source and not under the MIT License. \
+Everything else is open source under MIT.",
     dialog_busy: "A dialog is already open. Close it first.",
     save: "Save",
     dont_save: "Don’t Save",
@@ -625,6 +635,8 @@ mod tests {
             (VI.dialog_busy, EN.dialog_busy),
             (VI.about_text, EN.about_text),
             (VI.copyright, EN.copyright),
+            (VI.copyright_pro, EN.copyright_pro),
+            (VI.about_pro, EN.about_pro),
             (VI.export_mspdi_file, EN.export_mspdi_file),
             (VI.export_excel_file, EN.export_excel_file),
         ];

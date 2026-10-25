@@ -14,8 +14,59 @@ permissions:
   contents: write
 
 jobs:
+  # The closed-source Pro modules (the private repository sheafly-pro, plan part 20G) replace the public stub in
+  # crates/pro before the app is built. This job picks one commit of that repository for every platform, with a
+  # read-only deploy key (SHEAFLY_PRO_DEPLOY_KEY, docs/release-signing.md), and checks that it declares the
+  # stub's dependencies and the same tests/api.rs, so Cargo.lock and THIRD_PARTY_LICENSES.txt stay true. Without
+  # the key (forks, a manual run before it is set) the build keeps the stub and has no Pro features; on a v* tag
+  # that fails instead, so a release never ships without them by mistake. Nothing from the private repository
+  # is uploaded as an artifact: artifacts of a public repository can be downloaded by anyone.
+  pro:
+    name: Pro modules
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    env:
+      HAS_KEY: ${{ secrets.SHEAFLY_PRO_DEPLOY_KEY != '' }}
+    steps:
+      - name: Without the deploy key
+        if: env.HAS_KEY != 'true'
+        env:
+          IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          if [ "$IS_RELEASE" = "true" ]; then
+            echo "::error::SHEAFLY_PRO_DEPLOY_KEY is not set, so this release would have no Pro modules (docs/release-signing.md)"
+            exit 1
+          fi
+          echo "::warning::No SHEAFLY_PRO_DEPLOY_KEY: building with the public stub, so these installers have no Pro features."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - name: Check out the Pro modules
+        if: env.HAS_KEY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: hoanghainh1188/sheafly-pro
+          ssh-key: ${{ secrets.SHEAFLY_PRO_DEPLOY_KEY }}
+          persist-credentials: false
+          path: pro-src
+
+      - name: Matches the stub
+        if: env.HAS_KEY == 'true'
+        run: python3 pro-src/scripts/check-stub.py pro-src crates/pro
+
+      - name: Pick the commit
+        id: pick
+        if: env.HAS_KEY == 'true'
+        run: |
+          sha=$(git -C pro-src rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Pro modules: sheafly-pro at \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+
   bundle:
     name: bundle (${{ matrix.platform }})
+    needs: pro
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +88,30 @@ jobs:
       MACOS_SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_SIGNING_IDENTITY != '' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_KEY != '' && secrets.APPLE_API_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # The commit the pro job picked, over the stub (see the pro job). Its .git and CI go, so the build sees only
+      # the crate; the deploy key is not kept in any git config.
+      - name: Check out the Pro modules
+        if: needs.pro.outputs.sha != ''
+        uses: actions/checkout@v4
+        with:
+          repository: hoanghainh1188/sheafly-pro
+          ref: ${{ needs.pro.outputs.sha }}
+          ssh-key: ${{ secrets.SHEAFLY_PRO_DEPLOY_KEY }}
+          persist-credentials: false
+          path: pro-src
+
+      - name: Put the Pro modules in place of the stub
+        if: needs.pro.outputs.sha != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf crates/pro pro-src/.git pro-src/.github
+          mv pro-src crates/pro
+          if ! grep -q 'LicenseRef-Sheafly-Pro' crates/pro/Cargo.toml; then
+            echo "::error::crates/pro is not the Pro crate after the copy"
+            exit 1
+          fi
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
