@@ -5,6 +5,8 @@ import { defineMessages, isLang, pick, type Lang } from "./i18n";
 import { SnapshotCache, type FullSnapshot, type SnapshotAnswer } from "./snapshotPatch";
 import { isThemeChoice, type ThemeChoice } from "./theme";
 import type {
+  AiCheck,
+  AiSettings,
   AssignmentMatrix,
   CurveBucket,
   CurveFilter,
@@ -216,6 +218,34 @@ export function checkImport(afterUid: number | null, resources: ImportResource[]
  */
 export function trackerSaveKey(kind: TrackerKind, site: string, key: string, account: string | null = null): Promise<void> {
   return invoke<void>("tracker_save_key", { kind, site, key, account });
+}
+
+/** The AI recommendation settings (off by default). */
+export function aiSettings(): Promise<AiSettings> {
+  return invoke<AiSettings>("ai_settings");
+}
+
+/** Replace the AI settings; refused when AI would be on without the data notice accepted. */
+export function aiSetSettings(settings: AiSettings): Promise<AiSettings> {
+  return invoke<AiSettings>("ai_set_settings", { settings });
+}
+
+/** Save the Anthropic API key in the system's credential store; it is never sent back. */
+export function aiSaveKey(key: string): Promise<void> {
+  return invoke<void>("ai_save_key", { key });
+}
+
+export function aiHasKey(): Promise<boolean> {
+  return invoke<boolean>("ai_has_key");
+}
+
+export function aiForgetKey(): Promise<void> {
+  return invoke<void>("ai_forget_key");
+}
+
+/** Check the saved key and model with one small request (needs Sheafly Pro and AI turned on). */
+export function aiTest(): Promise<AiCheck> {
+  return invoke<AiCheck>("ai_test");
 }
 
 /** Whether a key is saved for the site; the key itself is never sent back. */

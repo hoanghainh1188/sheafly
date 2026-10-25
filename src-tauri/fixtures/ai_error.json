@@ -1,0 +1,4 @@
+{
+  "type": "error",
+  "error": { "type": "invalid_request_error", "message": "Handwritten fixture: an error body answered with a success status." }
+}

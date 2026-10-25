@@ -31,6 +31,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     openWorkingTime: vi.fn(),
     openBaseline: vi.fn(),
     openLicense: vi.fn(),
+    openAiSettings: vi.fn(),
     openRecurring: vi.fn(),
     openSplit: vi.fn(),
     changeLang: vi.fn(),
@@ -257,5 +258,11 @@ describe("Help menu", () => {
     const ctx = context();
     handleMenuAction("license", ctx);
     expect(ctx.openLicense).toHaveBeenCalled();
+  });
+
+  it("opens the AI recommendations settings", () => {
+    const ctx = context();
+    handleMenuAction("ai-settings", ctx);
+    expect(ctx.openAiSettings).toHaveBeenCalledOnce();
   });
 });

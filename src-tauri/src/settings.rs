@@ -1,10 +1,11 @@
 //! `settings.json` in the app config folder, shaped like
-//! `{"language":"en","theme":"dark","recent":["/path/a.sheafly", …]}`.
+//! `{"language":"en","theme":"dark","recent":["/path/a.sheafly", …],"ai":{"enabled":false,…}}`.
 
 use std::fs;
 use std::io;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
 use sheafly_engine::Lang;
 use serde_json::{Map, Value};
 
@@ -125,6 +126,46 @@ fn write_recent(path: &Path, recent: &[String]) -> io::Result<()> {
     write_object(path, settings)
 }
 
+/// AI recommendations (phase 22, D8): off by default, and never on before the data notice is
+/// accepted. The model ID is the user's choice and is never written into a project.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AiSettings {
+    pub enabled: bool,
+    pub model: String,
+    /// Send `Task 42` and `Person 7` instead of names.
+    pub mask: bool,
+    pub notice_accepted: bool,
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            model: crate::ai::DEFAULT_MODEL.to_string(),
+            mask: false,
+            notice_accepted: false,
+        }
+    }
+}
+
+/// The AI settings; the defaults when the file or the key is missing or does not read. A
+/// file that says AI is on without the notice accepted reads as off.
+pub fn read_ai(path: &Path) -> AiSettings {
+    let settings: AiSettings = read_object(path)
+        .get("ai")
+        .and_then(|value| serde_json::from_value(value.clone()).ok())
+        .unwrap_or_default();
+    AiSettings { enabled: settings.enabled && settings.notice_accepted, ..settings }
+}
+
+/// Remember the AI settings, keeping any other settings.
+pub fn write_ai(path: &Path, ai: &AiSettings) -> io::Result<()> {
+    let mut settings = read_object(path);
+    settings.insert("ai".into(), serde_json::to_value(ai).map_err(io::Error::other)?);
+    write_object(path, settings)
+}
+
 /// Write the whole object to a temp file beside the real one and rename it over, so a
 /// crash never leaves half a file.
 fn write_object(path: &Path, settings: Map<String, Value>) -> io::Result<()> {
@@ -210,6 +251,25 @@ mod tests {
         for theme in [Theme::System, Theme::Light, Theme::Dark] {
             assert_eq!(Theme::from_code(theme.code()), Some(theme));
         }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ai_settings_round_trip_default_to_off_and_keep_other_settings() {
+        let dir = temp_dir("ai");
+        let path = dir.join(FILE_NAME);
+        assert_eq!(read_ai(&path), AiSettings::default(), "no file yet");
+        assert!(!read_ai(&path).enabled && read_ai(&path).model == crate::ai::DEFAULT_MODEL);
+        write_language(&path, Lang::En).unwrap();
+        let chosen = AiSettings { enabled: true, model: "claude-sonnet-5-5".into(), mask: true, notice_accepted: true };
+        write_ai(&path, &chosen).unwrap();
+        assert_eq!(read_ai(&path), chosen);
+        assert_eq!(read_language(&path), Some(Lang::En), "other settings are kept");
+
+        fs::write(&path, r#"{"ai":{"enabled":true}}"#).unwrap();
+        assert!(!read_ai(&path).enabled, "on without the notice reads as off");
+        fs::write(&path, r#"{"ai":{"mask":"yes"}}"#).unwrap();
+        assert_eq!(read_ai(&path), AiSettings::default(), "a value that does not read");
         let _ = fs::remove_dir_all(&dir);
     }
 

@@ -1258,6 +1258,23 @@ export type LicenseProblem =
   | "updates_ended"
   | "not_saved";
 
+/** AI recommendations, as `ai_settings` reports them (`settings::AiSettings`). */
+export interface AiSettings {
+  enabled: boolean;
+  /** A Claude model ID, e.g. "claude-opus-5-5". */
+  model: string;
+  /** Send "Task 42" and "Person 7" instead of names. */
+  mask: boolean;
+  notice_accepted: boolean;
+}
+
+/** What `ai_test` found (`ai::AiCheck`). */
+export interface AiCheck {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+}
+
 /** The license of this computer, as `license_status` reports it (`license::LicenseView`). */
 export interface LicenseView {
   /** `none`: Free, no key; `active`: Pro on this build; `inactive`: a key that does not work here. */
