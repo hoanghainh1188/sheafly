@@ -6,6 +6,7 @@ import { getLang, useMessages } from "../../i18n";
 import { canvasPalette, useResolvedTheme, type CanvasPalette } from "../../theme";
 import type { LoadBucket, LoadCell, LoadGroup, LoadMap, Project } from "../../types";
 import { loadMapMessages } from "./LoadMapView.i18n";
+import { loadSpanEnd } from "./loadSpan";
 import { loadTone, type LoadTone } from "./loadTone";
 import { ProBadge } from "../license/ProBadge";
 
@@ -14,7 +15,6 @@ const ROW = 24;
 const CELL = { day: 36, week: 60, month: 72 } as const;
 const DEFAULT_WEEKS = 12;
 const MAX_PERIODS = { day: 84, week: 52, month: 24 } as const;
-const DAY_MS = 86_400_000;
 
 type GroupMode = "person" | "role" | "skill";
 type ViewMode = "grid" | "histogram";
@@ -30,6 +30,11 @@ function formatBucketHeader(key: string, bucket: LoadBucket): string {
 
 function longDate(key: string): string {
   return formatDateKeyDisplay(key);
+}
+
+/** Hours of a minute count for a tooltip; never empty, so a zero shows as "0". */
+function hoursOf(minutes: number): string {
+  return formatHours(minutes / 60) || "0";
 }
 
 function percent(work: number, capacity: number): string {
@@ -82,22 +87,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
 
   const maxPeriods = MAX_PERIODS[bucket];
 
-  // Calculate `to` based on `from`, `bucket` and `periodCount`
-  const to = useMemo(() => {
-    const start = Date.parse(`${from}T00:00:00Z`);
-    if (Number.isNaN(start)) return from;
-    if (bucket === "day") {
-      return instantToDateKey(start + (periodCount - 1) * DAY_MS);
-    }
-    if (bucket === "week") {
-      return instantToDateKey(start + (periodCount * 7 - 1) * DAY_MS);
-    }
-    // Month
-    const date = new Date(start);
-    date.setUTCMonth(date.getUTCMonth() + periodCount);
-    date.setUTCDate(0); // last day of previous month
-    return date.toISOString().slice(0, 10);
-  }, [from, bucket, periodCount]);
+  const to = useMemo(() => loadSpanEnd(from, bucket, periodCount), [from, bucket, periodCount]);
 
   const groupQuery = useMemo<LoadGroup>(() => {
     if (groupMode === "person") return { type: "person" };
@@ -176,20 +166,21 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
         : shownBucket === "month"
           ? m.monthOf(formatBucketHeader(found.bucket, "month"))
           : longDate(found.bucket);
-    const hours = (minutes: number) => formatHours(minutes / 60) || "0";
     const totalWork = found.cell.work + (found.cell.unassigned ?? 0);
     setTip(
       m.tipDetail(
         name,
         when,
-        hours(found.cell.work),
-        hours(found.cell.unassigned ?? 0),
-        hours(found.cell.capacity),
+        hoursOf(found.cell.work),
+        hoursOf(found.cell.unassigned ?? 0),
+        hoursOf(found.cell.capacity),
         percent(totalWork, found.cell.capacity),
-        found.cell.baseline !== undefined ? hours(found.cell.baseline) : undefined,
+        found.cell.baseline !== undefined ? hoursOf(found.cell.baseline) : undefined,
       ),
     );
   }
+
+  const subject = groupMode === "person" ? m.groupPerson : groupMode === "role" ? m.groupRole : m.groupSkill;
 
   // Active row for Histogram view
   const activeHistogramRow = map?.rows[selectedRowIndex] ?? map?.rows[0] ?? null;
@@ -222,7 +213,10 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
           <>
             <label>
               {m.skillSelect}{" "}
-              <select value={selectedSkillId} onChange={(e) => setSelectedSkillId(Number(e.target.value))}>
+              <select value={selectedSkillId} onChange={(e) => {
+                  setSelectedSkillId(Number(e.target.value));
+                  setSelectedRowIndex(0);
+                }}>
                 {project.skills.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -235,7 +229,10 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
                 {m.minLevel}{" "}
                 <select
                   value={selectedMinLevel ?? ""}
-                  onChange={(e) => setSelectedMinLevel(e.target.value ? Number(e.target.value) : undefined)}
+                  onChange={(e) => {
+                    setSelectedMinLevel(e.target.value ? Number(e.target.value) : undefined);
+                    setSelectedRowIndex(0);
+                  }}
                 >
                   <option value="">{m.anyLevel}</option>
                   {project.skill_levels?.map((lvl) => (
@@ -302,7 +299,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
             <option value="">{m.none}</option>
             {Array.from({ length: 11 }, (_, i) => (
               <option key={i} value={i}>
-                Baseline {i}
+                {m.baselineOption(i)}
               </option>
             ))}
           </select>
@@ -345,7 +342,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
       ) : viewMode === "grid" ? (
         <div className="load-scroll">
           <div className="load-grid" style={{ gridTemplateColumns: `max-content ${map.buckets.length * width}px` }}>
-            <div className="load-corner">{m.person}</div>
+            <div className="load-corner">{subject}</div>
             <div className="load-head" role="row">
               {map.buckets.map((key) => (
                 <span key={key} role="columnheader" style={{ width }}>
@@ -387,7 +384,7 @@ export function LoadMapView({ project, onPickResource }: { project: Project; onP
           {map.rows.length > 1 && (
             <div className="load-histogram-selector">
               <label>
-                {m.person}:{" "}
+                {subject}:{" "}
                 <select value={selectedRowIndex} onChange={(e) => setSelectedRowIndex(Number(e.target.value))}>
                   {map.rows.map((r, i) => (
                     <option key={i} value={i}>
@@ -467,6 +464,7 @@ function HistogramChart({
   const chartWidth = Math.max(buckets.length * colWidth, 400);
   const plotHeight = height - paddingTop - paddingBottom;
 
+  const hovered = hoverIndex !== null ? row.cells[hoverIndex] : undefined;
   const yScale = (hours: number) => plotHeight - (hours / maxVal) * plotHeight;
 
   return (
@@ -497,9 +495,9 @@ function HistogramChart({
             const y = paddingTop + yScale(val);
             return (
               <g key={pct}>
-                <line x1={paddingLeft} y1={y} x2={paddingLeft + chartWidth} y2={y} stroke="var(--chart-grid)" strokeDasharray="2,2" />
+                <line x1={paddingLeft} y1={y} x2={paddingLeft + chartWidth} y2={y} strokeDasharray="2,2" style={{ stroke: "var(--chart-grid)" }} />
                 <text x={paddingLeft - 6} y={y + 4} textAnchor="end" className="load-axis-label">
-                  {val}h
+                  {m.axisHours(formatHours(val) || "0")}
                 </text>
               </g>
             );
@@ -529,8 +527,8 @@ function HistogramChart({
                     y={paddingTop}
                     width={colWidth}
                     height={plotHeight}
-                    fill="var(--surface-sunken)"
                     opacity={0.4}
+                    style={{ fill: "var(--surface-sunken)" }}
                   />
                 )}
 
@@ -561,10 +559,9 @@ function HistogramChart({
                     y={paddingTop + plotHeight - totalH - 1}
                     width={barW + 2}
                     height={Math.max(0, totalH + 2)}
-                    fill="none"
-                    stroke="var(--load-over)"
                     strokeWidth={2}
                     rx={2}
+                    style={{ fill: "none", stroke: "var(--load-over)" }}
                   />
                 )}
 
@@ -575,9 +572,9 @@ function HistogramChart({
                     y1={baseY}
                     x2={x + colWidth - 2}
                     y2={baseY}
-                    stroke="var(--chart-ideal)"
                     strokeWidth={2.5}
                     strokeDasharray="4,2"
+                    style={{ stroke: "var(--chart-ideal)" }}
                   />
                 )}
 
@@ -587,8 +584,8 @@ function HistogramChart({
                   y1={capY}
                   x2={x + colWidth - 4}
                   y2={capY}
-                  stroke="var(--text-muted)"
                   strokeWidth={2}
+                  style={{ stroke: "var(--text-muted)" }}
                 />
 
                 {/* X Axis Label */}
@@ -613,37 +610,36 @@ function HistogramChart({
                 return `${i === 0 ? "M" : "L"} ${x} ${y}`;
               })
               .join(" ")}
-            fill="none"
-            stroke="var(--text-muted)"
             strokeWidth={1.5}
+            style={{ fill: "none", stroke: "var(--text-muted)" }}
             strokeDasharray="3,3"
             opacity={0.7}
           />
         </svg>
 
         {/* Hover Tooltip Popup */}
-        {hoverIndex !== null && row.cells[hoverIndex] && (
+        {hovered && (
           <div className="load-histogram-tooltip">
             <div className="tip-header">
-              {formatBucketHeader(buckets[hoverIndex], bucketKind)} ({formatDateKeyDisplay(buckets[hoverIndex])})
+              {formatBucketHeader(buckets[hoverIndex!], bucketKind)} ({formatDateKeyDisplay(buckets[hoverIndex!])})
             </div>
             <div>
-              {m.assigned}: <strong>{formatHours(row.cells[hoverIndex].work / 60)}h</strong>
+              {m.assigned}: <strong>{m.hoursValue(hoursOf(hovered.work))}</strong>
             </div>
-            {row.cells[hoverIndex].unassigned !== undefined && row.cells[hoverIndex].unassigned! > 0 && (
+            {(hovered.unassigned ?? 0) > 0 && (
               <div>
-                {m.unassigned}: <strong>{formatHours(row.cells[hoverIndex].unassigned! / 60)}h</strong>
+                {m.unassigned}: <strong>{m.hoursValue(hoursOf(hovered.unassigned ?? 0))}</strong>
               </div>
             )}
             <div>
-              {m.capacityLabel}: <strong>{formatHours(row.cells[hoverIndex].capacity / 60)}h</strong>
+              {m.capacityLabel}: <strong>{m.hoursValue(hoursOf(hovered.capacity))}</strong>
             </div>
             <div>
-              Tải: <strong>{percent(row.cells[hoverIndex].work + (row.cells[hoverIndex].unassigned ?? 0), row.cells[hoverIndex].capacity)}</strong>
+              {m.loadLabel}: <strong>{percent(hovered.work + (hovered.unassigned ?? 0), hovered.capacity)}</strong>
             </div>
-            {row.cells[hoverIndex].baseline !== undefined && (
+            {hovered.baseline !== undefined && (
               <div>
-                {m.baselineLabel}: <strong>{formatHours(row.cells[hoverIndex].baseline! / 60)}h</strong>
+                {m.baselineLabel}: <strong>{m.hoursValue(hoursOf(hovered.baseline))}</strong>
               </div>
             )}
           </div>
