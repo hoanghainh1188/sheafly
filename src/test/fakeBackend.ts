@@ -687,6 +687,35 @@ class FakeBackend {
       case "set_forecast_settings":
         project.forecast = structuredClone(command.settings);
         return;
+      case "set_cash_flow_settings":
+        project.cash_flow = structuredClone(command.settings);
+        return;
+      case "set_payments": {
+        // The engine's checks that the payment dialog can run into; dates are tested in Rust.
+        if (command.payments.length > 500) throw "Một dự án có tối đa 500 khoản thu";
+        let next = Math.max(project.next_payment_id, 1, ...project.payments.map((item) => item.id + 1));
+        const kept = new Set<number>();
+        project.payments = command.payments.map((input) => {
+          const name = input.name.trim();
+          if (!name || name.length > 200) throw "Tên khoản thu không được trống và dài tối đa 200 ký tự";
+          const amount = "fixed" in input.amount ? input.amount.fixed : input.amount.percent;
+          if (!(amount >= 0) || ("percent" in input.amount && amount > 100)) throw "Số tiền phải là số không âm (phần trăm từ 0 đến 100)";
+          if (input.anchor.type !== "date" && !project.tasks.some((task) => task.uid === (input.anchor as { task: number }).task)) throw "Không tìm thấy công việc";
+          const old = input.id == null ? undefined : project.payments.find((item) => item.id === input.id);
+          if (input.id != null && (!old || kept.has(input.id))) throw "Không có khoản thu này";
+          if (old) kept.add(old.id);
+          const id = old ? old.id : next++;
+          return { id, name, amount: structuredClone(input.amount), anchor: structuredClone(input.anchor), lag_days: input.lag_days, retained: input.retained, received: old ? old.received : [] };
+        });
+        project.next_payment_id = next;
+        return;
+      }
+      case "set_payment_receipts": {
+        const payment = project.payments.find((item) => item.id === command.id);
+        if (!payment) throw "Không có khoản thu này";
+        payment.received = [...command.receipts].sort((a, b) => a.date - b.date);
+        return;
+      }
       case "set_editable_actual_costs":
         project.editable_actual_costs = command.editable;
         return;

@@ -39,9 +39,10 @@ use crate::recovery::{self, Damage, OpenReport, Recovery};
 /// skill levels and resource groups (`SetSkillLevels`, `SetResourceGroup`, the levels of
 /// `SetResourceSkills`, a rule's `min_level`) version 23, and the productivity factor
 /// (`SetFocusFactor`, `SetResourceFocus`) version 24, and `ApplyProposal` (an AI proposal the
-/// user applied) version 25. None of them changes how older
+/// user applied) version 25, and the cash flow data (`SetCashFlowSettings`, `SetPayments`,
+/// `SetPaymentReceipts`) version 26. None of them changes how older
 /// commands schedule.
-pub const FORMAT_VERSION: u32 = 25;
+pub const FORMAT_VERSION: u32 = 26;
 
 /// Checkpoints a file keeps below the cursor, besides the one at the cursor. Each is
 /// a whole scheduled project (about 1 MB for 1,000 tasks), so only a few nearby ones.

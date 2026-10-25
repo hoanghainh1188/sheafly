@@ -8,6 +8,7 @@
 
 use serde_json::Value;
 use sheafly_engine::advice::{AdviceStep, Fixes};
+use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -19,6 +20,8 @@ fn the_public_functions_keep_their_types() {
     let _: fn(Lang) -> String = sheafly_pro::unavailable;
     let _: fn(&Project, Lang) -> Result<Vec<u8>, String> = sheafly_pro::excel_workbook;
     let _: fn(&Project, Lang) -> Result<HealthReport, String> = sheafly_pro::schedule_health;
+    let _: fn(&Project, &CashFlowOptions, Lang) -> Result<CashFlowReport, String> = sheafly_pro::cash_flow;
+    let _: fn(&Project, &CashFlowOptions, Lang) -> Result<Vec<u8>, String> = sheafly_pro::cash_flow_workbook;
     let _: fn(&ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::risks_request;
     let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep, String> = sheafly_pro::risks_next;
     let _: fn(&ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::fixes_request;

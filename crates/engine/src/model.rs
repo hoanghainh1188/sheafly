@@ -479,6 +479,17 @@ pub struct Project {
     /// when empty (as null), so a patch of the snapshot can clear it.
     #[serde(default)]
     pub source: Option<Source>,
+    /// Contract value, opening balance and retention (`payments.rs`). Written even when
+    /// empty, so a patch of the snapshot can clear it.
+    #[serde(default)]
+    pub cash_flow: crate::payments::CashFlowSettings,
+    /// Payments by milestone or date, in the user's order (`payments.rs`).
+    #[serde(default)]
+    pub payments: Vec<crate::payments::Payment>,
+    /// The id the next payment gets; ids are never reused, like field ids. 0 in files
+    /// written before it existed: the next id is then one past the largest.
+    #[serde(default)]
+    pub next_payment_id: u32,
 }
 
 /// How strongly tasks' effort moves together in the finish forecast.
@@ -560,6 +571,9 @@ impl Project {
             forecast: ForecastSettings::default(),
             focus_factor: crate::focus::full_focus(),
             source: None,
+            cash_flow: Default::default(),
+            payments: Vec::new(),
+            next_payment_id: 1,
         }
     }
 

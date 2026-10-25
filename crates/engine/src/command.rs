@@ -8,6 +8,7 @@ use crate::error::{EngineError, Invalid};
 use crate::focus;
 use crate::fields::{self, FieldKind, FieldValue, OptionRename};
 use crate::import::{self, ImportResource, ImportTask};
+use crate::payments::{self, CashFlowSettings, PaymentInput, Receipt};
 use crate::plan;
 use crate::proposal;
 use crate::pull::{self, PullTask};
@@ -466,6 +467,20 @@ pub enum Command {
     ApplyProposal {
         commands: Vec<Command>,
     },
+    /// Replace the contract value, opening balance and retention (`payments.rs`).
+    SetCashFlowSettings {
+        settings: CashFlowSettings,
+    },
+    /// Replace the payments: an entry with an id keeps that payment and its receipts, one
+    /// without is new (`payments.rs`).
+    SetPayments {
+        payments: Vec<PaymentInput>,
+    },
+    /// Replace the money received for a payment.
+    SetPaymentReceipts {
+        id: u32,
+        receipts: Vec<Receipt>,
+    },
 }
 
 /// The splits a leveling run made in one task (`Split::leveling`).
@@ -521,7 +536,9 @@ pub fn leveled(project: &Project) -> Result<Command, EngineError> {
 
 pub fn apply_one(project: &mut Project, command: &Command) -> Result<(), EngineError> {
     let edited = edited_task(project, command);
+    let anchored = payments::anchored_dates(project);
     apply_inner(project, command)?;
+    payments::detach_gone(project, &anchored);
     if let Some(calendar_id) = edited_calendar(project, command) {
         calendar_base::after_edit(project, calendar_id);
     }
@@ -1218,6 +1235,11 @@ fn apply_inner(project: &mut Project, command: &Command) -> Result<(), EngineErr
             pull::apply_pull(project, rows, *pulled_at, resolutions.as_deref())?
         }
         Command::RecordPush { entries } => push::record_push(project, entries)?,
+        Command::SetCashFlowSettings { settings } => payments::set_settings(project, settings)?,
+        Command::SetPayments { payments: list } => payments::set_payments(project, list)?,
+        Command::SetPaymentReceipts { id, receipts } => {
+            payments::set_receipts(project, *id, receipts)?
+        }
     }
     Ok(())
 }
