@@ -155,6 +155,27 @@ describe("Root", () => {
     expect(await screen.findByRole("combobox", { name: "Tiêu chí 1" })).toHaveValue("id");
   });
 
+  it("edits the payment schedule from the Project menu and shows the cash flow view", async () => {
+    vi.spyOn(navigator, "languages", "get").mockReturnValue(["vi-VN"]);
+    fakeBackend.reset(makeSnapshot(makeProject({ tasks: [makeTask({ uid: 1, id: 1, name: "Bàn giao", milestone: true })] })));
+    render(<Root />);
+    await screen.findByRole("button", { name: "Hoàn tác" });
+    const menu = await menuHandler();
+    await act(async () => menu("payment-schedule"));
+    expect(await screen.findByRole("dialog", { name: "Lịch thanh toán" })).toBeInTheDocument();
+    await act(async () => screen.getByRole("button", { name: "Thêm khoản thu" }).click());
+    await waitFor(() => expect(fakeBackend.commands().map((command) => command.type)).toEqual(["set_payments"]));
+    expect(await screen.findByRole("textbox", { name: "Tên" })).toHaveValue("Khoản thu 1");
+    await act(async () => screen.getByRole("button", { name: "Lưu" }).click());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Lịch thanh toán" })).not.toBeInTheDocument());
+    // The inspector of the milestone lists the payment that follows it.
+    expect(await screen.findByText("Khoản thu 1: Khi xong, Net 30")).toBeInTheDocument();
+    // Free: the view introduces the feature and never asks for the numbers.
+    await act(async () => menu("view-cashflow"));
+    expect(await screen.findByText("Dòng tiền theo kỳ là tính năng Sheafly Pro")).toBeInTheDocument();
+    expect(fakeBackend.calls.some((call) => call.cmd === "cash_flow")).toBe(false);
+  });
+
   it("edits a resource's availability as one transaction", async () => {
     vi.spyOn(navigator, "languages", "get").mockReturnValue(["vi-VN"]);
     fakeBackend.reset(makeSnapshot(makeProject({ resources: [makeResource({ uid: 1, name: "An" })] })));

@@ -1112,3 +1112,82 @@ input.bad { color: var(--critical-text); border-color: var(--critical-text); fon
 .curves-table th:first-child, .curves-table td.cell-label { text-align: left; }
 .curves-table td.cell-num { text-align: right; }
 .curves-table tfoot td { font-weight: 600; border-top: 2px solid var(--border); background: var(--surface-muted); }
+
+/* Lịch thanh toán (phase 25): contract terms, then the payments as a table that scrolls in its own box. */
+.dialog.payment-dialog { width: min(1200px, calc(100% - 32px)); }
+.payment-contract { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin: 0; padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: 8px; }
+.payment-contract legend { padding: 0 4px; font-weight: 600; }
+.payment-contract label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.payment-contract input:not([type="checkbox"]) { width: 150px; max-width: 100%; }
+.payment-retention { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; flex-basis: 100%; padding-left: 22px; }
+.payment-retention input.narrow { width: 72px; }
+.payment-list { display: grid; gap: 8px; min-width: 0; }
+.payment-list h3, .payment-receipts h3 { margin: 4px 0 0; font-size: 14px; }
+.payment-list p { margin: 0; }
+.payment-empty { padding: 16px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-subtle); border-radius: 8px; }
+.payment-warning { color: var(--cash-deficit); }
+.payment-table-scroll { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 8px; }
+.payment-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.payment-table th { position: sticky; top: 0; padding: 6px 6px; text-align: left; font-weight: 600; color: var(--text-secondary); background: var(--surface-chrome); white-space: nowrap; }
+.payment-table td { padding: 5px 6px; border-top: 1px solid var(--border-subtle); vertical-align: middle; }
+/* Dialog fields here, not sheet cells: drawn as fields, each as wide as what it holds. */
+.payment-table td input:not([type="checkbox"]), .payment-table td select { width: auto; border-color: var(--border); background: var(--surface); padding: 3px 6px; }
+.payment-table td > input:not([type="checkbox"]) { width: 128px; }
+.payment-table td input.narrow { width: 100px; }
+.payment-table td input.tiny { width: 56px; }
+.payment-table .datetime-field { width: 122px; }
+.payment-row.detached { background: var(--cash-deficit-bg); }
+.payment-amount, .payment-anchor { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 100%; }
+.payment-anchor select:first-child { max-width: min(170px, 100%); }
+.payment-check { text-align: center; }
+.payment-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.payment-note { display: block; margin-top: 3px; max-width: 220px; color: var(--cash-deficit); font-size: 11px; }
+.payment-table .link-button { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.payment-receipts { display: grid; gap: 8px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-sunken); }
+.payment-receipts ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.payment-receipts li, .payment-receipt-new { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.payment-receipts .datetime-field { flex: none; width: 150px; }
+.payment-receipts input.narrow { width: 140px; }
+.payments-group-list { margin: 0 0 6px; padding-left: 18px; }
+
+/* Dòng tiền (Pro): the summary leads, the chart carries the story, the tables back it up. */
+.cash-view { display: flex; flex-direction: column; gap: 12px; height: 100%; overflow: auto; padding: 12px 16px; }
+.cash-intro { display: grid; gap: 10px; max-width: 560px; margin: 48px auto; padding: 24px 28px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); }
+.cash-intro strong { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; }
+.cash-intro p { margin: 0; line-height: 1.5; color: var(--text-secondary); }
+.cash-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cash-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 8px; }
+.cash-toolbar .spacer { flex: 1; }
+.cash-control { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.cash-empty { margin: 0; padding: 40px; text-align: center; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border-subtle); border-radius: 8px; }
+.cash-content { display: flex; flex-direction: column; gap: 14px; transition: opacity var(--duration-normal, 300ms) ease; }
+.cash-content.stale { opacity: 0.6; }
+.cash-content > p { margin: 0; }
+.cash-summary { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.cash-summary > div { min-width: 180px; padding: 10px 16px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface); }
+.cash-summary dt { font-size: 12px; color: var(--text-secondary); }
+.cash-summary dd { margin: 2px 0 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cash-summary > .cash-alert { border-color: var(--cash-deficit); background: var(--cash-deficit-bg); }
+.cash-summary > .cash-alert dt, .cash-summary > .cash-alert dd { color: var(--cash-deficit); }
+.cash-view .negative { color: var(--cash-deficit); }
+.cash-figure { margin: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 8px; }
+.cash-svg { display: block; width: 100%; max-height: 380px; }
+.cash-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+.cash-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cash-swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid transparent; border-radius: 2px; }
+.cash-swatch.line { height: 3px; border-radius: 2px; }
+.cash-payments, .cash-table-wrap { display: grid; gap: 8px; min-width: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 8px; }
+.cash-payments h3, .cash-table-wrap h3 { margin: 0; font-size: 14px; }
+.cash-payments p { margin: 0; }
+.cash-table-scroll { overflow-x: auto; }
+.cash-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.cash-table th, .cash-table td { padding: 6px 10px; border-bottom: 1px solid var(--border-subtle); text-align: right; white-space: nowrap; }
+.cash-table thead th { background: var(--surface-chrome); font-weight: 600; color: var(--text-secondary); }
+.cash-table th[scope="row"], .cash-table thead th:first-child, .cash-table th.text, .cash-table td.text { text-align: left; }
+.cash-table th[scope="row"] { min-width: 160px; font-weight: 500; white-space: normal; }
+.cash-table tr.deficit th[scope="row"], .cash-table tr.overdue th[scope="row"] { box-shadow: inset 3px 0 0 var(--cash-deficit); }
+.cash-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--cash-deficit); background: var(--cash-deficit-bg); }
+.cash-driving { display: block; margin-top: 2px; font-size: 11px; color: var(--text-secondary); }
+.cash-notes { padding: 8px 12px; border-left: 3px solid var(--cash-deficit); background: var(--surface-sunken); font-size: 12px; }
+.cash-notes ul { margin: 4px 0 0; padding-left: 18px; }
+.payment-dialog input[aria-invalid="true"] { border-color: var(--tone-danger); }

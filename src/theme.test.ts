@@ -52,6 +52,7 @@ const TEXT_PAIRS: [string, string[]][] = [
   ["--matrix-rule", ["--matrix-rule-bg", "--surface-sunken"]],
   ["--text", ["--matrix-assigned-bg"]],
   ...["high", "medium", "low"].map((risk): [string, string[]] => [`--risk-${risk}`, [`--risk-${risk}-bg`, "--surface"]]),
+  ["--cash-deficit", ["--cash-deficit-bg", "--surface", "--surface-sunken"]],
   ...["improved", "trade-off", "worse"].map((verdict): [string, string[]] => [`--verdict-${verdict}`, [`--verdict-${verdict}-bg`, "--surface"]]),
   ...["history", "create", "edit", "danger", "project", "report"].flatMap(
     (tone): [string, string[]][] => [
