@@ -755,6 +755,12 @@ export interface PaymentDates {
   actual: boolean;
 }
 
+/** What `payment_dates` takes: an anchor and its Net days. */
+export interface PaymentDatesQuery {
+  anchor: PaymentAnchor;
+  lag_days: number;
+}
+
 /** Mirror of `cash_flow::CashFlowOptions`: the span defaults to the project's money. */
 export interface CashFlowOptions {
   bucket: Bucket;
@@ -1210,7 +1216,7 @@ export type FillField =
   | "work_range"
   | { field: number };
 
-export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "curves" | "forecast" | "network";
+export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "curves" | "forecast" | "cashflow" | "network";
 
 export interface MatrixCell {
   assignment_uid?: number;

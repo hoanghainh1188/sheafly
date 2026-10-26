@@ -20,6 +20,7 @@ function renderInspector(task: Task, project: Project = makeProject({ tasks: [ta
       onSplit={vi.fn()}
       onEditCalendar={vi.fn()}
       onCreateCalendar={vi.fn()}
+      onOpenPayments={vi.fn()}
     />,
   );
   return { ...utils, send, user: userEvent.setup() };
@@ -215,6 +216,7 @@ describe("Inspector in English", () => {
           onSplit={vi.fn()}
           onEditCalendar={vi.fn()}
           onCreateCalendar={vi.fn()}
+          onOpenPayments={vi.fn()}
         />
       </I18nProvider>,
     );

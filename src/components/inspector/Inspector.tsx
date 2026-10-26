@@ -7,6 +7,7 @@ import { FieldInput } from "../FieldInput";
 import { MoneyInput } from "../MoneyInput";
 import { AssignmentEditor } from "./AssignmentEditor";
 import { EstimateGroup } from "./EstimateGroup";
+import { PaymentsGroup } from "./PaymentsGroup";
 import { canSplit, SplitSection } from "./SplitSection";
 import { inspectorMessages } from "./Inspector.i18n";
 import { useInspectorOpen } from "./useInspectorOpen";
@@ -22,6 +23,8 @@ interface Props {
   onSplit: (uid: number) => void;
   onEditCalendar: (calendarId: number) => void;
   onCreateCalendar: () => void;
+  /** Open Lịch thanh toán. */
+  onOpenPayments: () => void;
 }
 
 /**
@@ -66,6 +69,7 @@ export function Inspector(props: Props) {
           {!task.summary && <TrackingGroup {...props} />}
           <EstimateGroup project={props.project} task={task} send={props.send} />
           <CostGroup {...props} />
+          <PaymentsGroup project={props.project} task={task} onOpen={props.onOpenPayments} />
           {!task.summary && (
             <fieldset className="inspector-group assign-group">
               <legend>{m.resources}</legend>

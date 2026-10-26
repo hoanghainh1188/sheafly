@@ -368,6 +368,7 @@ pub const VIEW_MENU: &[Entry] = &[
     item("view-load", "Tải nguồn lực", "Resource Load", None),
     item("view-curves", "Đường cong S", "S-Curves", None),
     item("view-forecast", "Dự báo ngày kết thúc", "Finish Forecast", None),
+    item("view-cashflow", "Dòng tiền (Pro)", "Cash Flow (Pro)", None),
     item(
         "view-evm",
         "Chỉ số EVM và burn-down",
@@ -401,6 +402,7 @@ pub const PROJECT_MENU: &[Entry] = &[
             item("project-info", "Thông tin dự án…", "Project Information…", None),
             item("custom-fields", "Trường tùy chỉnh…", "Custom Fields…", None),
             item("working-time", "Lịch làm việc…", "Working Time…", None),
+            item("payment-schedule", "Lịch thanh toán…", "Payment Schedule…", None),
             item("tracker-settings", "Đồng bộ task tracker (Pro)…", "Task Tracker Sync (Pro)…", None),
         ],
     ),

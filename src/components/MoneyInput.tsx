@@ -9,6 +9,8 @@ interface Props {
   onCommit: (value: number | null) => void;
   /** Empty sends null (back to the computed amount); otherwise empty is refused. */
   optional?: boolean;
+  /** A leading minus is read as a negative amount (a balance), not refused. */
+  signed?: boolean;
   ariaLabel?: string;
   title?: string;
   placeholder?: string;
@@ -21,7 +23,7 @@ interface Props {
  * plain with either decimal mark (`parseMoney`). Text that does not read keeps the old
  * amount and says why, rather than saving 0.
  */
-export function MoneyInput({ value, onCommit, optional, ariaLabel, title, placeholder, className, disabled }: Props) {
+export function MoneyInput({ value, onCommit, optional, signed, ariaLabel, title, placeholder, className, disabled }: Props) {
   const m = useMessages(moneyInputMessages);
   const lang = useLang();
   const shown = value == null ? "" : formatMoneyInput(value);
@@ -54,7 +56,9 @@ export function MoneyInput({ value, onCommit, optional, ariaLabel, title, placeh
             if (value != null) onCommit(null);
             return;
           }
-          const amount = parseMoney(text);
+          const negative = signed === true && /^[-−]/.test(text);
+          const read = parseMoney(negative ? text.slice(1) : text);
+          const amount = read == null ? null : negative ? -read : read;
           if (amount == null) return setRefused(m.unreadable);
           if (amount !== value) onCommit(amount);
         }}

@@ -26,6 +26,8 @@ import type {
   TaskClipboard,
   Forecast,
   CashFlowReport,
+  PaymentDates,
+  PaymentDatesQuery,
   HealthReport,
   PullChanges,
   PullPreview,
@@ -233,6 +235,8 @@ class FakeBackend {
         return structuredClone(this.health);
       case "cash_flow":
         return structuredClone(this.cashFlow);
+      case "payment_dates":
+        return (args?.items as PaymentDatesQuery[]).map((item) => this.paymentDates(item));
       case "preview_plan":
         return structuredClone(
           this.planPreview ?? {
@@ -363,6 +367,22 @@ class FakeBackend {
   }
 
   /** A clipboard with the names and durations of `uids`, in sheet order. */
+  /** As the engine's `payment_dates` with the scheduled dates; actual dates win. */
+  private paymentDates({ anchor, lag_days }: PaymentDatesQuery): PaymentDates | null {
+    let invoice: number;
+    let actual = false;
+    if (anchor.type === "date") invoice = anchor.at;
+    else {
+      const task = this.snapshot.project.tasks.find((item) => item.uid === anchor.task);
+      if (!task) return null;
+      const done = anchor.type === "finish" ? task.actual_finish : task.actual_start;
+      actual = done != null;
+      invoice = done ?? (anchor.type === "finish" ? task.finish : task.start);
+    }
+    const day = 86_400_000;
+    return { invoice, due: Math.floor(invoice / day) * day + lag_days * day, actual };
+  }
+
   private copy(uids: number[]): TaskClipboard {
     const tasks = this.snapshot.project.tasks.filter((task: Task) => uids.includes(task.uid));
     return {

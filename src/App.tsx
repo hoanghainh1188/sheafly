@@ -59,9 +59,11 @@ import { TaskSheet } from "./components/TaskSheet";
 import { TaskUsage } from "./components/TaskUsage";
 import { LoadMapView } from "./components/load/LoadMapView";
 import { CurvesView } from "./components/curves/CurvesView";
+import { CashFlowView } from "./components/cashflow/CashFlowView";
+import { PaymentScheduleDialog } from "./components/payments/PaymentScheduleDialog";
 import { Toolbar } from "./components/Toolbar";
 import { VIEW_PANEL_ID, ViewBar, viewTabId } from "./components/ViewBar";
-import { instantToDateKey, normalizePredecessorText, todayInstant } from "./format";
+import { instantToDateKey, normalizePredecessorText, todayInstant, utcMidnight } from "./format";
 import { pick, useLang, useMessages, useSetLang } from "./i18n";
 import { buildGanttPdf, pdfSuggestedName } from "./ganttPdf";
 import { handleMenuAction } from "./menuActions";
@@ -131,12 +133,15 @@ export default function App() {
   const capacityPro = license?.features.includes("capacity") ?? false;
   const reportingPro = license?.features.includes("reporting") ?? false;
   const healthPro = license?.features.includes("health") ?? false;
+  const cashflowPro = license?.features.includes("cashflow") ?? false;
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
   const [workingTime, setWorkingTime] = useState<{ id: number; start: number } | null>(null);
   // The resource Khả dụng is open for and the history cursor to roll back to.
   const [availability, setAvailability] = useState<{ uid: number; start: number } | null>(null);
   // Giao việc (skills and assignment rules): the history cursor to roll back to.
   const [assignmentStart, setAssignmentStart] = useState<number | null>(null);
+  // Lịch thanh toán: the history cursor to roll back to.
+  const [paymentsStart, setPaymentsStart] = useState<number | null>(null);
   // Giao việc theo quy tắc: the suggestions being reviewed, null while closed.
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [importSheet, setImportSheet] = useState<ImportSheet | null>(null);
@@ -297,6 +302,13 @@ export default function App() {
     setAssignmentStart(state ? state.history_cursor : (snap?.history_cursor ?? 0));
   }, [run, snap]);
 
+  // Lịch thanh toán is a transaction too.
+  const openPaymentSchedule = useCallback(async () => {
+    const state = await run(loadState);
+    setDialogError(null);
+    setPaymentsStart(state ? state.history_cursor : (snap?.history_cursor ?? 0));
+  }, [run, snap]);
+
   // Suggestions are a read; reading them waits for queued edits, as every read does.
   const openAssignByRules = useCallback(async () => {
     if (!inTauri()) {
@@ -404,7 +416,7 @@ export default function App() {
         view,
         fileDialogBusy,
         // Undo stops where the open transaction began, in any of the dialogs.
-        infoStart: infoStart ?? workingTime?.start ?? availability?.start ?? assignmentStart ?? null,
+        infoStart: infoStart ?? workingTime?.start ?? availability?.start ?? assignmentStart ?? paymentsStart ?? null,
         run,
         send,
         startFileDialog,
@@ -433,6 +445,7 @@ export default function App() {
           setTrackerSettingsOpen(true);
         },
         openWorkingTime: () => void openWorkingTime(snap?.project.calendar_id ?? 1),
+        openPaymentSchedule: () => void openPaymentSchedule(),
         openBaseline: () => setBaselineOpen(true),
         openLicense: () => setLicenseOpen(true),
         openAiSettings: () => setAiSettingsOpen(true),
@@ -452,7 +465,7 @@ export default function App() {
         reportingPro,
         healthPro,
       }),
-    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, infoStart, workingTime, availability, assignmentStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro, healthPro],
+    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, openPaymentSchedule, infoStart, workingTime, availability, assignmentStart, paymentsStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro, healthPro],
   );
   menuRef.current = handleMenu;
 
@@ -875,6 +888,18 @@ export default function App() {
                 }}
               />
             )}
+            {project && view === "cashflow" && (
+              <CashFlowView
+                project={project}
+                cashflowPro={cashflowPro}
+                onOpenLicense={() => setLicenseOpen(true)}
+                onOpenPayments={() => void openPaymentSchedule()}
+                onPickTask={(uid) => {
+                  selectOne(uid);
+                  setView("gantt");
+                }}
+              />
+            )}
             {project && view === "network" && (
               <NetworkDiagram
                 project={project}
@@ -899,6 +924,7 @@ export default function App() {
               onEditSeries={setSeriesDialog}
               onSplit={setSplitDialog}
               onEditCalendar={(id) => void openWorkingTime(id)}
+              onOpenPayments={() => void openPaymentSchedule()}
               onCreateCalendar={() => {
                 const name = task.name.trim() ? m.calendarFor(task.name.trim()) : m.taskCalendar;
                 void createCalendar(
@@ -1013,6 +1039,23 @@ export default function App() {
             const start = assignmentStart;
             void rollbackTo(start).then((state) => {
               if (state && state.history_cursor <= start) setAssignmentStart(null);
+              else setError(m.rollbackFailed);
+            });
+          }}
+          send={sendInDialog}
+        />
+      )}
+      {paymentsStart != null && project && (
+        <PaymentScheduleDialog
+          project={project}
+          changed={(snap?.history_cursor ?? 0) !== paymentsStart}
+          error={dialogError}
+          today={utcMidnight(todayInstant())}
+          onSave={() => setPaymentsStart(null)}
+          onCancel={() => {
+            const start = paymentsStart;
+            void rollbackTo(start).then((state) => {
+              if (state && state.history_cursor <= start) setPaymentsStart(null);
               else setError(m.rollbackFailed);
             });
           }}

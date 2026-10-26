@@ -3,13 +3,38 @@
 //! (`sheafly_pro::cash_flow`). A read, never logged. The payment data itself is Free and goes
 //! through `apply_command` like any edit; only this read is gated (`Feature::Cashflow`).
 //! Builds from the public source say they have no Pro modules before asking for a license.
+//! `payment_dates` is Free (D7): the payment dialog shows when each payment is due.
 
+use serde::Deserialize;
 use tauri::State;
 
 use super::{i18n, lang, lock, AppState};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
-use sheafly_engine::Lang;
+use sheafly_engine::payments::{self, DateBasis, PaymentAnchor, PaymentDates};
+use sheafly_engine::{Lang, Project};
 use sheafly_license::Feature;
+
+/// An anchor and its lag, as the payment dialog asks for its dates.
+#[derive(Deserialize)]
+pub(crate) struct DatesQuery {
+    anchor: PaymentAnchor,
+    #[serde(default)]
+    lag_days: u16,
+}
+
+/// When each anchor is invoiced and due as scheduled now, in the order asked; `None` for a
+/// task that is gone. A read, never logged, and not gated: the data it reads is Free.
+#[tauri::command(async)]
+pub(crate) fn payment_dates(state: State<'_, AppState>, items: Vec<DatesQuery>) -> Vec<Option<PaymentDates>> {
+    dates_for(&lock(&state).project, &items)
+}
+
+fn dates_for(project: &Project, items: &[DatesQuery]) -> Vec<Option<PaymentDates>> {
+    items
+        .iter()
+        .map(|item| payments::payment_dates(project, item.anchor, item.lag_days, DateBasis::Scheduled))
+        .collect()
+}
 
 #[tauri::command]
 pub(crate) async fn cash_flow(
@@ -47,5 +72,26 @@ mod tests {
         assert_eq!(gate(true, false, Lang::En), Err(i18n::text(Lang::En).needs_pro_cashflow.into()));
         assert_eq!(gate(true, false, Lang::Vi), Err(i18n::text(Lang::Vi).needs_pro_cashflow.into()));
         assert_eq!(gate(true, true, Lang::Vi), Ok(()));
+    }
+
+    #[test]
+    fn dates_come_in_the_order_asked_and_none_for_a_task_that_is_gone() {
+        let start = sheafly_engine::timeutil::timestamp(2026, 1, 5, 8, 0);
+        let project = sheafly_engine::Document::new_in(Lang::Vi).project;
+        let uid = project.tasks[0].uid;
+        let finish = project.tasks[0].finish;
+        let items = [
+            DatesQuery { anchor: PaymentAnchor::Finish { task: uid }, lag_days: 30 },
+            DatesQuery { anchor: PaymentAnchor::Finish { task: uid + 99 }, lag_days: 0 },
+            DatesQuery { anchor: PaymentAnchor::Date { at: start }, lag_days: 1 },
+        ];
+        let dates = dates_for(&project, &items);
+        assert_eq!(dates.len(), 3);
+        let first = dates[0].expect("the task is there");
+        assert_eq!(first.invoice, finish);
+        assert_eq!(first.due, payments::due_date(finish, 30));
+        assert!(!first.actual);
+        assert_eq!(dates[1], None);
+        assert_eq!(dates[2].map(|d| d.due), Some(payments::due_date(start, 1)));
     }
 }

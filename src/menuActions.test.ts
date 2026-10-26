@@ -30,6 +30,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     openTrackerPush: vi.fn(),
     openTrackerSettings: vi.fn(),
     openWorkingTime: vi.fn(),
+    openPaymentSchedule: vi.fn(),
     openBaseline: vi.fn(),
     openLicense: vi.fn(),
     openAiSettings: vi.fn(),
@@ -285,5 +286,21 @@ describe("Help menu", () => {
     const ctx = context();
     handleMenuAction("ai-settings", ctx);
     expect(ctx.openAiSettings).toHaveBeenCalledOnce();
+  });
+});
+
+describe("cash flow", () => {
+  it("opens the payment schedule with a project and switches to the cash flow view", () => {
+    const ctx = context();
+    handleMenuAction("payment-schedule", ctx);
+    expect(ctx.openPaymentSchedule).toHaveBeenCalled();
+    handleMenuAction("view-cashflow", ctx);
+    expect(ctx.setView).toHaveBeenCalledWith("cashflow");
+  });
+
+  it("does not open the payment schedule without a project", () => {
+    const ctx = context({ snap: null });
+    handleMenuAction("payment-schedule", ctx);
+    expect(ctx.openPaymentSchedule).not.toHaveBeenCalled();
   });
 });

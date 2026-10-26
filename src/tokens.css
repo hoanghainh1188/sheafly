@@ -130,6 +130,12 @@
   --verdict-trade-off-bg: #fdf1de;
   --verdict-worse: #b3261e;
   --verdict-worse-bg: #fdecea;
+  /* The cash flow (phase 25): money in, money out, the running balance, periods short of money. */
+  --cash-in: #1f8a4c;
+  --cash-out: #c2410c;
+  --cash-net: #1d4ed8;
+  --cash-deficit: #b3261e;
+  --cash-deficit-bg: #fdecea;
   --tone-report: #985800;
   --tone-report-bg: #fdf1de;
   --matrix-rule: #985800;
@@ -239,6 +245,11 @@
   --verdict-trade-off-bg: #37290f;
   --verdict-worse: #ff8a80;
   --verdict-worse-bg: #3d1b19;
+  --cash-in: #4cc06b;
+  --cash-out: #f0883e;
+  --cash-net: #79a8ff;
+  --cash-deficit: #ff8a80;
+  --cash-deficit-bg: #3d1b19;
   --tone-report: #f2b660;
   --tone-report-bg: #37290f;
   --matrix-rule: #f2b660;

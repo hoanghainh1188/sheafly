@@ -60,6 +60,8 @@ export interface MenuContext {
   openAiSettings: () => void;
   /** Dự án → Kiểm tra chất lượng lịch (Pro `health`). */
   openHealth: () => void;
+  /** Dự án → Thiết lập dự án → Lịch thanh toán (Free). */
+  openPaymentSchedule: () => void;
   /** Lịch làm việc, on the project calendar. */
   openWorkingTime: () => void;
   openBaseline: () => void;
@@ -88,6 +90,7 @@ const VIEWS: Record<string, ViewId> = {
   "view-load": "load",
   "view-curves": "curves",
   "view-forecast": "forecast",
+  "view-cashflow": "cashflow",
   "view-network": "network",
 };
 
@@ -216,6 +219,9 @@ function viewAction(id: string, ctx: MenuContext): boolean {
       return true;
     case "working-time":
       ctx.openWorkingTime();
+      return true;
+    case "payment-schedule":
+      if (ctx.snap) ctx.openPaymentSchedule();
       return true;
     case "license":
       ctx.openLicense();

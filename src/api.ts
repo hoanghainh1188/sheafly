@@ -17,6 +17,8 @@ import type {
   Forecast,
   CashFlowOptions,
   CashFlowReport,
+  PaymentDates,
+  PaymentDatesQuery,
   HealthReport,
   Command,
   ImportProblem,
@@ -194,6 +196,11 @@ export function assignmentMatrix(group: boolean): Promise<AssignmentMatrix> {
 /** The schedule health check (Pro `health`); a read that never changes the project. */
 export function scheduleHealth(): Promise<HealthReport> {
   return invoke<HealthReport>("schedule_health");
+}
+
+/** When each anchor is invoiced and due as scheduled now (Free); null for a task that is gone. */
+export function paymentDates(items: PaymentDatesQuery[]): Promise<(PaymentDates | null)[]> {
+  return inOrder(() => invoke<(PaymentDates | null)[]>("payment_dates", { items }));
 }
 
 /** The cash flow by period (Pro `cashflow`); refused without the Pro modules or license. */

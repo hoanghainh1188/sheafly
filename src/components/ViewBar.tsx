@@ -1,4 +1,4 @@
-import { ChartColumnIncreasing, ChartGantt, ChartLine, Grid2x2, Grid3x3, ListChecks, Network, Table2, Users, type LucideIcon } from "lucide-react";
+import { Banknote, ChartColumnIncreasing, ChartGantt, ChartLine, Grid2x2, Grid3x3, ListChecks, Network, Table2, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 
 import { distinctValues, formatFieldValue, valueKey } from "../fieldValues";
@@ -19,6 +19,7 @@ const VIEWS: { id: ViewId; Icon: LucideIcon; pro?: boolean }[] = [
   { id: "load", Icon: Grid3x3 },
   { id: "curves", Icon: ChartLine },
   { id: "forecast", Icon: ChartColumnIncreasing },
+  { id: "cashflow", Icon: Banknote, pro: true },
   { id: "network", Icon: Network },
 ];
 
