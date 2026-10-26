@@ -28,6 +28,7 @@ import { BaselineDialog } from "./components/BaselineDialog";
 import { LicenseDialog } from "./components/license/LicenseDialog";
 import { AiSettingsDialog } from "./components/ai/AiSettingsDialog";
 import { RecommendationsPanel } from "./components/ai/RecommendationsPanel";
+import { WbsDialog } from "./components/ai/WbsDialog";
 import { HealthDialog } from "./components/health/HealthDialog";
 import { useScheduleHealth } from "./components/health/useScheduleHealth";
 import { EvmPanel } from "./components/EvmPanel";
@@ -159,6 +160,7 @@ export default function App() {
   const [splitDialog, setSplitDialog] = useState<number | null>(null);
   const [evmOpen, setEvmOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [wbsOpen, setWbsOpen] = useState(false);
   // Bumped when the AI settings dialog closes, so the Recommendations panel reads them again.
   const [aiSettingsKey, setAiSettingsKey] = useState(0);
   const [metrics, setMetrics] = useState<ProjectMetrics | null>(null);
@@ -926,6 +928,7 @@ export default function App() {
             onOpenSettings={() => setAiSettingsOpen(true)}
             onPickTask={selectOne}
             onApplied={(next) => void run(async () => next)}
+            onOpenWbs={() => setWbsOpen(true)}
             onClose={() => setAiOpen(false)}
           />
         )}
@@ -1026,6 +1029,18 @@ export default function App() {
           onClose={() => {
             setDialogError(null);
             setSuggestions(null);
+          }}
+        />
+      )}
+      {wbsOpen && project && (
+        <WbsDialog
+          project={project}
+          afterTask={task}
+          error={dialogError}
+          send={sendInDialog}
+          onClose={() => {
+            setDialogError(null);
+            setWbsOpen(false);
           }}
         />
       )}

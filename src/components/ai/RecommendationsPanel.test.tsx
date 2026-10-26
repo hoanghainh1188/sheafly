@@ -39,7 +39,7 @@ function enable() {
 }
 
 function open(overrides: Partial<{ aiPro: boolean; project: Project }> = {}) {
-  const handlers = { onOpenLicense: vi.fn(), onOpenSettings: vi.fn(), onPickTask: vi.fn(), onApplied: vi.fn(), onClose: vi.fn() };
+  const handlers = { onOpenLicense: vi.fn(), onOpenSettings: vi.fn(), onPickTask: vi.fn(), onApplied: vi.fn(), onOpenWbs: vi.fn(), onClose: vi.fn() };
   const view = render(
     <RecommendationsPanel project={overrides.project ?? project} aiPro={overrides.aiPro ?? true} settingsKey={0} {...handlers} />,
   );
@@ -147,12 +147,72 @@ describe("RecommendationsPanel", () => {
     fakeBackend.aiRisks = { ...report, requests: 1, truncated: false };
     render(
       <I18nProvider lang="en">
-        <RecommendationsPanel project={project} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onApplied={vi.fn()} onClose={vi.fn()} />
+        <RecommendationsPanel project={project} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onApplied={vi.fn()} onOpenWbs={vi.fn()} onClose={vi.fn()} />
       </I18nProvider>,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Explain risks" }));
     expect(await screen.findByRole("article")).toHaveTextContent("High");
     expect(screen.getByText("Used 12,345 input and 678 output tokens (1 request).")).toBeInTheDocument();
     expect(screen.queryByText(/shortened/)).not.toBeInTheDocument();
+  });
+
+  it("checks the estimates: cards, then proposals the engine tries", async () => {
+    fakeBackend.reset();
+    enable();
+    fakeBackend.aiEstimates = {
+      cards: [{ ...report.cards[0], title: "T2 lệch effort", chain: [], people: [] }],
+      proposals: [{ id: "toolu_1", goal: { kind: "estimate", task: 2 }, commands: [{ type: "set_work", uid: 2, minutes: 960 }], level: false, reason: "Như T1." }],
+      note: "",
+      input_tokens: 10,
+      output_tokens: 5,
+      requests: 2,
+      truncated: false,
+      omitted_tasks: 0,
+      omitted_resources: 0,
+    };
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: "Rà soát ước lượng" }));
+    expect(await screen.findByRole("heading", { name: "Lập trình lệch effort" })).toBeInTheDocument();
+    expect(await screen.findByText("Sửa ước lượng: Lập trình")).toBeInTheDocument();
+    await waitFor(() => expect(calls("ai_trial")).toHaveLength(1));
+    expect(calls("ai_estimates")).toHaveLength(1);
+  });
+
+  it("says when the estimates look fine", async () => {
+    fakeBackend.reset();
+    enable();
+    fakeBackend.aiEstimates = { ...fakeBackend.aiEstimates!, note: "Ước lượng ổn." };
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: "Rà soát ước lượng" }));
+    expect(await screen.findByText("AI không thấy vấn đề: Ước lượng ổn.")).toBeInTheDocument();
+  });
+
+  it("writes a status report with real names, to copy or save as Markdown", async () => {
+    fakeBackend.reset();
+    enable();
+    fakeBackend.aiStatus = {
+      ...fakeBackend.aiStatus!,
+      report: { title: "Tuần 2", markdown: "# Tuần 2\n\n## Rủi ro\n\n- **T4** trễ vì R7 bận.\n" },
+    };
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: "Báo cáo tình trạng" }));
+    const article = await screen.findByRole("article", { name: "Báo cáo tình trạng" });
+    expect(article).toHaveTextContent("Bàn giao trễ vì An bận.");
+    expect(article).not.toHaveTextContent("**");
+    await userEvent.click(screen.getByRole("button", { name: "Sao chép" }));
+    expect(writeText).toHaveBeenCalledWith("# Tuần 2\n\n## Rủi ro\n\n- **Bàn giao** trễ vì An bận.\n");
+    expect(await screen.findByText("Đã sao chép báo cáo (có tên thật).")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Lưu Markdown…" }));
+    expect(calls("save_text_report")[0].args).toEqual({ text: "# Tuần 2\n\n## Rủi ro\n\n- **Bàn giao** trễ vì An bận.\n", fileName: "Tuan-2.md" });
+  });
+
+  it("opens the WBS dialog from its button", async () => {
+    fakeBackend.reset();
+    enable();
+    const { onOpenWbs } = open();
+    await userEvent.click(await screen.findByRole("button", { name: "Dựng WBS từ mô tả…" }));
+    expect(onOpenWbs).toHaveBeenCalledOnce();
   });
 });

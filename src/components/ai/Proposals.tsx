@@ -18,7 +18,8 @@ type Messages = (typeof proposalsMessages)["vi"];
 type Trial = { project: Project; result: { ok: ProposalTrial } | { error: string } };
 
 interface ProposalsProps {
-  report: FixReport;
+  /** The proposals of kind 2 or 3, and the model's note when there are none. */
+  report: Pick<FixReport, "proposals" | "note">;
   project: Project;
   names: AdviceNames;
   onPickTask: (uid: number) => void;
@@ -27,7 +28,7 @@ interface ProposalsProps {
 }
 
 /**
- * The proposals of kind 2 (phase 22 PR D): each tried by the engine on a copy of the project
+ * The proposals of kind 2 (phase 22 PR D) and kind 3 (PR E): each tried by the engine on a copy of the project
  * as it is now, again whenever the project changes (decision D6), with what the trial found.
  * The ones that do not make their goal better, or that the engine refuses, are dropped,
  * without Apply. Nothing changes before Apply, which sends exactly the commands tried.

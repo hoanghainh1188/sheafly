@@ -69,5 +69,7 @@ export function describeGoal(goal: ProposalGoal, project: Project): string {
       return t.goalOverallocation(project.resources.find((item) => item.uid === goal.resource)?.name ?? `R${goal.resource}`);
     case "finish":
       return t.goalFinish;
+    case "estimate":
+      return t.goalEstimate(project.tasks.find((item) => item.uid === goal.task)?.name ?? `T${goal.task}`);
   }
 }

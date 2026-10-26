@@ -188,3 +188,22 @@ fn the_engine_refuses_what_it_cannot_apply() {
     let nobody = proposal(Goal::Overallocation { resource: 9 }, vec![link(1, 2)], false);
     assert_eq!(trial_proposal(&doc.project, &nobody).unwrap_err(), EngineError::ResourceNotFound);
 }
+
+#[test]
+fn an_estimate_fix_is_judged_by_the_measures_alone() {
+    // Task 1 takes 1 day; putting its estimate right at 2 days slips nothing past a day.
+    let one = doc(1, 1);
+    let truer = Command::SetWork { uid: 1, minutes: 2 * DAY };
+    let trial = trial_proposal(&one.project, &proposal(Goal::Estimate { task: 1 }, vec![truer], false)).unwrap();
+    assert!(trial.target_after > trial.target_before, "the task finishes later, and that is the point");
+    assert_eq!(trial.verdict, Verdict::Improved);
+
+    // Linking two tasks on one person makes the finish a day later and more critical work.
+    let two = doc(2, 2);
+    let trial = trial_proposal(&two.project, &proposal(Goal::Estimate { task: 2 }, vec![link(1, 2)], false)).unwrap();
+    assert_eq!(trial.verdict, Verdict::TradeOff);
+    assert!(trial.worse.contains(&Measure::Finish));
+
+    let gone = proposal(Goal::Estimate { task: 9 }, vec![link(1, 2)], false);
+    assert_eq!(trial_proposal(&two.project, &gone).unwrap_err(), EngineError::TaskNotFound);
+}

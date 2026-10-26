@@ -1,7 +1,7 @@
 //! Stub of the Sheafly Pro modules (plan part 20G).
 //!
 //! The Pro features added since D1-B (the Excel workbook of sheafly-pro#3, the AI
-//! recommendations of sheafly-pro#1 (kinds 1 and 2), the cash flow of sheafly-pro#5, and later ones) are
+//! recommendations of sheafly-pro#1 (kinds 1 to 5), the cash flow of sheafly-pro#5, and later ones) are
 //! closed source, in the private repository `sheafly-pro`. This crate has the same public
 //! functions and the same dependencies, so the app builds from this repository alone;
 //! each function answers that this build has no Pro modules. Release builds copy the
@@ -9,8 +9,9 @@
 //! whenever the private crate gains one, and keep the shared computations in the engine.
 
 use serde_json::Value;
-use sheafly_engine::advice::{AdviceStep, Fixes};
+use sheafly_engine::advice::{AdviceStep, EstimateReview, Fixes, StatusReport, Wbs};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
+use sheafly_engine::forecast::Forecast;
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -87,6 +88,67 @@ pub fn fixes_retry(_body: &Value, _reply: &Value, _refused: &[(String, String)],
     Err(unavailable(lang))
 }
 
+/// The first request to check a project's estimates (sheafly-pro#1, kind 3). The stub has
+/// none.
+pub fn estimates_request(
+    _summary: &ProjectSummary,
+    _project: &Project,
+    _forecast: Option<&Forecast>,
+    _model: &str,
+    lang: Lang,
+) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// Read a reply to a request to check estimates. The stub has none.
+pub fn estimates_next(
+    _body: &Value,
+    _reply: &Value,
+    _project: &Project,
+    _mask: bool,
+    lang: Lang,
+) -> Result<AdviceStep<EstimateReview>, String> {
+    Err(unavailable(lang))
+}
+
+/// The body asking once more for the estimate fixes the engine refused. The stub has none.
+pub fn estimates_retry(_body: &Value, _reply: &Value, _refused: &[(String, String)], lang: Lang) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// The first request to build a work breakdown from a description (sheafly-pro#1, kind 4).
+/// The stub has none.
+pub fn wbs_request(_description: &str, _summary: &ProjectSummary, _model: &str, lang: Lang) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// Read a reply to a request for a work breakdown. The stub has none.
+pub fn wbs_next(_body: &Value, _reply: &Value, _project: &Project, lang: Lang) -> Result<AdviceStep<Wbs>, String> {
+    Err(unavailable(lang))
+}
+
+/// The first request for a status report (sheafly-pro#1, kind 5). The stub has none.
+pub fn status_request(
+    _summary: &ProjectSummary,
+    _project: &Project,
+    _forecast: Option<&Forecast>,
+    _model: &str,
+    lang: Lang,
+) -> Result<Value, String> {
+    Err(unavailable(lang))
+}
+
+/// Read a reply to a request for a status report. The stub has none.
+pub fn status_next(
+    _body: &Value,
+    _reply: &Value,
+    _project: &Project,
+    _mask: bool,
+    lang: Lang,
+) -> Result<AdviceStep<StatusReport>, String> {
+    Err(unavailable(lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,5 +177,12 @@ mod tests {
         assert_eq!(fixes_request(&summary, "m", Lang::Vi), Err(unavailable(Lang::Vi)));
         assert_eq!(fixes_next(&empty, &empty, &doc.project, false, Lang::En), Err(unavailable(Lang::En)));
         assert_eq!(fixes_retry(&empty, &empty, &[], Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(estimates_request(&summary, &doc.project, None, "m", Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(estimates_next(&empty, &empty, &doc.project, false, Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(estimates_retry(&empty, &empty, &[], Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(wbs_request("x", &summary, "m", Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(wbs_next(&empty, &empty, &doc.project, Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(status_request(&summary, &doc.project, None, "m", Lang::En), Err(unavailable(Lang::En)));
+        assert_eq!(status_next(&empty, &empty, &doc.project, true, Lang::Vi), Err(unavailable(Lang::Vi)));
     }
 }

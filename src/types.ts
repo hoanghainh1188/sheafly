@@ -1448,7 +1448,12 @@ export interface RiskReport {
 }
 
 /** What an AI proposal sets out to improve (`advice::Goal`). */
-export type ProposalGoal = { kind: "deadline"; task: number } | { kind: "overallocation"; resource: number } | { kind: "finish" };
+export type ProposalGoal =
+  | { kind: "deadline"; task: number }
+  | { kind: "overallocation"; resource: number }
+  | { kind: "finish" }
+  /** Put a task's estimate or links right (kind 3): judged by the four measures alone. */
+  | { kind: "estimate"; task: number };
 
 /** A change the AI proposes (`advice::Proposal`); the engine tries it before anyone applies it. */
 export interface Proposal {
@@ -1466,6 +1471,50 @@ export interface FixReport {
   proposals: Proposal[];
   /** Why there is no proposal, when there is none. */
   note: string;
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+  truncated: boolean;
+  omitted_tasks: number;
+  omitted_resources: number;
+}
+
+/** What `ai_estimates` answers (`ai_commands::EstimateReport`): cards, and proposals not tried yet. */
+export interface EstimateReport {
+  cards: RiskCard[];
+  proposals: Proposal[];
+  /** Why there is nothing to say, when there is nothing. */
+  note: string;
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+  truncated: boolean;
+  omitted_tasks: number;
+  omitted_resources: number;
+}
+
+/** What `ai_wbs` answers (`ai_commands::WbsReport`): the rows of one `import_rows`, not imported yet. */
+export interface WbsReport {
+  tasks: ImportTask[];
+  /** The model's assumptions; may be empty. */
+  note: string;
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+  truncated: boolean;
+  omitted_tasks: number;
+  omitted_resources: number;
+}
+
+/** A status report (`advice::StatusReport`): Markdown with tasks and people as `T42` and `R7`. */
+export interface StatusReport {
+  title: string;
+  markdown: string;
+}
+
+/** What `ai_status` answers (`ai_commands::StatusAnswer`). */
+export interface StatusAnswer {
+  report: StatusReport;
   input_tokens: number;
   output_tokens: number;
   requests: number;

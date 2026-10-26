@@ -28,6 +28,7 @@ export const proposalTextMessages = defineMessages(
     goalDeadline: (task: string) => `Kịp deadline: ${task}`,
     goalOverallocation: (person: string) => `Bớt quá tải: ${person}`,
     goalFinish: "Xong dự án sớm hơn",
+    goalEstimate: (task: string) => `Sửa ước lượng: ${task}`,
   },
   {
     assign: (task: string, person: string, units: string) => `Assign ${person} to ${task} (${units})`,
@@ -56,5 +57,6 @@ export const proposalTextMessages = defineMessages(
     goalDeadline: (task: string) => `Meet the deadline: ${task}`,
     goalOverallocation: (person: string) => `Relieve: ${person}`,
     goalFinish: "Finish the project earlier",
+    goalEstimate: (task: string) => `Put the estimate right: ${task}`,
   },
 );

@@ -456,6 +456,23 @@ body.pane-resizing { cursor: col-resize; user-select: none; }
   cursor: pointer;
 }
 .ai-task-link:hover { text-decoration-color: currentColor; }
+/* AI status report (kind 5): a document in the panel, set like a short memo. */
+.ai-report {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface);
+  line-height: 1.5;
+}
+.ai-report h3 { margin: 4px 0 0; font-size: 15px; font-weight: 650; }
+.ai-report h4 { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.ai-report p { margin: 0; }
+.ai-report ul { margin: 0; padding-left: 18px; }
+/* The WBS dialog (kind 4): the description above the preview the import dialog shares. */
+.wbs-description { display: grid; gap: 4px; }
+.wbs-description textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }
 /* AI proposals (kind 2): each card says what the engine's trial found. */
 .ai-panel-actions { flex-wrap: wrap; }
 .ai-proposal { border-left-color: var(--border-strong); }

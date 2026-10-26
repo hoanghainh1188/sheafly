@@ -12,6 +12,7 @@ import type {
   CurveFilter,
   CurveMeasure,
   CurvesReport,
+  EstimateReport,
   FixReport,
   Forecast,
   CashFlowOptions,
@@ -44,10 +45,12 @@ import type {
   RiskReport,
   Source,
   Snapshot,
+  StatusAnswer,
   Suggestion,
   TaskAssignment,
   TaskClipboard,
   TrackerKind,
+  WbsReport,
 } from "./types";
 
 const apiMessages = defineMessages(
@@ -291,7 +294,25 @@ export function aiApply(id: string, commands: Command[]): Promise<Snapshot> {
   return inOrder(() => received(invoke<SnapshotAnswer>("ai_apply", { id, commands })));
 }
 
-/** Stop the request `aiRisks` or `aiFixes` is running. */
+/**
+ * Check the estimates and logic of the project as it is now (kind 3); `null` when stopped.
+ * Its proposals go through `aiTrial` and `aiApply` like those of `aiFixes`.
+ */
+export function aiEstimates(): Promise<EstimateReport | null> {
+  return invoke<EstimateReport | null>("ai_estimates");
+}
+
+/** Build a work breakdown from a description (kind 4); `null` when stopped. Nothing is imported. */
+export function aiWbs(description: string): Promise<WbsReport | null> {
+  return invoke<WbsReport | null>("ai_wbs", { description });
+}
+
+/** Write a status report of the project as it is now (kind 5, read only); `null` when stopped. */
+export function aiStatus(): Promise<StatusAnswer | null> {
+  return invoke<StatusAnswer | null>("ai_status");
+}
+
+/** Stop the request an `ai*` call is running. */
 export function aiCancel(): Promise<void> {
   return invoke<void>("ai_cancel");
 }
@@ -421,6 +442,11 @@ export function exportExcel(): Promise<void> {
 
 export function savePdf(bytes: Uint8Array, fileName: string): Promise<void> {
   return invoke<void>("save_pdf", { bytes: Array.from(bytes), fileName });
+}
+
+/** Show the save dialog and write `text` as a Markdown file (the AI status report). */
+export function saveTextReport(text: string, fileName: string): Promise<void> {
+  return invoke<void>("save_text_report", { text, fileName });
 }
 
 export function onMenu(handler: (id: string) => void): Promise<UnlistenFn> {

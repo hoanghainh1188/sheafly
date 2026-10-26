@@ -2,7 +2,10 @@ import type {
   AiCheck,
   AiSettings,
   RiskReport,
+  EstimateReport,
   FixReport,
+  StatusAnswer,
+  WbsReport,
   Proposal,
   ProposalTrial,
   AssignmentMatrix,
@@ -93,6 +96,10 @@ class FakeBackend {
   aiRisks: RiskReport | null = emptyRiskReport();
   /** What `ai_fixes` answers (null is a stopped request). */
   aiFixes: FixReport | null = emptyFixReport();
+  /** What `ai_estimates`, `ai_wbs` and `ai_status` answer (null is a stopped request). */
+  aiEstimates: EstimateReport | null = { ...emptyFixReport(), cards: [] };
+  aiWbs: WbsReport | null = { ...usage(), tasks: [], note: "" };
+  aiStatus: StatusAnswer | null = { ...usage(), report: { title: "Báo cáo", markdown: "# Báo cáo\n" } };
   /** What `ai_trial` answers by proposal id: a trial, or the engine's refusal as text. By
    * default an improvement whose commands are the proposal's. */
   aiTrials: Record<string, ProposalTrial | string> = {};
@@ -146,6 +153,9 @@ class FakeBackend {
     this.aiCheck = { model: "claude-opus-5-5", input_tokens: 12, output_tokens: 3 };
     this.aiRisks = emptyRiskReport();
     this.aiFixes = emptyFixReport();
+    this.aiEstimates = { ...emptyFixReport(), cards: [] };
+    this.aiWbs = { ...usage(), tasks: [], note: "" };
+    this.aiStatus = { ...usage(), report: { title: "Báo cáo", markdown: "# Báo cáo\n" } };
     this.aiTrials = {};
     this.failures.clear();
     this.holds.clear();
@@ -272,6 +282,14 @@ class FakeBackend {
         return structuredClone(this.aiRisks);
       case "ai_fixes":
         return structuredClone(this.aiFixes);
+      case "ai_estimates":
+        return structuredClone(this.aiEstimates);
+      case "ai_wbs":
+        return structuredClone(this.aiWbs);
+      case "ai_status":
+        return structuredClone(this.aiStatus);
+      case "save_text_report":
+        return undefined;
       case "ai_trial": {
         const proposal = args?.proposal as Proposal;
         const answer = this.aiTrials[proposal.id] ?? improvedTrial(proposal);
@@ -752,8 +770,12 @@ function emptyRiskReport(): RiskReport {
   return { cards: [], input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
 }
 
+function usage() {
+  return { input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
+}
+
 function emptyFixReport(): FixReport {
-  return { proposals: [], note: "", input_tokens: 0, output_tokens: 0, requests: 1, truncated: false, omitted_tasks: 0, omitted_resources: 0 };
+  return { proposals: [], note: "", ...usage() };
 }
 
 /** A trial that finds the proposal better on every count and changes no date. */

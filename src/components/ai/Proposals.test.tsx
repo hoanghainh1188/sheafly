@@ -61,7 +61,7 @@ function setUp(report: FixReport) {
 }
 
 function panel(at: Project = project, onApplied = vi.fn()) {
-  return <RecommendationsPanel project={at} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onApplied={onApplied} onClose={vi.fn()} />;
+  return <RecommendationsPanel project={at} aiPro settingsKey={0} onOpenLicense={vi.fn()} onOpenSettings={vi.fn()} onPickTask={vi.fn()} onApplied={onApplied} onOpenWbs={vi.fn()} onClose={vi.fn()} />;
 }
 
 const calls = (cmd: string) => fakeBackend.calls.filter((call) => call.cmd === cmd);

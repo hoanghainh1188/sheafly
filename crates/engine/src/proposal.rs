@@ -119,7 +119,8 @@ pub struct ProposalTrial {
     pub before: Measures,
     pub after: Measures,
     /// The goal's own measure before and after: the task's finish, the person's
-    /// overallocated minutes, or the project's finish. Lower is better.
+    /// overallocated minutes, or the project's finish. Lower is better, except for an
+    /// estimate fix, where it is only shown.
     pub target_before: i64,
     pub target_after: i64,
     pub verdict: Verdict,
@@ -139,6 +140,7 @@ fn target(project: &Project, goal: &Goal, measures: &Measures) -> Result<i64, En
             Ok(over_minutes(project).get(resource).copied().unwrap_or(0))
         }
         Goal::Finish => Ok(measures.finish),
+        Goal::Estimate { task } => project.task(*task).map(|task| task.finish).ok_or(EngineError::TaskNotFound),
     }
 }
 
@@ -185,7 +187,9 @@ pub fn trial_proposal(project: &Project, proposal: &Proposal) -> Result<Proposal
     let target_before = target(project, &proposal.goal, &before)?;
     let target_after = target(&trial, &proposal.goal, &after)?;
     let worse = worse_measures(project, &before, &after);
-    let verdict = match (target_after < target_before, worse.is_empty()) {
+    // An estimate fix makes the plan truer rather than shorter: only the measures judge it.
+    let better = matches!(proposal.goal, Goal::Estimate { .. }) || target_after < target_before;
+    let verdict = match (better, worse.is_empty()) {
         (true, true) => Verdict::Improved,
         (true, false) => Verdict::TradeOff,
         (false, _) => Verdict::Worse,

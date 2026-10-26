@@ -11,14 +11,15 @@
 //! Pro crate's part from PR C on; this module only carries a body and its answer, through
 //! `AiApi`, so it is tested against handwritten replies and CI makes no network call.
 //! `run_advice` is the loop of one recommendation request (PR C): send, add up the
-//! tokens, let the Pro crate read the reply, and stop when asked between requests.
+//! tokens, let the Pro crate read the reply, and stop when asked between requests;
+//! `run_fixes` adds the engine's trial and one retry for the answers with proposals.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use sheafly_engine::advice::{AdviceStep, Fixes, MAX_TOOL_ROUNDS};
+use sheafly_engine::advice::{AdviceStep, EstimateReview, Fixes, Proposal, MAX_TOOL_ROUNDS};
 use sheafly_engine::Lang;
 
 use crate::settings::AiSettings;
@@ -327,34 +328,59 @@ pub fn run_advice<T>(
     Err(RunError::Ai(AiError::BadResponse))
 }
 
-/// What a request to fix the project found (kind 2), after the one retry, and what it cost.
+/// An answer holding proposals the engine tries and a retry may correct: kind 2's fixes and
+/// kind 3's estimate review.
+pub trait Proposing {
+    fn proposals(&self) -> &[Proposal];
+    fn proposals_mut(&mut self) -> &mut Vec<Proposal>;
+}
+
+impl Proposing for Fixes {
+    fn proposals(&self) -> &[Proposal] {
+        &self.proposals
+    }
+    fn proposals_mut(&mut self) -> &mut Vec<Proposal> {
+        &mut self.proposals
+    }
+}
+
+impl Proposing for EstimateReview {
+    fn proposals(&self) -> &[Proposal] {
+        &self.proposals
+    }
+    fn proposals_mut(&mut self) -> &mut Vec<Proposal> {
+        &mut self.proposals
+    }
+}
+
+/// What a request with proposals found (kind 2 or 3), after the one retry, and what it cost.
 #[derive(Debug, PartialEq)]
-pub struct FixRun {
-    pub fixes: Fixes,
+pub struct FixRun<T = Fixes> {
+    pub fixes: T,
     pub input_tokens: u64,
     pub output_tokens: u64,
     pub requests: u32,
 }
 
-/// A request to fix the project (kind 2, phase 22 PR D): `run_advice` until the model
-/// proposes, then `refuses` (the engine's trial) on every proposal. When the engine refuses
-/// some, `retry` builds the body that sends its words back, once (decision D5); the
-/// proposals of that answer replace the refused ones. A retry that fails, or that proposes
-/// nothing, keeps the refused proposals, so the user sees what the engine said. Stopping
-/// during the retry stops the whole request.
-pub fn run_fixes(
+/// A request with proposals (kind 2, phase 22 PR D; kind 3, PR E): `run_advice` until the
+/// model answers, then `refuses` (the engine's trial) on every proposal. When the engine
+/// refuses some, `retry` builds the body that sends its words back, once (decision D5); the
+/// proposals of that answer replace the refused ones, and the rest of it is not used. A retry
+/// that fails, or that proposes nothing, keeps the refused proposals, so the user sees what
+/// the engine said. Stopping during the retry stops the whole request.
+pub fn run_fixes<T: Proposing>(
     api: &dyn AiApi,
     first: Value,
-    next: impl Fn(&Value, &Value) -> Result<AdviceStep<Fixes>, String>,
+    next: impl Fn(&Value, &Value) -> Result<AdviceStep<T>, String>,
     retry: impl Fn(&Value, &Value, &[(String, String)]) -> Result<Value, String>,
-    refuses: impl Fn(&sheafly_engine::advice::Proposal) -> Option<String>,
+    refuses: impl Fn(&Proposal) -> Option<String>,
     cancel: &AtomicBool,
-) -> Result<FixRun, RunError> {
+) -> Result<FixRun<T>, RunError> {
     let run = run_advice(api, first, &next, cancel)?;
     let mut done = FixRun { fixes: run.answer, input_tokens: run.input_tokens, output_tokens: run.output_tokens, requests: run.requests };
     let refused: Vec<(String, String)> = done
         .fixes
-        .proposals
+        .proposals()
         .iter()
         .filter_map(|proposal| refuses(proposal).map(|message| (proposal.id.clone(), message)))
         .collect();
@@ -365,13 +391,14 @@ pub fn run_fixes(
         return Ok(done);
     };
     match run_advice(api, body, &next, cancel) {
-        Ok(again) => {
+        Ok(mut again) => {
             done.input_tokens += again.input_tokens;
             done.output_tokens += again.output_tokens;
             done.requests += again.requests;
-            if !again.answer.proposals.is_empty() {
-                done.fixes.proposals.retain(|proposal| !refused.iter().any(|(id, _)| *id == proposal.id));
-                done.fixes.proposals.extend(again.answer.proposals);
+            if !again.answer.proposals().is_empty() {
+                let proposals = done.fixes.proposals_mut();
+                proposals.retain(|proposal| !refused.iter().any(|(id, _)| *id == proposal.id));
+                proposals.append(again.answer.proposals_mut());
             }
             Ok(done)
         }
@@ -623,6 +650,44 @@ mod tests {
         static STOP: AtomicBool = AtomicBool::new(false);
         let api = Script { cancel_after: Some((1, &STOP)), ..script(&["ai_fixes_refused.json", "ai_fixes_retried.json"]) };
         assert_eq!(run_fixes(&api, json!({}), proposals, retry, refuses, &STOP), Err(RunError::Cancelled));
+    }
+
+    /// Kind 3: the first answer's cards stay, the retry's proposals replace the refused ones.
+    fn review(body: &Value, reply: &Value) -> Result<AdviceStep<EstimateReview>, String> {
+        let AdviceStep::Done(fixes) = proposals(body, reply)? else { unreachable!() };
+        let cards = if body.get("retry_of").is_some() { vec![] } else { vec![card()] };
+        Ok(AdviceStep::Done(EstimateReview { cards, proposals: fixes.proposals, note: String::new() }))
+    }
+
+    #[test]
+    fn an_estimate_review_is_tried_and_retried_like_fixes() {
+        let api = script(&["ai_fixes_refused.json", "ai_fixes_retried.json"]);
+        let cancel = AtomicBool::new(false);
+        let run = run_fixes(&api, json!({}), review, retry, refuses, &cancel).unwrap();
+        let ids: Vec<&str> = run.fixes.proposals.iter().map(|proposal| proposal.id.as_str()).collect();
+        assert_eq!(ids, ["toolu_42", "toolu_51"]);
+        assert_eq!(run.fixes.cards, [card()], "the cards of the first answer stay");
+        assert_eq!(run.requests, 2);
+    }
+
+    /// Kinds 4 and 5 run through `run_advice` with their own answers, and stop when asked.
+    #[test]
+    fn a_work_breakdown_or_a_report_is_one_advice_run() {
+        let wbs = |_: &Value, _: &Value| -> Result<AdviceStep<sheafly_engine::advice::Wbs>, String> {
+            Ok(AdviceStep::Done(sheafly_engine::advice::Wbs { tasks: vec![], note: "n".into() }))
+        };
+        let cancel = AtomicBool::new(false);
+        let run = run_advice(&script(&["ai_fixes_retried.json"]), json!({}), wbs, &cancel).unwrap();
+        assert_eq!(run.answer.note, "n");
+        let report = |_: &Value, _: &Value| -> Result<AdviceStep<sheafly_engine::advice::StatusReport>, String> {
+            Err("Không đọc được câu trả lời của AI".into())
+        };
+        assert_eq!(
+            run_advice(&script(&["ai_fixes_retried.json"]), json!({}), report, &cancel),
+            Err(RunError::Reply("Không đọc được câu trả lời của AI".into()))
+        );
+        let stopped = AtomicBool::new(true);
+        assert_eq!(run_advice(&script(&["ai_fixes_retried.json"]), json!({}), wbs, &stopped).map(|run| run.answer), Err(RunError::Cancelled));
     }
 
     #[test]
