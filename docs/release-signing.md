@@ -10,6 +10,7 @@ New Pro features live in the private repository `hoanghainh1188/sheafly-pro` (pl
 - **No key** (forks, or a manual run before it is set): the installers are built with the stub and have no Pro features; the run shows a warning. **On a `v*` tag** the `pro` job fails instead, so a release never ships without the Pro modules.
 - Nothing from the private repository is uploaded as an artifact (artifacts of a public repository can be downloaded by anyone), and the key is not kept in any git config.
 - A change of the stub's functions or dependencies must reach `sheafly-pro`'s `main` before a release, or the check fails.
+- **Every pull request and push to `main`** also runs the `pro-stub` job of `.github/workflows/ci.yml` with the same key: it compares `crates/pro` with the `sheafly-pro` branch of the same name as the PR's branch (the convention for PR pairs), else with its `main`. A public PR that changes the stub stays red until its private side is pushed, and a public PR merged before its private one turns `main` red. To make GitHub refuse such a merge, add the `pro-stub` check to the required status checks of `main` (Settings → Branches, or Rules → Rulesets). Forks have no key and skip it.
 
 ### Setting up the deploy key
 
