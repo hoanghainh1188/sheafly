@@ -1,6 +1,7 @@
 import {
   compactHistory,
   copyTasks,
+  exportCashFlow,
   exportExcel,
   exportMspdi,
   importMspdi,
@@ -16,7 +17,7 @@ import type { Lang } from "./i18n";
 import { commitFocusedField } from "./shortcuts";
 import { isThemeChoice, type ThemeChoice } from "./theme";
 import { toolbarStates } from "./toolbarState";
-import type { Command, FillField, Scale, Snapshot, Task, TaskClipboard, ViewId } from "./types";
+import type { CashFlowOptions, Command, FillField, Scale, Snapshot, Task, TaskClipboard, ViewId } from "./types";
 
 type Work = () => Promise<Snapshot | void | null>;
 
@@ -79,6 +80,10 @@ export interface MenuContext {
   reportingPro?: boolean;
   /** Whether it unlocks the schedule health check. */
   healthPro?: boolean;
+  /** Whether it unlocks the cash flow. */
+  cashflowPro?: boolean;
+  /** The options the Dòng tiền view shows (by month, no baseline until it is opened). */
+  cashFlowOptions?: CashFlowOptions;
 }
 
 const VIEWS: Record<string, ViewId> = {
@@ -139,6 +144,19 @@ function documentAction(id: string, ctx: MenuContext): boolean {
       ctx.startFileDialog(async () => {
         await exportExcel();
       });
+      return true;
+    case "export-cash-flow":
+      if (!ctx.cashflowPro) {
+        ctx.openLicense();
+        return true;
+      }
+      if (!ctx.snap) return true;
+      {
+        const options = ctx.cashFlowOptions ?? { bucket: "month", baseline: null };
+        ctx.startFileDialog(async () => {
+          await exportCashFlow(options);
+        });
+      }
       return true;
     case "export-pdf":
       ctx.exportPdf();

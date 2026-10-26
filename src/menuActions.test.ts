@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { handleMenuAction, type MenuContext } from "./menuActions";
 import { makeProject, makeSnapshot, makeTask } from "./test/fixtures";
+import { fakeBackend } from "./test/fakeBackend";
 
 function context(overrides: Partial<MenuContext> = {}): MenuContext {
   const project = makeProject({ tasks: [makeTask({ uid: 1 }), makeTask({ uid: 2 })] });
@@ -140,6 +141,27 @@ describe("handleMenuAction", () => {
     handleMenuAction("export-excel", ctx);
     expect(ctx.openLicense).toHaveBeenCalledOnce();
     expect(ctx.startFileDialog).not.toHaveBeenCalled();
+  });
+
+  it("exports the cash flow as the view shows it, or asks for the license", async () => {
+    const free = context({ cashflowPro: false });
+    handleMenuAction("export-cash-flow", free);
+    expect(free.openLicense).toHaveBeenCalledOnce();
+    expect(free.startFileDialog).not.toHaveBeenCalled();
+
+    const licensed = context({ cashflowPro: true, cashFlowOptions: { bucket: "quarter", baseline: 1 } });
+    handleMenuAction("export-cash-flow", licensed);
+    expect(licensed.openLicense).not.toHaveBeenCalled();
+    expect(licensed.startFileDialog).toHaveBeenCalledOnce();
+    const task = vi.mocked(licensed.startFileDialog).mock.calls[0][0] as () => Promise<void>;
+    await task();
+    expect(fakeBackend.calls.find((call) => call.cmd === "export_cash_flow")?.args).toEqual({
+      options: { bucket: "quarter", baseline: 1 },
+    });
+
+    const empty = context({ cashflowPro: true, snap: null });
+    handleMenuAction("export-cash-flow", empty);
+    expect(empty.startFileDialog).not.toHaveBeenCalled();
   });
 
   it("opens the health check with its license and the license dialog without", () => {

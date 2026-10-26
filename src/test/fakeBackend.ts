@@ -293,6 +293,7 @@ class FakeBackend {
       case "ai_status":
         return structuredClone(this.aiStatus);
       case "save_text_report":
+      case "export_cash_flow":
         return undefined;
       case "ai_trial": {
         const proposal = args?.proposal as Proposal;

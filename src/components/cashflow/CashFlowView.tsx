@@ -1,9 +1,9 @@
-import { Banknote, KeyRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Banknote, FileSpreadsheet, KeyRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { formatMoney } from "../../format";
 import { useMessages } from "../../i18n";
-import type { Bucket, Project } from "../../types";
+import type { Bucket, CashFlowOptions, Project } from "../../types";
 import { Button } from "../Button";
 import { ProBadge } from "../license/ProBadge";
 import { CashFlowChart } from "./CashFlowChart";
@@ -21,6 +21,12 @@ interface Props {
   cashflowPro: boolean;
   onOpenLicense: () => void;
   onOpenPayments: () => void;
+  /** The period and baseline shown, so the menu's export uses them too. */
+  onOptionsChange?: (options: CashFlowOptions) => void;
+  /** Save the report as shown as an Excel workbook. */
+  onExport?: () => void;
+  /** A file dialog is already open. */
+  exportBusy?: boolean;
   /** Select a task and show it on the Gantt. */
   onPickTask: (uid: number) => void;
 }
@@ -31,7 +37,7 @@ interface Props {
  * by the engine. Without the license it introduces the feature; the payment schedule it
  * reads stays Free.
  */
-export function CashFlowView({ project, cashflowPro, onOpenLicense, onOpenPayments, onPickTask }: Props) {
+export function CashFlowView({ project, cashflowPro, onOpenLicense, onOpenPayments, onOptionsChange, onExport, exportBusy = false, onPickTask }: Props) {
   const m = useMessages(cashFlowMessages);
   const [bucket, setBucket] = useState<Bucket>("month");
   const baselines = useMemo(
@@ -44,6 +50,7 @@ export function CashFlowView({ project, cashflowPro, onOpenLicense, onOpenPaymen
   const [picked, setPicked] = useState<CashSeries>("forecast");
   const series: CashSeries = picked === "baseline" && baseline == null ? "forecast" : picked;
   const { report, current, error } = useCashFlow(project, cashflowPro, bucket, baseline);
+  useEffect(() => onOptionsChange?.({ bucket, baseline }), [onOptionsChange, bucket, baseline]);
   const seriesName = series === "forecast" ? m.forecast : series === "actual" ? m.actual : m.baselineSeries;
 
   if (!cashflowPro) {
@@ -101,6 +108,11 @@ export function CashFlowView({ project, cashflowPro, onOpenLicense, onOpenPaymen
         </div>
         <span className="spacer" />
         <Button Icon={Banknote} onClick={onOpenPayments}>{m.openPayments}</Button>
+        {onExport && (
+          <Button Icon={FileSpreadsheet} title={m.exportTitle} disabled={exportBusy} onClick={onExport}>
+            {m.exportExcel}
+          </Button>
+        )}
       </div>
       {error != null ? (
         <p className="cash-empty" role="alert">{m.failed(error)}</p>

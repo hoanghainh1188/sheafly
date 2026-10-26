@@ -447,6 +447,11 @@ export function exportExcel(): Promise<void> {
   return afterQueued(() => invoke<void>("export_excel"));
 }
 
+/** Save the cash flow for `options` as an Excel workbook (Pro `cashflow`). */
+export function exportCashFlow(options: CashFlowOptions): Promise<void> {
+  return afterQueued(() => invoke<void>("export_cash_flow", { options }));
+}
+
 export function savePdf(bytes: Uint8Array, fileName: string): Promise<void> {
   return invoke<void>("save_pdf", { bytes: Array.from(bytes), fileName });
 }

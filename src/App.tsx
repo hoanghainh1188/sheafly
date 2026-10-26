@@ -68,7 +68,7 @@ import { pick, useLang, useMessages, useSetLang } from "./i18n";
 import { buildGanttPdf, pdfSuggestedName } from "./ganttPdf";
 import { handleMenuAction } from "./menuActions";
 import { buildNetworkPdf } from "./networkPdf";
-import type { Command, FillField, ImportSheet, LicenseView, NetworkLayout, PlanPreview, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
+import type { CashFlowOptions, Command, FillField, ImportSheet, LicenseView, NetworkLayout, PlanPreview, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
 import {
   commitFocusedField,
   isEditableTarget,
@@ -134,6 +134,8 @@ export default function App() {
   const reportingPro = license?.features.includes("reporting") ?? false;
   const healthPro = license?.features.includes("health") ?? false;
   const cashflowPro = license?.features.includes("cashflow") ?? false;
+  // What the Dòng tiền view shows, so File → Export → Cash Flow exports the same.
+  const [cashFlowOptions, setCashFlowOptions] = useState<CashFlowOptions>({ bucket: "month", baseline: null });
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
   const [workingTime, setWorkingTime] = useState<{ id: number; start: number } | null>(null);
   // The resource Khả dụng is open for and the history cursor to roll back to.
@@ -464,8 +466,10 @@ export default function App() {
         fillField,
         reportingPro,
         healthPro,
+        cashflowPro,
+        cashFlowOptions,
       }),
-    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, openPaymentSchedule, infoStart, workingTime, availability, assignmentStart, paymentsStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro, healthPro],
+    [run, send, startFileDialog, task, snap, view, fileDialogBusy, openProjectInfo, openWorkingTime, openAssignmentRules, openAssignByRules, openImportTable, openPaymentSchedule, infoStart, workingTime, availability, assignmentStart, paymentsStart, setLang, changeTheme, selection, clipboard, fillField, setScale, zoomTimeline, reportingPro, healthPro, cashflowPro, cashFlowOptions],
   );
   menuRef.current = handleMenu;
 
@@ -894,6 +898,9 @@ export default function App() {
                 cashflowPro={cashflowPro}
                 onOpenLicense={() => setLicenseOpen(true)}
                 onOpenPayments={() => void openPaymentSchedule()}
+                onOptionsChange={setCashFlowOptions}
+                onExport={() => dispatchFocused("export-cash-flow")}
+                exportBusy={fileDialogBusy}
                 onPickTask={(uid) => {
                   selectOne(uid);
                   setView("gantt");

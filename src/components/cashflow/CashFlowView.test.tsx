@@ -44,13 +44,30 @@ const forecast: PaymentForecast = {
   driving: [1],
 };
 
-function renderView({ pro = true, onPickTask = vi.fn(), onOpenLicense = vi.fn(), onOpenPayments = vi.fn() } = {}) {
+function renderView({
+  pro = true,
+  onPickTask = vi.fn(),
+  onOpenLicense = vi.fn(),
+  onOpenPayments = vi.fn(),
+  onOptionsChange = vi.fn(),
+  onExport = vi.fn(),
+  exportBusy = false,
+} = {}) {
   render(
     <I18nProvider lang="vi">
-      <CashFlowView project={project} cashflowPro={pro} onOpenLicense={onOpenLicense} onOpenPayments={onOpenPayments} onPickTask={onPickTask} />
+      <CashFlowView
+        project={project}
+        cashflowPro={pro}
+        onOpenLicense={onOpenLicense}
+        onOpenPayments={onOpenPayments}
+        onOptionsChange={onOptionsChange}
+        onExport={onExport}
+        exportBusy={exportBusy}
+        onPickTask={onPickTask}
+      />
     </I18nProvider>,
   );
-  return { onPickTask, onOpenLicense, onOpenPayments, user: userEvent.setup() };
+  return { onPickTask, onOpenLicense, onOpenPayments, onOptionsChange, onExport, user: userEvent.setup() };
 }
 
 describe("CashFlowView", () => {
@@ -72,6 +89,21 @@ describe("CashFlowView", () => {
     expect(onOpenLicense).toHaveBeenCalled();
     expect(onOpenPayments).toHaveBeenCalled();
     expect(fakeBackend.calls.some((call) => call.cmd === "cash_flow")).toBe(false);
+    expect(screen.queryByRole("button", { name: "Xuất Excel…" })).not.toBeInTheDocument();
+  });
+
+  it("exports what it shows and tells the menu its options", async () => {
+    const { user, onExport, onOptionsChange } = renderView();
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ bucket: "month", baseline: null });
+    await user.click(screen.getByRole("button", { name: "Quý" }));
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ bucket: "quarter", baseline: null });
+    await user.click(screen.getByRole("button", { name: "Xuất Excel…" }));
+    expect(onExport).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the export off while a file dialog is open", () => {
+    renderView({ exportBusy: true });
+    expect(screen.getByRole("button", { name: "Xuất Excel…" })).toBeDisabled();
   });
 
   it("marks the periods short of money in the chart, the table and the summary", async () => {
