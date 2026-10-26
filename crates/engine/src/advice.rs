@@ -1,4 +1,4 @@
-//! The shapes of AI recommendations (phase 22, PR C and D, sheafly-pro#1), shared by the Pro crate
+//! The shapes of AI recommendations (phase 22, PR C, D and E, sheafly-pro#1), shared by the Pro crate
 //! that reads a model's replies, its public stub and the shell that runs the requests.
 //! Nothing here talks to a model: the Pro crate builds requests and reads replies into these,
 //! the shell sends them (decision D7).
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::command::Command;
+use crate::import::ImportTask;
 
 /// The most rounds of read tools one request may take before it must answer (decision D4).
 pub const MAX_TOOL_ROUNDS: usize = 8;
@@ -65,6 +66,9 @@ pub enum Goal {
     Overallocation { resource: u32 },
     /// Finish the project earlier.
     Finish,
+    /// Put right this task's estimate or logic (kind 3, check estimates): no measure of its
+    /// own, so the trial judges it by the four measures alone.
+    Estimate { task: u32 },
 }
 
 /// A change the model proposes (kind 2, phase 22 PR D): commands the engine tries on a copy
@@ -91,4 +95,34 @@ pub struct Fixes {
     /// What the model said when it had nothing to propose; empty otherwise.
     #[serde(default)]
     pub note: String,
+}
+
+/// The answer of kind 3, check estimates (phase 22 PR E): what looks wrong, as cards, and
+/// proposals to put some of it right, tried like those of kind 2.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EstimateReview {
+    pub cards: Vec<RiskCard>,
+    #[serde(default)]
+    pub proposals: Vec<Proposal>,
+    /// What the model said when it found nothing; empty otherwise.
+    #[serde(default)]
+    pub note: String,
+}
+
+/// The answer of kind 4, a work breakdown built from a description: the rows of one
+/// `ImportRows`, people by their real names, for the user to check and import.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Wbs {
+    pub tasks: Vec<ImportTask>,
+    /// What the model wants the user to know (assumptions, what it left out); may be empty.
+    #[serde(default)]
+    pub note: String,
+}
+
+/// The answer of kind 5, a status report for stakeholders, as Markdown with tasks and
+/// people as `T42` and `R7`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StatusReport {
+    pub title: String,
+    pub markdown: String,
 }

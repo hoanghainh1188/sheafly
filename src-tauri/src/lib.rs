@@ -1131,6 +1131,33 @@ async fn save_pdf(
     fs::write(path, bytes).map_err(write_failed(&state))
 }
 
+/// Save a text report (the AI status report, kind 5) as Markdown: the save dialog and the
+/// write only, so no gate; the text is already in the webview.
+#[tauri::command]
+async fn save_text_report(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    text: String,
+    file_name: String,
+) -> Result<(), String> {
+    let Some(_permit) = begin_dialog(&state) else {
+        return Ok(());
+    };
+    let picked = await_save(
+        app.dialog()
+            .file()
+            .add_filter("Markdown", &["md"])
+            .set_title(i18n::text(lang(&state)).save_report_title)
+            .set_file_name(file_name),
+    )
+    .await;
+    let Some(path) = picked.and_then(path_from_dialog) else {
+        return Ok(());
+    };
+    let path = ensure_suffix(path, ".md");
+    fs::write(path, text).map_err(write_failed(&state))
+}
+
 /// Text for "About Sheafly". macOS shows the name, version, copyright and
 /// credits; the other fields are for Windows and Linux.
 fn about_metadata(app: &tauri::AppHandle, text: &i18n::Text) -> AboutMetadata<'static> {
@@ -1506,6 +1533,9 @@ pub fn run() {
             ai_commands::ai_fixes,
             ai_commands::ai_trial,
             ai_commands::ai_apply,
+            ai_commands::ai_estimates,
+            ai_commands::ai_wbs,
+            ai_commands::ai_status,
             ai_commands::ai_cancel,
             tracker_commands::tracker_save_key,
             tracker_commands::tracker_has_key,
@@ -1527,6 +1557,7 @@ pub fn run() {
             health_commands::schedule_health,
             cash_flow_commands::cash_flow,
             save_pdf,
+            save_text_report,
             check_autosave,
             compact_history,
             get_language,

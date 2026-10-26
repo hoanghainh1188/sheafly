@@ -1,25 +1,33 @@
-import { KeyRound, Settings2, Sparkles, Square, Wrench, X } from "lucide-react";
+import { FileText, KeyRound, ListTree, SearchCheck, Settings2, Sparkles, Square, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { aiCancel, aiFixes, aiRisks, aiSettings, errorMessage } from "../../api";
+import { aiCancel, aiEstimates, aiFixes, aiRisks, aiSettings, aiStatus, errorMessage } from "../../api";
 import { getLang, useMessages } from "../../i18n";
-import type { AiSettings, FixReport, Project, RiskCard, RiskReport, RiskSeverity, Snapshot } from "../../types";
+import type { AiSettings, EstimateReport, FixReport, Project, RiskCard, RiskReport, RiskSeverity, Snapshot, StatusAnswer } from "../../types";
 import { Button } from "../Button";
 import { ProBadge } from "../license/ProBadge";
 import { AdviceText, TaskLink } from "./AdviceLinks";
 import { adviceNames, refUid, type AdviceNames } from "./adviceText";
 import { Proposals } from "./Proposals";
 import { recommendationsMessages } from "./RecommendationsPanel.i18n";
+import { StatusReportView } from "./StatusReportView";
 
 type Messages = (typeof recommendationsMessages)["vi"];
 
+/** What the panel can ask for (kinds 1, 2, 3 and 5; kind 4 has its own dialog). */
+type Ask = "risks" | "fixes" | "estimates" | "status";
+
 type Phase =
   | { kind: "idle" }
-  | { kind: "running"; ask: "risks" | "fixes" }
+  | { kind: "running"; ask: Ask }
   | { kind: "stopped" }
   | { kind: "failed"; message: string }
   | { kind: "done"; report: RiskReport; asked: Project }
-  | { kind: "fixes"; report: FixReport };
+  | { kind: "fixes"; report: FixReport }
+  | { kind: "estimates"; report: EstimateReport; asked: Project }
+  | { kind: "status"; answer: StatusAnswer; asked: Project };
+
+type Usage = Pick<RiskReport, "input_tokens" | "output_tokens" | "requests" | "truncated" | "omitted_tasks" | "omitted_resources">;
 
 interface RecommendationsPanelProps {
   project: Project;
@@ -33,6 +41,8 @@ interface RecommendationsPanelProps {
   onPickTask: (uid: number) => void;
   /** The project after the user applied a proposal. */
   onApplied: (snapshot: Snapshot) => void;
+  /** Open the dialog that builds a work breakdown from a description (kind 4). */
+  onOpenWbs: () => void;
   onClose: () => void;
 }
 
@@ -42,19 +52,28 @@ const SEVERITY_LABEL: Record<RiskSeverity, keyof Messages> = {
   low: "severityLow",
 };
 
+const RUNNING: Record<Ask, (m: Messages) => string> = {
+  risks: (m) => m.running,
+  fixes: (m) => m.runningFixes,
+  estimates: (m) => m.runningEstimates,
+  status: (m) => m.runningStatus,
+};
+
 function formatCount(value: number): string {
   return new Intl.NumberFormat(getLang() === "en" ? "en-US" : "vi-VN").format(value);
 }
 
 /**
- * The Recommendations panel beside the Gantt (phase 22, PR C and D): kind 1, explain risks
- * (read only), and kind 2, proposals to fix overallocation and missed deadlines, which the
- * engine tries and only the user applies (`Proposals`). Without the `ai` license it introduces the feature; with AI
+ * The Recommendations panel beside the Gantt (phase 22, PR C to E): kind 1, explain risks
+ * (read only); kind 2, proposals to fix overallocation and missed deadlines, which the
+ * engine tries and only the user applies (`Proposals`); kind 3, check estimates (cards and
+ * proposals); kind 4, a work breakdown from a description (its own dialog, `onOpenWbs`);
+ * kind 5, a status report to copy or save. Without the `ai` license it introduces the feature; with AI
  * off it points to its settings. A request runs until it answers or Stop; closing the
  * panel or asking again stops the one running, and an answer that comes after is dropped.
  */
 export function RecommendationsPanel(props: RecommendationsPanelProps) {
-  const { project, aiPro, settingsKey, onOpenLicense, onOpenSettings, onPickTask, onApplied, onClose } = props;
+  const { project, aiPro, settingsKey, onOpenLicense, onOpenSettings, onPickTask, onApplied, onOpenWbs, onClose } = props;
   const m = useMessages(recommendationsMessages);
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -85,7 +104,7 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
     [],
   );
 
-  async function ask(kind: "risks" | "fixes") {
+  async function ask(kind: Ask) {
     const id = ++request.current;
     const asked = project;
     setPhase({ kind: "running", ask: kind });
@@ -93,7 +112,11 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
       const next: Phase | null =
         kind === "risks"
           ? await aiRisks().then((report) => report && { kind: "done", report, asked })
-          : await aiFixes().then((report) => report && { kind: "fixes", report });
+          : kind === "fixes"
+            ? await aiFixes().then((report) => report && { kind: "fixes", report })
+            : kind === "estimates"
+              ? await aiEstimates().then((report) => report && { kind: "estimates", report, asked })
+              : await aiStatus().then((answer) => answer && { kind: "status", answer, asked });
       if (id !== request.current) return;
       setPhase(next ?? { kind: "stopped" });
     } catch (error) {
@@ -147,14 +170,21 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
                 <Button Icon={Wrench} disabled={!settings} title={m.fixHint} onClick={() => void ask("fixes")}>
                   {m.fix}
                 </Button>
+                <Button Icon={SearchCheck} disabled={!settings} title={m.estimatesHint} onClick={() => void ask("estimates")}>
+                  {m.estimates}
+                </Button>
+                <Button Icon={FileText} disabled={!settings} title={m.statusHint} onClick={() => void ask("status")}>
+                  {m.status}
+                </Button>
+                <Button Icon={ListTree} disabled={!settings} title={m.wbsHint} onClick={onOpenWbs}>
+                  {m.wbs}
+                </Button>
               </>
             )}
           </div>
           <div role="status" className="evm-note">
             {phase.kind === "running"
-              ? phase.ask === "risks"
-                ? m.running
-                : m.runningFixes
+              ? RUNNING[phase.ask](m)
               : phase.kind === "stopped"
                 ? m.stopped
                 : phase.kind === "idle"
@@ -173,6 +203,33 @@ export function RecommendationsPanel(props: RecommendationsPanelProps) {
             <>
               <Proposals report={phase.report} project={project} names={names} onPickTask={onPickTask} onApplied={onApplied} />
               <Usage report={phase.report} m={m} />
+            </>
+          )}
+          {phase.kind === "estimates" && (
+            <>
+              {phase.asked !== project && <p className="evm-note">{m.changed}</p>}
+              {phase.report.cards.length === 0 && phase.report.proposals.length === 0 ? (
+                <p className="evm-note">{phase.report.note ? m.estimatesNoneBecause(phase.report.note) : m.estimatesNone}</p>
+              ) : (
+                <ol className="ai-cards">
+                  {phase.report.cards.map((card, at) => (
+                    <li key={at}>
+                      <Card card={card} names={names} m={m} onPickTask={onPickTask} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {phase.report.proposals.length > 0 && (
+                <Proposals report={phase.report} project={project} names={names} onPickTask={onPickTask} onApplied={onApplied} />
+              )}
+              <Usage report={phase.report} m={m} />
+            </>
+          )}
+          {phase.kind === "status" && (
+            <>
+              {phase.asked !== project && <p className="evm-note">{m.changed}</p>}
+              <StatusReportView report={phase.answer.report} names={names} onPickTask={onPickTask} />
+              <Usage report={phase.answer} m={m} />
             </>
           )}
         </>
@@ -210,7 +267,7 @@ function Results({ report, changed, names, m, onPickTask }: ResultsProps) {
 }
 
 /** Whether the summary sent was shortened, and the tokens a request took. */
-function Usage({ report, m }: { report: RiskReport | FixReport; m: Messages }) {
+function Usage({ report, m }: { report: Usage; m: Messages }) {
   return (
     <>
       {report.truncated && <p className="evm-note">{m.truncated(report.omitted_tasks, report.omitted_resources)}</p>}

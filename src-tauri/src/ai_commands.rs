@@ -1,6 +1,7 @@
-//! The Tauri commands for AI recommendations (phase 22, PR B, C and D): the settings, the API
-//! key, a connection check, explaining the project's risks, and proposals to fix it, tried by
-//! the engine and applied only by the user. The key goes in once through `ai_save_key` to the operating system's
+//! The Tauri commands for AI recommendations (phase 22, PR B to E): the settings, the API
+//! key, a connection check, explaining the project's risks, proposals to fix it and checking
+//! its estimates (tried by the engine and applied only by the user), a work breakdown from a
+//! description (imported only by the user) and a status report. The key goes in once through `ai_save_key` to the operating system's
 //! credential store and is never read back; the webview only learns whether one is saved.
 //! Only calls that reach the network check the license (D9), so saving or forgetting a key
 //! and the settings work on Free.
@@ -9,7 +10,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use serde::Serialize;
-use sheafly_engine::advice::{Proposal, RiskCard};
+use sheafly_engine::advice::{Proposal, RiskCard, StatusReport};
+use sheafly_engine::forecast::{forecast, Forecast};
+use sheafly_engine::import::ImportTask;
+use sheafly_engine::EngineError;
 use sheafly_engine::command::Command;
 use sheafly_engine::proposal::{trial_proposal, ProposalTrial};
 use sheafly_engine::summary::{project_summary, SummaryOptions};
@@ -188,6 +192,156 @@ pub(crate) fn ai_fixes(state: State<'_, AppState>) -> Result<Option<FixReport>, 
     }
 }
 
+/// Runs of the finish forecast kinds 3 and 5 read: enough for criticality and P80 in well
+/// under a second on a large project.
+const FORECAST_RUNS: u32 = 500;
+
+/// The forecast for kinds 3 and 5, stopped with the request (`Err`); a forecast that fails
+/// otherwise is left out and the request goes without it.
+fn forecast_for(project: &sheafly_engine::Project, cancel: &AtomicBool) -> Result<Option<Forecast>, ()> {
+    match forecast(project, FORECAST_RUNS, cancel) {
+        Ok(found) => Ok(Some(found)),
+        Err(EngineError::Cancelled) => Err(()),
+        Err(_) => Ok(None),
+    }
+}
+
+/// A request that did not answer: `None` when stopped, else its error in the language.
+fn run_error<T>(error: RunError, l: sheafly_engine::Lang) -> Result<Option<T>, String> {
+    match error {
+        RunError::Cancelled => Ok(None),
+        RunError::Ai(error) => Err(error.message(l).to_string()),
+        RunError::Reply(message) => Err(message),
+    }
+}
+
+/// What checking the estimates found (kind 3): cards as kind 1's and proposals as kind 2's,
+/// not tried yet (the panel asks `ai_trial` for each).
+#[derive(Debug, Serialize)]
+pub(crate) struct EstimateReport {
+    cards: Vec<RiskCard>,
+    proposals: Vec<Proposal>,
+    note: String,
+    input_tokens: u64,
+    output_tokens: u64,
+    requests: u32,
+    truncated: bool,
+    omitted_tasks: usize,
+    omitted_resources: usize,
+}
+
+/// Check the estimates and logic of the project (kind 3): gated as `ai_risks`, with the
+/// finish forecast run first and the health check's findings added by the Pro crate. The
+/// proposals are tried and retried as kind 2's; nothing in the project changes.
+#[tauri::command(async)]
+pub(crate) fn ai_estimates(state: State<'_, AppState>) -> Result<Option<EstimateReport>, String> {
+    let l = lang(&state);
+    let Start { settings, api, cancel, project, summary } = start(&state)?;
+    state.ai_trials.lock().unwrap_or_else(|err| err.into_inner()).clear();
+    let Ok(forecast) = forecast_for(&project, &cancel) else {
+        return Ok(None);
+    };
+    let first = sheafly_pro::estimates_request(&summary, &project, forecast.as_ref(), &settings.model, l)?;
+    let next = |body: &serde_json::Value, reply: &serde_json::Value| {
+        sheafly_pro::estimates_next(body, reply, &project, settings.mask, l)
+    };
+    let retry = |body: &serde_json::Value, reply: &serde_json::Value, refused: &[(String, String)]| {
+        sheafly_pro::estimates_retry(body, reply, refused, l)
+    };
+    let refuses = |proposal: &Proposal| trial_proposal(&project, proposal).err().map(|error| error.message(l));
+    match ai::run_fixes(&api, first, next, retry, refuses, &cancel) {
+        Ok(run) => Ok(Some(EstimateReport {
+            cards: run.fixes.cards,
+            proposals: run.fixes.proposals,
+            note: run.fixes.note,
+            input_tokens: run.input_tokens,
+            output_tokens: run.output_tokens,
+            requests: run.requests,
+            truncated: summary.truncated,
+            omitted_tasks: summary.omitted_tasks,
+            omitted_resources: summary.omitted_resources,
+        })),
+        Err(error) => run_error(error, l),
+    }
+}
+
+/// A work breakdown the model built (kind 4): the rows of one `import_rows`, people by their
+/// real names. The dialog checks them with `check_import` and imports them only on the
+/// user's click.
+#[derive(Debug, Serialize)]
+pub(crate) struct WbsReport {
+    tasks: Vec<ImportTask>,
+    note: String,
+    input_tokens: u64,
+    output_tokens: u64,
+    requests: u32,
+    truncated: bool,
+    omitted_tasks: usize,
+    omitted_resources: usize,
+}
+
+/// Build a work breakdown from the user's description (kind 4). Gated as `ai_risks`; the
+/// description goes to the provider as typed. Nothing in the project changes.
+#[tauri::command(async)]
+pub(crate) fn ai_wbs(state: State<'_, AppState>, description: String) -> Result<Option<WbsReport>, String> {
+    let l = lang(&state);
+    let Start { settings, api, cancel, project, summary } = start(&state)?;
+    let first = sheafly_pro::wbs_request(&description, &summary, &settings.model, l)?;
+    let next = |body: &serde_json::Value, reply: &serde_json::Value| sheafly_pro::wbs_next(body, reply, &project, l);
+    match ai::run_advice(&api, first, next, &cancel) {
+        Ok(run) => Ok(Some(WbsReport {
+            tasks: run.answer.tasks,
+            note: run.answer.note,
+            input_tokens: run.input_tokens,
+            output_tokens: run.output_tokens,
+            requests: run.requests,
+            truncated: summary.truncated,
+            omitted_tasks: summary.omitted_tasks,
+            omitted_resources: summary.omitted_resources,
+        })),
+        Err(error) => run_error(error, l),
+    }
+}
+
+/// A status report for stakeholders (kind 5), with what it cost.
+#[derive(Debug, Serialize)]
+pub(crate) struct StatusAnswer {
+    report: StatusReport,
+    input_tokens: u64,
+    output_tokens: u64,
+    requests: u32,
+    truncated: bool,
+    omitted_tasks: usize,
+    omitted_resources: usize,
+}
+
+/// Write a status report from the engine's earned value, slack and forecast (kind 5, read
+/// only). Gated as `ai_risks`; the forecast runs first and stops with the request.
+#[tauri::command(async)]
+pub(crate) fn ai_status(state: State<'_, AppState>) -> Result<Option<StatusAnswer>, String> {
+    let l = lang(&state);
+    let Start { settings, api, cancel, project, summary } = start(&state)?;
+    let Ok(forecast) = forecast_for(&project, &cancel) else {
+        return Ok(None);
+    };
+    let first = sheafly_pro::status_request(&summary, &project, forecast.as_ref(), &settings.model, l)?;
+    let next = |body: &serde_json::Value, reply: &serde_json::Value| {
+        sheafly_pro::status_next(body, reply, &project, settings.mask, l)
+    };
+    match ai::run_advice(&api, first, next, &cancel) {
+        Ok(run) => Ok(Some(StatusAnswer {
+            report: run.answer,
+            input_tokens: run.input_tokens,
+            output_tokens: run.output_tokens,
+            requests: run.requests,
+            truncated: summary.truncated,
+            omitted_tasks: summary.omitted_tasks,
+            omitted_resources: summary.omitted_resources,
+        })),
+        Err(error) => run_error(error, l),
+    }
+}
+
 /// Try a proposal on a copy of the project as it is now (decision D5) and remember the
 /// trial for `ai_apply`. Engine work only, no network, so no gate. An error is the engine
 /// refusing a command, in the interface language.
@@ -224,7 +378,7 @@ pub(crate) fn ai_apply(state: State<'_, AppState>, id: String, commands: Vec<Com
     Ok(state.delta.patch(snapshot))
 }
 
-/// Stop the request `ai_risks` is running (the Stop button, or the panel closing).
+/// Stop the AI request running (the Stop button, or the panel or dialog closing).
 #[tauri::command]
 pub(crate) fn ai_cancel(state: State<'_, AppState>) {
     state.ai_cancel.lock().unwrap_or_else(|err| err.into_inner()).store(true, Ordering::Relaxed);

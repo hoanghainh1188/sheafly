@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { makeProject, makeResource, makeTask } from "../../test/fixtures";
-import { adviceNames, adviceParts, refUid } from "./adviceText";
+import { adviceNames, adviceParts, refUid, reportBlocks, withNames } from "./adviceText";
 
 const names = adviceNames(
   makeProject({
@@ -34,6 +34,21 @@ describe("adviceParts", () => {
       null,
       null,
       null,
+    ]);
+  });
+});
+
+describe("status reports", () => {
+  it("puts the names in and keeps unknown IDs", () => {
+    expect(withNames("T2 trễ, R7 làm; T9 và R1 không có.", names)).toBe("Lập trình trễ, An làm; T9 và R1 không có.");
+  });
+
+  it("reads headings, lists and paragraphs", () => {
+    expect(reportBlocks("# Tuần 2\n\n## Rủi ro\n\n- **Một**\n- Hai\n\nĐoạn\nnối tiếp.\n")).toEqual([
+      { kind: "heading", level: 1, text: "Tuần 2" },
+      { kind: "heading", level: 2, text: "Rủi ro" },
+      { kind: "list", items: ["Một", "Hai"] },
+      { kind: "paragraph", text: "Đoạn nối tiếp." },
     ]);
   });
 });

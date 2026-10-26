@@ -7,8 +7,9 @@
 #![allow(clippy::type_complexity)]
 
 use serde_json::Value;
-use sheafly_engine::advice::{AdviceStep, Fixes};
+use sheafly_engine::advice::{AdviceStep, EstimateReview, Fixes, StatusReport, Wbs};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
+use sheafly_engine::forecast::Forecast;
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
 use sheafly_engine::summary::ProjectSummary;
@@ -27,4 +28,11 @@ fn the_public_functions_keep_their_types() {
     let _: fn(&ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::fixes_request;
     let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep<Fixes>, String> = sheafly_pro::fixes_next;
     let _: fn(&Value, &Value, &[(String, String)], Lang) -> Result<Value, String> = sheafly_pro::fixes_retry;
+    let _: fn(&ProjectSummary, &Project, Option<&Forecast>, &str, Lang) -> Result<Value, String> = sheafly_pro::estimates_request;
+    let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep<EstimateReview>, String> = sheafly_pro::estimates_next;
+    let _: fn(&Value, &Value, &[(String, String)], Lang) -> Result<Value, String> = sheafly_pro::estimates_retry;
+    let _: fn(&str, &ProjectSummary, &str, Lang) -> Result<Value, String> = sheafly_pro::wbs_request;
+    let _: fn(&Value, &Value, &Project, Lang) -> Result<AdviceStep<Wbs>, String> = sheafly_pro::wbs_next;
+    let _: fn(&ProjectSummary, &Project, Option<&Forecast>, &str, Lang) -> Result<Value, String> = sheafly_pro::status_request;
+    let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep<StatusReport>, String> = sheafly_pro::status_next;
 }
