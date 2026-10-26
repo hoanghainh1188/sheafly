@@ -4,11 +4,15 @@
 //! through `apply_command` like any edit; only this read is gated (`Feature::Cashflow`).
 //! Builds from the public source say they have no Pro modules before asking for a license.
 //! `payment_dates` is Free (D7): the payment dialog shows when each payment is due.
+//! `export_cash_flow` (PR D) saves the same report as an Excel workbook, behind the same gate.
+
+use std::fs;
 
 use serde::Deserialize;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 
-use super::{i18n, lang, lock, AppState};
+use super::{await_save, begin_dialog, ensure_suffix, i18n, lang, lock, path_from_dialog, write_failed, AppState};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
 use sheafly_engine::payments::{self, DateBasis, PaymentAnchor, PaymentDates};
 use sheafly_engine::{Lang, Project};
@@ -48,6 +52,39 @@ pub(crate) async fn cash_flow(
     tauri::async_runtime::spawn_blocking(move || sheafly_pro::cash_flow(&project, &options, l))
         .await
         .map_err(|error| error.to_string())?
+}
+
+/// Save the cash flow for `options` (the Dòng tiền view's period and baseline) as an
+/// `.xlsx` workbook, like `export_excel`.
+#[tauri::command]
+pub(crate) async fn export_cash_flow(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    options: CashFlowOptions,
+) -> Result<(), String> {
+    let l = lang(&state);
+    gate(sheafly_pro::available(), state.license.grants(Feature::Cashflow), l)?;
+    let Some(_permit) = begin_dialog(&state) else {
+        return Ok(());
+    };
+    let text = i18n::text(l);
+    let picked = await_save(
+        app.dialog()
+            .file()
+            .add_filter("Excel", &["xlsx"])
+            .set_title(text.export_cash_flow_title)
+            .set_file_name(text.export_cash_flow_file),
+    )
+    .await;
+    let Some(path) = picked.and_then(path_from_dialog) else {
+        return Ok(());
+    };
+    let path = ensure_suffix(path, ".xlsx");
+    let project = lock(&state).project.clone();
+    let bytes = tauri::async_runtime::spawn_blocking(move || sheafly_pro::cash_flow_workbook(&project, &options, l))
+        .await
+        .map_err(|error| error.to_string())??;
+    fs::write(path, bytes).map_err(write_failed(&state))
 }
 
 /// Whether the read may run: the Pro modules first, then the license.

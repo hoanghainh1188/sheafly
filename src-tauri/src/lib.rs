@@ -1556,6 +1556,7 @@ pub fn run() {
             export_excel,
             health_commands::schedule_health,
             cash_flow_commands::cash_flow,
+            cash_flow_commands::export_cash_flow,
             cash_flow_commands::payment_dates,
             save_pdf,
             save_text_report,
