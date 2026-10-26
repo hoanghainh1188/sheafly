@@ -50,3 +50,58 @@ jobs:
         run: |
           cargo fetch --locked
           node scripts/third-party-licenses.mjs --check
+
+  # The stub in crates/pro must match the closed-source crate in hoanghainh1188/sheafly-pro
+  # (plan part 20G): release builds copy that crate over the stub and refuse a mismatch. A
+  # PR pair shares a branch name, so a pull request is compared with the private branch of
+  # the same name when there is one, else with its main; a push to main is compared with its
+  # main. A public PR that changes the stub stays red until the private side exists, and a
+  # one-sided merge shows up on main at once. Only the script's own messages are printed and
+  # nothing from the private repository is uploaded. Forks have no deploy key and skip it.
+  pro-stub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_KEY: ${{ secrets.SHEAFLY_PRO_DEPLOY_KEY != '' }}
+    steps:
+      - name: Without the deploy key
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::No SHEAFLY_PRO_DEPLOY_KEY on a fork or a bot PR, so the stub is not compared with the Pro crate."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - name: Check out the Pro crate
+        if: env.HAS_KEY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: hoanghainh1188/sheafly-pro
+          ssh-key: ${{ secrets.SHEAFLY_PRO_DEPLOY_KEY }}
+          path: pro-src
+
+      - name: Use the private branch of the same name
+        if: env.HAS_KEY == 'true'
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd pro-src
+          if [ "$BRANCH" != main ] && git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" > /dev/null; then
+            git fetch --quiet --depth 1 origin "refs/heads/$BRANCH"
+            git checkout --quiet --detach FETCH_HEAD
+            echo "Comparing with sheafly-pro $BRANCH."
+          else
+            echo "Comparing with sheafly-pro main."
+          fi
+
+      - name: Stub matches the Pro crate
+        if: env.HAS_KEY == 'true'
+        run: |
+          if ! python3 pro-src/scripts/check-stub.py pro-src crates/pro; then
+            echo "::error::crates/pro and tests/api.rs must match hoanghainh1188/sheafly-pro. Push the private side on a branch of the same name (or merge it there first), then re-run this check."
+            exit 1
+          fi
+
+      - name: Remove the Pro crate
+        if: always()
+        run: rm -rf pro-src
