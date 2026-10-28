@@ -27,4 +27,17 @@ export const assignmentEditorMessages = defineMessages(
     actualCost: "Actual",
     actualCostOf: (name: string) => `Actual cost for ${name}`,
   },
+  {
+    assign: "リソースの割り当て",
+    resourceFallback: (uid: number) => `リソース ${uid}`,
+    units: "単位数",
+    unitsOf: (name: string) => `${name} の単位数`,
+    remove: "解除",
+    newUnits: "割り当て単位数",
+    unitsTip: "稼働日の割合: 1 は全日、0.5 は半日。8時間稼働で「2h/日」などの入力も可能",
+    equals: (perDay: string) => `= ${perDay}`,
+    choose: "選択…",
+    actualCost: "実績コスト",
+    actualCostOf: (name: string) => `${name} の実績コスト`,
+  },
 );

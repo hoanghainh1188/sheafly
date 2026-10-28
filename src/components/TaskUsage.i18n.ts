@@ -13,4 +13,9 @@ export const taskUsageMessages = defineMessages(
     day: (key: string) => `${key.slice(5, 7)}-${key.slice(8)}`,
     empty: "No tasks yet.",
   },
+  {
+    head: "タスク / リソース",
+    day: (key: string) => `${parseInt(key.slice(5, 7), 10)}/${parseInt(key.slice(8), 10)}`,
+    empty: "タスクがありません。",
+  },
 );

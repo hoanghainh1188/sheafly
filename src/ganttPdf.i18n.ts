@@ -18,4 +18,12 @@ export const pdfMessages = defineMessages(
     page: (page: number, count: number) => `Page ${page}/${count}`,
     networkTitle: (project: string) => `${project} — Network diagram`,
   },
+  {
+    untitled: "プロジェクト",
+    name: "名前",
+    start: "開始日",
+    finish: "終了日",
+    page: (page: number, count: number) => `${page} / ${count} ページ`,
+    networkTitle: (project: string) => `${project} — ネットワーク図`,
+  },
 );

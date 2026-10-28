@@ -1,6 +1,7 @@
 import { defineMessages } from "../i18n";
 
 const VI_WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
+const JA_WEEKDAYS = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"];
 const EN_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export const calendarEditorMessages = defineMessages(
@@ -72,6 +73,40 @@ export const calendarEditorMessages = defineMessages(
     remove: "Remove",
     startTime: "Start time",
     finishTime: "Finish time",
+  },
+  {
+    weekday: (index: number) => JA_WEEKDAYS[index] ?? "",
+    calendarName: "カレンダー名",
+    basedOn: "ベース カレンダー",
+    noBase: "なし (独立カレンダー)",
+    basedHint: "このカレンダー独自の設定を除き、ベース カレンダーの祝日と稼働時間が適用されます。",
+    fromBase: "ベース カレンダーに従う",
+    workWeek: "稼働週",
+    otherWeeks: "その他の稼働週",
+    otherWeeksHint: "特定の期間にのみ適用される稼働時間 (上記の稼働週を上書き)。例外日は常に優先されます。",
+    weekName: "稼働週名",
+    weekNamePlaceholder: "例: サマータイム",
+    addWeek: "稼働週を保存",
+    newWeek: "稼働週を追加",
+    cancelWeek: "キャンセル",
+    editWeek: "編集",
+    noOtherWeeks: "その他の稼働週はありません。",
+    addRange: "期間を追加",
+    exceptionsHeading: "非稼働日・例外日",
+    oneDay: "単日",
+    dateRange: "期間指定",
+    date: "日付",
+    from: "開始",
+    fromDate: "開始日",
+    to: "終了",
+    toDate: "終了日",
+    nonworking: "終日非稼働",
+    customHours: "カスタム稼働時間",
+    addException: "例外日を追加",
+    noExceptions: "非稼働日や例外日はまだありません。",
+    remove: "削除",
+    startTime: "開始時刻",
+    finishTime: "終了時刻",
   },
 );
 

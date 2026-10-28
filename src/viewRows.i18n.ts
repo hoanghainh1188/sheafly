@@ -16,4 +16,11 @@ export const viewRowsMessages = defineMessages(
     taskFallback: (uid: number) => `Task ${uid}`,
     noValue: (field: string) => `No ${field}`,
   },
+  {
+    resourceFallback: (uid: number) => `リソース ${uid}`,
+    unassigned: "未割り当て",
+    noSummary: "サマリータスクなし",
+    taskFallback: (uid: number) => `タスク ${uid}`,
+    noValue: (field: string) => `${field} なし`,
+  },
 );

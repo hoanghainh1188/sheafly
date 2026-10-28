@@ -1,6 +1,7 @@
 import { defineMessages } from "../i18n";
 
 const VI_WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+const JA_WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 const EN_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const EN_MONTHS = [
   "January",
@@ -54,6 +55,24 @@ export const dateTimeFieldMessages = defineMessages(
     hour: "Hour",
     minute: "Minute",
     typeExactTime: "Type an exact time in the box if needed",
+    datePlaceholder: "yyyy-mm-dd",
+  },
+  {
+    weekday: (index: number) => JA_WEEKDAYS[index] ?? "",
+    monthTitle: (month: number, year: number) => `${year}年${month}月`,
+    pickTime: "時刻を選択",
+    openDatePicker: "日付ピッカーを開く",
+    pickDate: "日付を選択",
+    clearDate: "日付をクリア",
+    clear: "クリア",
+    previousMonth: "前月",
+    nextMonth: "翌月",
+    today: "今日",
+    cancel: "キャンセル",
+    choose: "決定",
+    hour: "時",
+    minute: "分",
+    typeExactTime: "必要に応じて入力欄に直接時刻を入力してください",
     datePlaceholder: "yyyy-mm-dd",
   },
 );

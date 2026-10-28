@@ -17,4 +17,12 @@ export const splitSectionMessages = defineMessages(
     split: "Split…",
     joinAll: "Join all parts",
   },
+  {
+    title: "タスクの分割",
+    segment: (index: number, start: string, finish: string) => `期間 ${index}: ${start} – ${finish}`,
+    gap: (duration: string) => `休止期間: 稼働時間 ${duration}`,
+    join: (next: number) => `期間 ${next} と結合`,
+    split: "分割…",
+    joinAll: "すべての期間を結合",
+  },
 );

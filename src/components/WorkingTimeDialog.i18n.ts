@@ -19,4 +19,13 @@ export const workingTimeMessages = defineMessages(
     cancel: "Cancel",
     save: "Save",
   },
+  {
+    title: "稼働時間",
+    calendar: "カレンダー",
+    projectMark: " (プロジェクト カレンダー)",
+    newCalendar: "新規カレンダー",
+    previewing: "スケジュールへの変更をプレビュー中",
+    cancel: "キャンセル",
+    save: "保存",
+  },
 );

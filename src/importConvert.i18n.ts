@@ -28,4 +28,17 @@ export const importConvertMessages = defineMessages(
     kind: "The kind is Person or Machine",
     rate: "The rate is a number of at least 0",
   },
+  {
+    needsName: "タスク名列を選択してください",
+    level: "レベルは 1 以上の整数です",
+    work: "工数を読み取れません (例: 16、2 日、3h)",
+    duration: "期間を読み取れません (例: 2、1.5 日、4h)",
+    priority: "優先度は 0〜1,000 の整数です",
+    date: "日付を読み取れません (例: 2026-01-09 または 2026-01-09 13:00)",
+    units: "単位数を読み取れません (例: 1、0.5、50%、4h/日)",
+    noLine: (line: string) => `テーブルに ${line} 行目がありません`,
+    field: (name: string) => `値がフィールド “${name}” に適合しません`,
+    kind: "種類は作業 (Person) または設備 (Machine) です",
+    rate: "単価は 0 以上の数値です",
+  },
 );

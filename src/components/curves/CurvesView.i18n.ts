@@ -101,4 +101,54 @@ export const curvesMessages = defineMessages(
 
     chartAria: "S-curve and periodic distribution chart",
   },
+  {
+    measure: "指標:",
+    measureCost: "コスト",
+    measureWork: "作業時間",
+    measureProgress: "% 進捗度",
+
+    period: "期間:",
+    periodDay: "日",
+    periodWeek: "週",
+    periodMonth: "月",
+
+    filter: "フィルター:",
+    filterProject: "プロジェクト全体",
+    filterPerson: "リソース別",
+    filterGroup: "役割別",
+    filterSkill: "スキル別",
+    pickPerson: "リソースを選択…",
+    pickGroup: "役割を選択…",
+    pickSkill: "スキルを選択…",
+    minLevel: "最低レベル:",
+    anyLevel: "(不問)",
+
+    baseline: "基準計画:",
+    baselineNone: "なし",
+    baselineNumber: (n: number) => `基準計画 ${n}`,
+
+    mode: "表示モード:",
+    modeCumulative: "累積 (S カーブ)",
+    modePeriodic: "期間別",
+
+    seriesBaseline: "基準計画 (Baseline)",
+    seriesScheduled: "現行計画 (Scheduled)",
+    seriesActual: "実績 (Actual)",
+    seriesEarned: "達成価値 (EV)",
+    statusDate: "進捗日",
+    baselineFinish: "基準計画完了日",
+
+    loading: "カーブを計算中…",
+    empty: "選択されたフィルター条件に合致するデータがありません。",
+    failed: (reason: string) => `カーブを計算できませんでした: ${reason}`,
+    tableTitle: "詳細数値テーブル",
+    colPeriod: "期間",
+    colBaseline: "基準計画",
+    colScheduled: "現行計画",
+    colActual: "実績",
+    colEarned: "達成価値 (EV)",
+    total: "合計",
+
+    chartAria: "S カーブおよび期間別分布チャート",
+  },
 );

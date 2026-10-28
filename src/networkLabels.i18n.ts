@@ -22,4 +22,14 @@ export const networkBoxMessages = defineMessages(
     taskFallback: (id: number) => `Task ${id}`,
     criticalSuffix: " · Critical",
   },
+  {
+    recurring: (count: number) => `定期 · ${count} 回`,
+    summary: "サマリー",
+    milestone: "マイルストーン",
+    start: "開始日",
+    finish: "終了日",
+    complete: "達成率",
+    taskFallback: (id: number) => `タスク ${id}`,
+    criticalSuffix: " · クリティカル",
+  },
 );

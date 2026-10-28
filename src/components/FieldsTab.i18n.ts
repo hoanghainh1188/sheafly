@@ -49,4 +49,28 @@ export const fieldsTabMessages = defineMessages(
     addChoice: "Add choice",
     removeChoiceTip: "Remove this choice; tasks that have it will have no value",
   },
+  {
+    intro:
+      "カスタム フィールドは、顧客名、作業分野、リスク分類など、独自の項目をタスクに追加できる列です。フィルターやグループ化に使用できます。",
+    none: "カスタム フィールドがまだありません。",
+    add: "フィールドを追加",
+    newField: (n: number) => `フィールド ${n}`,
+    limits: (text: number, number: number) =>
+      `Microsoft Project と同様に、テキストまたはリスト フィールドは最大 ${text} 個、数値フィールドは最大 ${number} 個まで作成できます。`,
+    textLimit: (limit: number) => `既にテキストまたはリスト フィールドが上限の ${limit} 個に達しています`,
+    name: "フィールド名",
+    kind: "種類",
+    text: "テキスト",
+    number: "数値",
+    choice: "リスト",
+    used: (count: number) => (count === 0 ? "値が設定されたタスクはありません" : `${count} 件のタスクに値が設定されています`),
+    delete: "削除",
+    deleteTip: "フィールドとそのすべての値を削除 (「キャンセル」で元に戻せます)",
+    firstOption: "選択肢 1",
+    choiceN: (n: number) => `選択肢 ${n}`,
+    removeChoice: (option: string) => `選択肢 “${option}” を削除`,
+    newChoice: "新規選択肢",
+    addChoice: "選択肢を追加",
+    removeChoiceTip: "この選択肢を削除します (設定されていたタスクの値はクリアされます)",
+  },
 );

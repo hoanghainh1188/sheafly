@@ -9,4 +9,8 @@ export const proBadgeMessages = defineMessages(
     label: "Pro",
     title: "Sheafly Pro feature",
   },
+  {
+    label: "Pro",
+    title: "Sheafly Pro 機能",
+  },
 );
