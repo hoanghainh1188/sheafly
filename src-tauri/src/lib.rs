@@ -12,6 +12,7 @@ mod jira_push;
 mod license;
 mod cash_flow_commands;
 mod delta;
+mod diff_commands;
 mod health_commands;
 mod i18n;
 mod menu_icons;
@@ -1555,6 +1556,7 @@ pub fn run() {
             export_mspdi,
             export_excel,
             health_commands::schedule_health,
+            diff_commands::compare_project_file,
             cash_flow_commands::cash_flow,
             cash_flow_commands::export_cash_flow,
             cash_flow_commands::payment_dates,

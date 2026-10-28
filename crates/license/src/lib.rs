@@ -56,10 +56,20 @@ pub enum Feature {
     Health,
     /// The cash flow by period: money in from payments, money out from costs, the balance.
     Cashflow,
+    /// Project version comparison and visual variance audit diff.
+    Diff,
 }
 
 impl Feature {
-    pub const ALL: &'static [Feature] = &[Feature::Trackers, Feature::Capacity, Feature::Reporting, Feature::Ai, Feature::Health, Feature::Cashflow];
+    pub const ALL: &'static [Feature] = &[
+        Feature::Trackers,
+        Feature::Capacity,
+        Feature::Reporting,
+        Feature::Ai,
+        Feature::Health,
+        Feature::Cashflow,
+        Feature::Diff,
+    ];
 
     pub fn code(self) -> &'static str {
         match self {
@@ -69,6 +79,7 @@ impl Feature {
             Feature::Ai => "ai",
             Feature::Health => "health",
             Feature::Cashflow => "cashflow",
+            Feature::Diff => "diff",
         }
     }
 
