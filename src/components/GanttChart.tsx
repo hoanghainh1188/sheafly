@@ -28,7 +28,7 @@ import { useLang, useMessages } from "../i18n";
 import { canvasPalette, useResolvedTheme, type CanvasPalette } from "../theme";
 import { anchoredScroll, wheelPixels, wheelZoom, zoomedPx } from "../ganttZoom";
 import { UI_FONT_FAMILY } from "../uiFont";
-import type { Project, Scale, Segment, Task } from "../types";
+import type { Project, ProjectDiffReport, Scale, Segment, Task, TaskDiff } from "../types";
 import type { ViewRow } from "../viewRows";
 import { ganttChartMessages } from "./GanttChart.i18n";
 
@@ -71,6 +71,7 @@ interface Props {
   /** Enter on the focused chart opens the selected task. */
   onEdit: (uid: number) => void;
   onScroll: () => void;
+  diffReport?: ProjectDiffReport | null;
 }
 
 export function GanttChart({
@@ -91,7 +92,16 @@ export function GanttChart({
   onLink,
   onEdit,
   onScroll,
+  diffReport,
 }: Props) {
+  const diffTaskMap = useMemo(() => {
+    if (!diffReport) return null;
+    const map = new Map<number, TaskDiff>();
+    for (const t of diffReport.tasks) {
+      map.set(t.uid, t);
+    }
+    return map;
+  }, [diffReport]);
   const headRef = useRef<HTMLDivElement>(null);
   const bodyCanvas = useRef<HTMLCanvasElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -175,6 +185,7 @@ export function GanttChart({
       scroller.clientHeight,
       scroller.clientWidth,
       palette,
+      diffTaskMap,
     );
   }
 
@@ -271,6 +282,7 @@ export function GanttChart({
               event.currentTarget.clientHeight,
               event.currentTarget.clientWidth,
               palette,
+              diffTaskMap,
             );
           }
           onScroll();
@@ -368,6 +380,7 @@ function paintBody(
   viewHeight: number,
   viewWidth: number,
   palette: CanvasPalette,
+  diffTaskMap: Map<number, TaskDiff> | null = null,
 ) {
   const width = model.days.length * px;
   // The canvas covers only the part of the timeline in view, so it stays far below the
@@ -439,6 +452,12 @@ function paintBody(
       if (baseline) {
         const pieces = splitPieces(task, baseline.segments);
         drawBar(ctx, task, row, model.origin, px, palette.baseline, palette.knob, true, baseline.start, baseline.finish, pieces);
+      }
+    }
+    if (diffTaskMap) {
+      const diffTask = diffTaskMap.get(task.uid);
+      if (diffTask && (diffTask.kind === "Modified" || diffTask.kind === "Removed") && diffTask.old_start && diffTask.old_finish) {
+        drawBar(ctx, task, row, model.origin, px, "rgba(148, 163, 184, 0.55)", palette.knob, true, diffTask.old_start, diffTask.old_finish, []);
       }
     }
     const moved = drag && drag.moved && drag.uid === task.uid && drag.kind !== "link" ? drag : null;

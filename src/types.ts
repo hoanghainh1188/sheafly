@@ -1216,7 +1216,18 @@ export type FillField =
   | "work_range"
   | { field: number };
 
-export type ViewId = "gantt" | "tracking" | "resources" | "matrix" | "usage" | "load" | "curves" | "forecast" | "cashflow" | "network";
+export type ViewId =
+  | "gantt"
+  | "tracking"
+  | "resources"
+  | "matrix"
+  | "usage"
+  | "load"
+  | "curves"
+  | "forecast"
+  | "cashflow"
+  | "network"
+  | "diff";
 
 export interface MatrixCell {
   assignment_uid?: number;
@@ -1640,4 +1651,69 @@ export interface HealthCriterion {
   limit: HealthLimit | null;
   /** The tasks to look at, in project order. */
   tasks: { uid: number; reason: HealthReason }[];
+}
+
+export type TaskDiffKind = "Added" | "Removed" | "Modified" | "Unchanged";
+
+export interface LinkDiff {
+  other_task_uid: number;
+  other_task_name: string;
+  is_predecessor: boolean;
+  change: string;
+  old_detail: string | null;
+  new_detail: string | null;
+}
+
+export interface AssignmentDiff {
+  resource_uid: number;
+  resource_name: string;
+  change: string;
+  old_units: number | null;
+  new_units: number | null;
+}
+
+export interface TaskDiff {
+  uid: number;
+  id: number;
+  wbs: string;
+  name: string;
+  kind: TaskDiffKind;
+  old_start: number | null;
+  new_start: number | null;
+  old_finish: number | null;
+  new_finish: number | null;
+  finish_slip_days: number;
+  old_duration: number | null;
+  new_duration: number | null;
+  duration_delta: number;
+  old_work: number | null;
+  new_work: number | null;
+  work_delta: number;
+  old_cost: number | null;
+  new_cost: number | null;
+  cost_delta: number;
+  link_diffs: LinkDiff[];
+  assignment_diffs: AssignmentDiff[];
+}
+
+export interface DiffSummary {
+  total_current_tasks: number;
+  total_baseline_tasks: number;
+  added_count: number;
+  removed_count: number;
+  modified_count: number;
+  unchanged_count: number;
+  slipped_count: number;
+}
+
+export interface ProjectDiffReport {
+  base_name: string;
+  current_name: string;
+  base_finish: number | null;
+  current_finish: number | null;
+  finish_delta_days: number;
+  cost_delta: number;
+  work_delta_hours: number;
+  summary: DiffSummary;
+  tasks: TaskDiff[];
 }

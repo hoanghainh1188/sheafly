@@ -17,6 +17,7 @@ import type {
   LicenseView,
   LoadMap,
   PlanPreview,
+  ProjectDiffReport,
   NetworkLayout,
   ProjectMetrics,
   Snapshot,
@@ -60,6 +61,8 @@ class FakeBackend {
   health: HealthReport = makeHealthReport();
   /** What `cash_flow` answers. */
   cashFlow: CashFlowReport = makeCashFlowReport();
+  /** What `compare_project_file` and `pick_and_compare_project` answer. */
+  diffReport: ProjectDiffReport | null = null;
   /** What `load_map` answers. */
   loadMap: LoadMap = { buckets: [], rows: [] };
   /** What `assignment_matrix` answers. */
@@ -235,6 +238,11 @@ class FakeBackend {
         return structuredClone(this.health);
       case "cash_flow":
         return structuredClone(this.cashFlow);
+      case "compare_project_file":
+        if (!this.diffReport) throw new Error("No diffReport configured in FakeBackend");
+        return structuredClone(this.diffReport);
+      case "pick_and_compare_project":
+        return structuredClone(this.diffReport);
       case "payment_dates":
         return (args?.items as PaymentDatesQuery[]).map((item) => this.paymentDates(item));
       case "preview_plan":

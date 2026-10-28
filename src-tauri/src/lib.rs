@@ -1557,6 +1557,7 @@ pub fn run() {
             export_excel,
             health_commands::schedule_health,
             diff_commands::compare_project_file,
+            diff_commands::pick_and_compare_project,
             cash_flow_commands::cash_flow,
             cash_flow_commands::export_cash_flow,
             cash_flow_commands::payment_dates,

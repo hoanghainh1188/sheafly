@@ -36,6 +36,9 @@ export const appMessages = defineMessages(
     baselineDelete: "Xóa",
     baselineSet: "Đặt",
     baselineNumber: "Mốc 0–10",
+    diffBannerTitle: (name: string, count: number) => `So sánh với “${name}” (${count} thay đổi)`,
+    diffBannerDetails: "Chi tiết sai lệch",
+    diffBannerClose: "Đóng so sánh",
   },
   {
     needsTauri: "Open Sheafly with pnpm tauri dev to schedule and save files.",
@@ -72,6 +75,9 @@ export const appMessages = defineMessages(
     baselineDelete: "Delete",
     baselineSet: "Set",
     baselineNumber: "Baseline 0–10",
+    diffBannerTitle: (name: string, count: number) => `Comparing with “${name}” (${count} changes)`,
+    diffBannerDetails: "Variance audit",
+    diffBannerClose: "Close compare",
   },
   {
     needsTauri: "スケジューリングとファイル保存を使用するには pnpm tauri dev で起動してください。",
@@ -108,5 +114,8 @@ export const appMessages = defineMessages(
     baselineDelete: "削除",
     baselineSet: "設定",
     baselineNumber: "基準計画 0–10",
+    diffBannerTitle: (name: string, count: number) => `「${name}」と比較中 (${count} 件の変更)`,
+    diffBannerDetails: "差異の詳細",
+    diffBannerClose: "比較を閉じる",
   },
 );

@@ -60,6 +60,8 @@ import { TaskUsage } from "./components/TaskUsage";
 import { LoadMapView } from "./components/load/LoadMapView";
 import { CurvesView } from "./components/curves/CurvesView";
 import { CashFlowView } from "./components/cashflow/CashFlowView";
+import { VarianceAuditView } from "./components/diff/VarianceAuditView";
+import { GitCompare, X } from "lucide-react";
 import { PaymentScheduleDialog } from "./components/payments/PaymentScheduleDialog";
 import { Toolbar } from "./components/Toolbar";
 import { VIEW_PANEL_ID, ViewBar, viewTabId } from "./components/ViewBar";
@@ -68,7 +70,7 @@ import { pick, useLang, useMessages, useSetLang } from "./i18n";
 import { buildGanttPdf, pdfSuggestedName } from "./ganttPdf";
 import { handleMenuAction } from "./menuActions";
 import { buildNetworkPdf } from "./networkPdf";
-import type { CashFlowOptions, Command, FillField, ImportSheet, LicenseView, NetworkLayout, PlanPreview, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
+import type { CashFlowOptions, Command, FillField, ImportSheet, LicenseView, NetworkLayout, PlanPreview, ProjectDiffReport, ProjectMetrics, Scale, Snapshot, Suggestion, TaskClipboard, ViewId } from "./types";
 import {
   commitFocusedField,
   isEditableTarget,
@@ -134,6 +136,8 @@ export default function App() {
   const reportingPro = license?.features.includes("reporting") ?? false;
   const healthPro = license?.features.includes("health") ?? false;
   const cashflowPro = license?.features.includes("cashflow") ?? false;
+  const diffPro = license?.features.includes("diff") ?? false;
+  const [activeDiffReport, setActiveDiffReport] = useState<ProjectDiffReport | null>(null);
   // What the Dòng tiền view shows, so File → Export → Cash Flow exports the same.
   const [cashFlowOptions, setCashFlowOptions] = useState<CashFlowOptions>({ bucket: "month", baseline: null });
   // The calendar Lịch làm việc opened on and the history cursor to roll back to.
@@ -773,6 +777,34 @@ export default function App() {
             <div className="workspace-panel" id={VIEW_PANEL_ID} role="tabpanel" aria-labelledby={viewTabId(view)}>
             {project && (view === "gantt" || view === "tracking") && (
               <>
+                {activeDiffReport && (
+                  <div className="diff-gantt-banner">
+                    <GitCompare size={15} />
+                    <span>
+                      {m.diffBannerTitle(
+                        activeDiffReport.base_name,
+                        activeDiffReport.summary.modified_count +
+                          activeDiffReport.summary.added_count +
+                          activeDiffReport.summary.removed_count,
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="diff-banner-action"
+                      onClick={() => setView("diff")}
+                    >
+                      {m.diffBannerDetails}
+                    </button>
+                    <button
+                      type="button"
+                      className="diff-banner-close"
+                      onClick={() => setActiveDiffReport(null)}
+                      title={m.diffBannerClose}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
                 <TaskSheet
                   rows={rows}
                   calendars={project.calendars}
@@ -829,6 +861,7 @@ export default function App() {
                   onLink={(from, to) => send({ type: "add_dependency", predecessor_uid: from, successor_uid: to, kind: "fs", lag: 0 })}
                   onEdit={setEditUid}
                   onScroll={() => syncScroll("gantt")}
+                  diffReport={activeDiffReport}
                 />
               </>
             )}
@@ -901,6 +934,18 @@ export default function App() {
                 onOptionsChange={setCashFlowOptions}
                 onExport={() => dispatchFocused("export-cash-flow")}
                 exportBusy={fileDialogBusy}
+                onPickTask={(uid) => {
+                  selectOne(uid);
+                  setView("gantt");
+                }}
+              />
+            )}
+            {project && view === "diff" && (
+              <VarianceAuditView
+                diffPro={diffPro}
+                onOpenLicense={() => setLicenseOpen(true)}
+                activeReport={activeDiffReport}
+                onReportChange={setActiveDiffReport}
                 onPickTask={(uid) => {
                   selectOne(uid);
                   setView("gantt");
