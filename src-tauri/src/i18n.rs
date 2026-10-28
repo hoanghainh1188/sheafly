@@ -465,9 +465,10 @@ pub const PROJECT_MENU: &[Entry] = &[
 
 /// The language choices: menu id, language, and its name in its own language. The
 /// names are the same in both menus.
-pub const LANGUAGES: [(&str, Lang, &str); 2] = [
+pub const LANGUAGES: [(&str, Lang, &str); 3] = [
     ("lang-vi", Lang::Vi, "Tiếng Việt"),
     ("lang-en", Lang::En, "English"),
+    ("lang-ja", Lang::Ja, "日本語"),
 ];
 
 /// The theme choices: menu id, theme, and the label in Vietnamese and English.
@@ -485,6 +486,7 @@ pub fn unsaved_message(lang: Lang, name: &str) -> String {
             "The project “{name}” has unsaved changes. Do you want to save them before \
              continuing?"
         ),
+        Lang::Ja => format!("プロジェクト「{name}」に未保存の変更があります。続行する前に保存しますか？"),
     }
 }
 
@@ -509,6 +511,14 @@ pub fn autosave_offer(lang: Lang, project: &str, file: Option<&str>) -> String {
                  changes. Restore the autosaved version?"
             )
         }
+        Lang::Ja => {
+            let source = file
+                .map(|file| format!(" (ファイル「{file}」)"))
+                .unwrap_or_default();
+            format!(
+                "プロジェクト「{project}」{source} に未保存の変更がある状態で Sheafly が終了しました。自動保存されたバージョンを復元しますか？"
+            )
+        }
     }
 }
 
@@ -516,6 +526,7 @@ pub fn restore_failed(lang: Lang, detail: &str) -> String {
     match lang {
         Lang::Vi => format!("Không khôi phục được bản tự lưu: {detail}"),
         Lang::En => format!("Could not restore the autosaved version: {detail}"),
+        Lang::Ja => format!("自動保存されたバージョンを復元できませんでした: {detail}"),
     }
 }
 
@@ -530,6 +541,9 @@ pub fn compact_not_needed(lang: Lang, undoable: usize, kept: usize) -> String {
             "The undo history has only {undoable} {}, so there is nothing to compact yet \
              (the last {kept} steps are always kept).",
             if undoable == 1 { "step" } else { "steps" }
+        ),
+        Lang::Ja => format!(
+            "元に戻す履歴はまだ {undoable} 件しかないため、圧縮する必要はありません (直近 {kept} 件の履歴は常に保持されます)。"
         ),
     }
 }
@@ -546,6 +560,9 @@ pub fn compact_question(lang: Lang, folded: usize, kept: usize) -> String {
              save.",
             if folded == 1 { "step" } else { "steps" }
         ),
+        Lang::Ja => format!(
+            "古い操作 {folded} 件を初期状態にまとめ、直近 {kept} 件の元に戻す履歴を保持しますか？この圧縮操作は元に戻せません。次回の保存時にファイルサイズが小さくなります。"
+        ),
     }
 }
 
@@ -553,6 +570,7 @@ pub fn unknown_theme(lang: Lang, code: &str) -> String {
     match lang {
         Lang::Vi => format!("Giao diện không được hỗ trợ: {code}"),
         Lang::En => format!("Unsupported appearance: {code}"),
+        Lang::Ja => format!("サポートされていない外観テーマです: {code}"),
     }
 }
 
@@ -560,6 +578,7 @@ pub fn unknown_language(lang: Lang, code: &str) -> String {
     match lang {
         Lang::Vi => format!("Ngôn ngữ không được hỗ trợ: {code}"),
         Lang::En => format!("Unsupported language: {code}"),
+        Lang::Ja => format!("サポートされていない言語です: {code}"),
     }
 }
 
@@ -567,6 +586,7 @@ pub fn settings_not_saved(lang: Lang, detail: &str) -> String {
     match lang {
         Lang::Vi => format!("Không lưu được thiết lập: {detail}"),
         Lang::En => format!("Could not save the settings: {detail}"),
+        Lang::Ja => format!("設定を保存できませんでした: {detail}"),
     }
 }
 
@@ -575,6 +595,7 @@ pub fn file_missing(lang: Lang, path: &str) -> String {
     match lang {
         Lang::Vi => format!("Không tìm thấy tệp “{path}”. Tệp đã được bỏ khỏi danh sách gần đây."),
         Lang::En => format!("“{path}” could not be found. It has been removed from Open Recent."),
+        Lang::Ja => format!("「{path}」が見つかりませんでした。「最近使った項目」から削除されました。"),
     }
 }
 
@@ -649,6 +670,7 @@ mod tests {
     fn language_names_are_written_in_their_own_language() {
         assert_eq!(LANGUAGES[0], ("lang-vi", Lang::Vi, "Tiếng Việt"));
         assert_eq!(LANGUAGES[1], ("lang-en", Lang::En, "English"));
+        assert_eq!(LANGUAGES[2], ("lang-ja", Lang::Ja, "日本語"));
     }
 
     #[test]

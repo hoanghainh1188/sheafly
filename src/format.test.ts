@@ -317,3 +317,32 @@ describe("money in fields", () => {
   });
 });
 
+describe("Japanese format", () => {
+  afterEach(() => setCurrentLang("vi"));
+
+  it("formats and parses durations in Japanese", () => {
+    setCurrentLang("ja");
+    expect(formatDuration(480)).toBe("1 日");
+    expect(formatDuration(720)).toBe("1.5 日");
+    expect(formatDuration(60)).toBe("1 時間");
+    expect(formatDuration(30)).toBe("0.5 時間");
+    expect(formatDuration(25)).toBe("25 分");
+
+    expect(parseDuration("1日")).toBe(480);
+    expect(parseDuration("1.5 日")).toBe(720);
+    expect(parseDuration("2時間")).toBe(120);
+    expect(parseDuration("25分")).toBe(25);
+
+    for (const minutes of [0, 1, 7, 25, 60, 90, 480, 720, 3600]) {
+      expect(parseDuration(formatDuration(minutes))).toBe(minutes);
+    }
+  });
+
+  it("formats dates and money in Japanese", () => {
+    setCurrentLang("ja");
+    expect(formatDateOnly(Date.UTC(2026, 0, 5))).toBe("2026-01-05");
+    expect(formatMoney(1_248_000)).toBe("1,248,000");
+    expect(formatHours(2.5)).toBe("2.5");
+  });
+});
+

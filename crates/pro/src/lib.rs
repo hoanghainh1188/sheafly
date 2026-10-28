@@ -27,6 +27,7 @@ pub fn unavailable(lang: Lang) -> String {
     match lang {
         Lang::Vi => "Bản Sheafly này không có các tính năng Pro (bản tự build từ mã nguồn công khai). Hãy dùng bản phát hành chính thức.".into(),
         Lang::En => "This Sheafly build has no Pro features (built from the public source). Use an official release.".into(),
+        Lang::Ja => "この Sheafly ビルドには Pro 機能が含まれていません (公開ソースからビルドされています)。公式リリース版をご利用ください。".into(),
     }
 }
 

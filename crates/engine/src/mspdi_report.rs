@@ -111,6 +111,11 @@ fn week_line(note: &ImportNote, lang: Lang) -> Option<String> {
                 "• Calendar “{calendar}”: week “{name}” overlaps an earlier one and was left out."
             )
         }
+        (ImportNote::WorkWeekOverlaps { calendar, name }, Lang::Ja) => {
+            format!(
+                "• カレンダー「{calendar}」: 稼働週「{name}」は前の週と重複しているため除外されました。"
+            )
+        }
         (ImportNote::AvailabilityDropped { resource }, Lang::Vi) => format!(
             "• Nguồn lực “{resource}”: một khoảng khả dụng trùng ngày với khoảng trước \
              hoặc kết thúc trước khi bắt đầu, đã bỏ."
@@ -119,17 +124,26 @@ fn week_line(note: &ImportNote, lang: Lang) -> Option<String> {
             "• Resource “{resource}”: an availability period overlaps an earlier one or \
              ends before it starts, and was left out."
         ),
+        (ImportNote::AvailabilityDropped { resource }, Lang::Ja) => format!(
+            "• リソース「{resource}」: 利用可能期間が前の期間と重複しているか、開始前に終了しているため除外されました。"
+        ),
         (ImportNote::WorkWeekWithoutDates { calendar }, Lang::Vi) => {
             format!("• Lịch “{calendar}”: một tuần làm việc không có ngày bắt đầu, đã bỏ.")
         }
         (ImportNote::WorkWeekWithoutDates { calendar }, Lang::En) => {
             format!("• Calendar “{calendar}”: a work week with no start date was left out.")
         }
+        (ImportNote::WorkWeekWithoutDates { calendar }, Lang::Ja) => {
+            format!("• カレンダー「{calendar}」: 開始日のない稼働週は除外されました。")
+        }
         (ImportNote::ExceptionWithoutDates { calendar }, Lang::Vi) => {
             format!("• Lịch “{calendar}”: một ngày ngoại lệ không có ngày bắt đầu, đã bỏ.")
         }
         (ImportNote::ExceptionWithoutDates { calendar }, Lang::En) => {
             format!("• Calendar “{calendar}”: an exception with no start date was left out.")
+        }
+        (ImportNote::ExceptionWithoutDates { calendar }, Lang::Ja) => {
+            format!("• カレンダー「{calendar}」: 開始日のない例外日は除外されました。")
         }
         _ => return None,
     })
@@ -152,6 +166,10 @@ fn field_line(name: &str, values: usize, not_numbers: bool, lang: Lang) -> Strin
             "• “{name}”: {values} {}",
             if one { "value that is not a number" } else { "values that are not numbers" }
         ),
+        (Lang::Ja, false) => {
+            format!("• 「{name}」: {values} 件の値 (Sheafly ではテキスト、数値、リスト項目のみ保持されます)")
+        }
+        (Lang::Ja, true) => format!("• 「{name}」: {values} 件の数値以外の値"),
     }
 }
 
@@ -159,6 +177,7 @@ fn heading_fields(lang: Lang) -> String {
     match lang {
         Lang::Vi => "Một số giá trị trường tùy chỉnh trong tệp đã bỏ:".into(),
         Lang::En => "Some custom field values in the file were left out:".into(),
+        Lang::Ja => "ファイル内の一部のカスタム フィールド値は除外されました:".into(),
     }
 }
 
@@ -171,6 +190,9 @@ fn heading_weeks(lang: Lang) -> String {
         Lang::En => {
             "Some work weeks, exceptions, or resource availability periods in the file could not be read:"
                 .into()
+        }
+        Lang::Ja => {
+            "ファイル内の一部の稼働週、例外日、またはリソースの利用可能期間を読み込めませんでした:".into()
         }
     }
 }
@@ -186,6 +208,9 @@ fn heading_percents(count: usize, lang: Lang) -> String {
              amounts in the file; those were used instead:",
             if count == 1 { "task has" } else { "tasks have" }
         ),
+        Lang::Ja => format!(
+            "{count} 件のタスクの達成率 (%) がファイル内の日付や残存作業と一致していません。日付と残存作業の値を使用しました:"
+        ),
     }
 }
 
@@ -199,6 +224,9 @@ fn heading_moved(count: usize, lang: Lang) -> String {
             "Sheafly scheduled the project again: {count} {} other dates than in the file. \
              Check them before you save.",
             if count == 1 { "task has" } else { "tasks have" }
+        ),
+        Lang::Ja => format!(
+            "Sheafly でスケジュールが再計算されました: {count} 件のタスクの日付がファイルと異なります。保存前に確認してください。"
         ),
     }
 }
@@ -228,6 +256,7 @@ fn section(lines: &[String], heading: String, lang: Lang) -> Option<String> {
         out.push(match lang {
             Lang::Vi => format!("… và {rest} mục khác."),
             Lang::En => format!("… and {rest} more."),
+            Lang::Ja => format!("… 他 {rest} 項目。"),
         });
     }
     Some(out.join("\n"))
@@ -242,6 +271,6 @@ fn percent(value: f64, lang: Lang) -> String {
     };
     match lang {
         Lang::Vi => format!("{} %", text.replace('.', ",")),
-        Lang::En => format!("{text}%"),
+        Lang::En | Lang::Ja => format!("{text}%"),
     }
 }

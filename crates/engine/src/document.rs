@@ -57,12 +57,12 @@ impl Document {
     /// The names are data: they go into `base` and stay as they are wherever the file is
     /// opened later, so replay never depends on the language.
     pub fn new_in(lang: Lang) -> Self {
-        let mut project = Project::new(lang.pick("Dự án mới", "New project"), default_start(now_millis()));
+        let mut project = Project::new(lang.pick3("Dự án mới", "New project", "新規プロジェクト"), default_start(now_millis()));
         if let Some(calendar) = project.calendars.first_mut() {
-            calendar.name = lang.pick("Chuẩn", "Standard").into();
+            calendar.name = lang.pick3("Chuẩn", "Standard", "標準").into();
         }
         let uid = project.alloc_task_uid();
-        let mut task = Task::new(uid, lang.pick("Công việc 1", "Task 1"));
+        let mut task = Task::new(uid, lang.pick3("Công việc 1", "Task 1", "タスク 1"));
         task.start = project.start;
         project.tasks.push(task);
         Self::from_project(project)

@@ -11,14 +11,16 @@ pub enum Lang {
     #[default]
     Vi,
     En,
+    Ja,
 }
 
 impl Lang {
-    /// The language for a code such as `"vi"` or `"en"`.
+    /// The language for a code such as `"vi"`, `"en"`, or `"ja"`.
     pub fn from_code(code: &str) -> Option<Self> {
         match code {
             "vi" => Some(Self::Vi),
             "en" => Some(Self::En),
+            "ja" => Some(Self::Ja),
             _ => None,
         }
     }
@@ -27,14 +29,24 @@ impl Lang {
         match self {
             Self::Vi => "vi",
             Self::En => "en",
+            Self::Ja => "ja",
         }
     }
 
-    /// Pick the text for this language.
+    /// Pick between Vietnamese and English (falling back to English for Japanese).
     pub fn pick<T>(self, vi: T, en: T) -> T {
         match self {
             Self::Vi => vi,
+            Self::En | Self::Ja => en,
+        }
+    }
+
+    /// Pick the text for this language among Vietnamese, English, and Japanese.
+    pub fn pick3<T>(self, vi: T, en: T, ja: T) -> T {
+        match self {
+            Self::Vi => vi,
             Self::En => en,
+            Self::Ja => ja,
         }
     }
 }
@@ -45,7 +57,7 @@ mod tests {
 
     #[test]
     fn codes_round_trip_and_match_serde() {
-        for lang in [Lang::Vi, Lang::En] {
+        for lang in [Lang::Vi, Lang::En, Lang::Ja] {
             assert_eq!(Lang::from_code(lang.code()), Some(lang));
             assert_eq!(
                 serde_json::to_string(&lang).unwrap(),

@@ -164,28 +164,40 @@ impl EngineError {
         match (self, lang) {
             (Self::DependencyCycle, Lang::Vi) => "Phụ thuộc tạo thành vòng lặp".into(),
             (Self::DependencyCycle, Lang::En) => "The links between tasks form a loop".into(),
+            (Self::DependencyCycle, Lang::Ja) => "タスク間のリンクが循環しています".into(),
             (Self::TaskNotFound, Lang::Vi) => "Không tìm thấy công việc".into(),
             (Self::TaskNotFound, Lang::En) => "Task not found".into(),
+            (Self::TaskNotFound, Lang::Ja) => "タスクが見つかりません".into(),
             (Self::ResourceNotFound, Lang::Vi) => "Không tìm thấy nguồn lực".into(),
             (Self::ResourceNotFound, Lang::En) => "Resource not found".into(),
+            (Self::ResourceNotFound, Lang::Ja) => "リソースが見つかりません".into(),
             (Self::AssignmentNotFound, Lang::Vi) => "Không tìm thấy phân công".into(),
             (Self::AssignmentNotFound, Lang::En) => "Assignment not found".into(),
+            (Self::AssignmentNotFound, Lang::Ja) => "割り当てが見つかりません".into(),
             (Self::BadPredecessor(text), Lang::Vi) => format!("Tiền nhiệm không hợp lệ: {text}"),
             (Self::BadPredecessor(text), Lang::En) => format!("Invalid predecessor: {text}"),
+            (Self::BadPredecessor(text), Lang::Ja) => format!("先行タスクが無効です: {text}"),
             (Self::ActualFinishBeforeStart, Lang::Vi) => {
                 "Ngày kết thúc thực tế phải sau ngày bắt đầu thực tế".into()
             }
             (Self::ActualFinishBeforeStart, Lang::En) => {
                 "The actual finish must be after the actual start".into()
             }
+            (Self::ActualFinishBeforeStart, Lang::Ja) => {
+                "実績終了日は実績開始日以降である必要があります".into()
+            }
             (Self::NoStatusDate, Lang::Vi) => "Chưa đặt ngày trạng thái".into(),
             (Self::NoStatusDate, Lang::En) => "The status date is not set".into(),
+            (Self::NoStatusDate, Lang::Ja) => "状況報告日が設定されていません".into(),
             (Self::NoWorkingTime, Lang::Vi) => "Lịch không có thời gian làm việc".into(),
             (Self::NoWorkingTime, Lang::En) => "The calendar has no working time".into(),
+            (Self::NoWorkingTime, Lang::Ja) => "カレンダーに稼働時間が設定されていません".into(),
             (Self::Store(detail), Lang::Vi) => format!("Không đọc được tệp: {detail}"),
             (Self::Store(detail), Lang::En) => format!("Could not read the file: {detail}"),
+            (Self::Store(detail), Lang::Ja) => format!("ファイルを読み込めませんでした: {detail}"),
             (Self::Save(detail), Lang::Vi) => format!("Không lưu được tệp: {detail}"),
             (Self::Save(detail), Lang::En) => format!("Could not save the file: {detail}"),
+            (Self::Save(detail), Lang::Ja) => format!("ファイルを保存できませんでした: {detail}"),
             (Self::NewerFormat(version), Lang::Vi) => format!(
                 "Tệp được tạo bởi phiên bản mới hơn của Sheafly (định dạng {version}). \
                  Hãy cập nhật ứng dụng."
@@ -194,22 +206,35 @@ impl EngineError {
                 "This file was created by a newer version of Sheafly (format {version}). \
                  Please update the app."
             ),
+            (Self::NewerFormat(version), Lang::Ja) => format!(
+                "このファイルは新しいバージョンの Sheafly (形式 {version}) で作成されています。\
+                 アプリを更新してください。"
+            ),
             (Self::Xml(detail), Lang::Vi) => format!("XML MSPDI không hợp lệ: {detail}"),
             (Self::Xml(detail), Lang::En) => format!("Invalid MSPDI XML: {detail}"),
+            (Self::Xml(detail), Lang::Ja) => format!("無効な MSPDI XML です: {detail}"),
             (Self::BadFormatVersion(stored), Lang::Vi) => {
                 format!("Không đọc được tệp: phiên bản định dạng không hợp lệ: {stored}")
             }
             (Self::BadFormatVersion(stored), Lang::En) => {
                 format!("Could not read the file: invalid format version: {stored}")
             }
+            (Self::BadFormatVersion(stored), Lang::Ja) => {
+                format!("ファイルを読み込めませんでした: 無効な形式バージョンです: {stored}")
+            }
             (Self::TempFile, Lang::Vi) => "Không lưu được tệp: không tạo được tệp tạm".into(),
             (Self::TempFile, Lang::En) => {
                 "Could not save the file: could not create a temporary file".into()
             }
+            (Self::TempFile, Lang::Ja) => {
+                "ファイルを保存できませんでした: 一時ファイルを作成できませんでした".into()
+            }
             (Self::NoAutosave, Lang::Vi) => "Không đọc được tệp: không có bản tự lưu".into(),
             (Self::NoAutosave, Lang::En) => "Could not read the file: there is no autosave".into(),
+            (Self::NoAutosave, Lang::Ja) => "ファイルを読み込めませんでした: 自動保存が見つかりません".into(),
             (Self::Cancelled, Lang::Vi) => "Đã dừng tính vì dự án vừa thay đổi".into(),
             (Self::Cancelled, Lang::En) => "Stopped because the project changed".into(),
+            (Self::Cancelled, Lang::Ja) => "プロジェクトが変更されたため処理を停止しました".into(),
             (Self::Invalid(reason), _) => reason.message(lang),
         }
     }
