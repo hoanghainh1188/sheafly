@@ -144,4 +144,37 @@ fn new_projects_take_default_names_in_their_language() {
     assert_eq!(vietnamese.project.name, "Dự án mới");
     assert_eq!(vietnamese.project.tasks[0].name, "Công việc 1");
     assert_eq!(vietnamese.project.calendars[0].name, "Chuẩn");
+
+    let japanese = Document::new_in(Lang::Ja);
+    assert_eq!(japanese.project.name, "新規プロジェクト");
+    assert_eq!(japanese.project.tasks[0].name, "タスク 1");
+    assert_eq!(japanese.project.calendars[0].name, "標準");
+    assert_eq!(japanese.base.tasks[0].name, "タスク 1");
+}
+
+#[test]
+fn errors_in_japanese() {
+    let cases = [
+        (
+            refused(Command::SetPredecessors {
+                uid: 1,
+                text: "x?".into(),
+            }),
+            "先行タスクが無効です: x?",
+        ),
+        (
+            refused(Command::RescheduleUncompleted),
+            "状況報告日が設定されていません",
+        ),
+        (
+            refused(Command::RenameTask {
+                uid: 42,
+                name: "None".into(),
+            }),
+            "タスクが見つかりません",
+        ),
+    ];
+    for (error, ja) in cases {
+        assert_eq!(error.message(Lang::Ja), ja);
+    }
 }

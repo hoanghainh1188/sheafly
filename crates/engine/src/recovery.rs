@@ -65,7 +65,7 @@ impl OpenReport {
             .iter()
             .map(|recovery| match lang {
                 Lang::Vi => recovery_message_vi(recovery),
-                Lang::En => recovery_message_en(recovery),
+                Lang::En | Lang::Ja => recovery_message_en(recovery),
             })
             .chain((!self.moved.is_empty()).then(|| moved_message(&self.moved, lang)))
             .collect();
@@ -173,6 +173,9 @@ fn moved_message(moved: &[MovedTask], lang: Lang) -> String {
              that saved the file: {count} {} moved. Check them before you save.",
             if count == 1 { "task" } else { "tasks" }
         ),
+        Lang::Ja => format!(
+            "このバージョンの Sheafly では、ファイルを保存したバージョンと異なるスケジュール計算が行われます: {count} 個のタスクの日付が変更されました。保存する前に確認してください。"
+        ),
     };
     let mut lines = vec![heading];
     lines.extend(moved.iter().take(MOVED_LISTED).map(|task| {
@@ -188,6 +191,7 @@ fn moved_message(moved: &[MovedTask], lang: Lang) -> String {
         lines.push(match lang {
             Lang::Vi => format!("… và {rest} công việc khác."),
             Lang::En => format!("… and {rest} more {}.", if rest == 1 { "task" } else { "tasks" }),
+            Lang::Ja => format!("… 他 {rest} 件のタスク。"),
         });
     }
     lines.join("\n")
@@ -197,12 +201,13 @@ pub(crate) fn span((start, finish): (i64, i64), lang: Lang) -> String {
     format!("{}–{}", day(start, lang), day(finish, lang))
 }
 
-/// A date as each language writes it: 05/01/2026 or Jan 5, 2026.
+/// A date as each language writes it: 05/01/2026, Jan 5, 2026, or 2026-01-05.
 fn day(ms: i64, lang: Lang) -> String {
     let (date, _) = civil(ms);
     match lang {
         Lang::Vi => format!("{:02}/{:02}/{}", date.day(), date.month(), date.year()),
         Lang::En => date.format("%b %-d, %Y").to_string(),
+        Lang::Ja => format!("{}-{:02}-{:02}", date.year(), date.month(), date.day()),
     }
 }
 

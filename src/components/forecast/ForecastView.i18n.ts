@@ -55,4 +55,31 @@ export const forecastViewMessages = defineMessages(
     limits:
       "Limits: each person's order stays as leveling put it; correlation goes by one field and one common share; link lags do not vary.",
   },
+  {
+    working: "完了予測を計算中…",
+    refreshing: "最新の変更内容で再計算中…",
+    noRanges:
+      "工数範囲 (見積りグループまたは見積り列) が設定されたタスクがないため、以下の日付に不確実性は含まれていません。",
+    summary: "プロジェクト完了予測",
+    planned: "現在のスケジュール通り",
+    leveled: "平準化後",
+    chance: (percent: number) => `${percent}% の確率で完了`,
+    vsLeveled: (days: number) => (days === 0 ? "平準化計画と同日" : `平準化計画比 ${days > 0 ? "+" : ""}${days} 日`),
+    vsPlanned: (days: number) => (days === 0 ? "現行計画と同日" : `現行計画比 ${days > 0 ? "+" : ""}${days} 日`),
+    chart: (runs: number, p50: string, p90: string) =>
+      `${runs} 回のシミュレーションによる完了日分布: 50% の確率で ${p50} までに完了、90% の確率で ${p90} までに完了。`,
+    byWeek: "1本のバーは1週間を表します。",
+    byDay: "1本のバーは1日を表します。",
+    risky: "注意すべきタスク",
+    riskyNote: "期限があり期日内完了確率が低いタスクを優先表示。次いで半数以上の試行でクリティカルパス上に位置したタスク。",
+    none: "期限が設定されているタスクや頻繁にクリティカルとなるタスクはありません。",
+    task: "タスク",
+    deadline: "期限",
+    p50: "完了 P50",
+    p90: "完了 P90",
+    onTime: "期日内完了率",
+    critical: "クリティカル率",
+    limits:
+      "計算上の制約: 各リソースのタスク実施順序は平準化時の順序を維持します。相関は1つのフィールドと共通要因のみ考慮され、依存関係のラグは変動しません。",
+  },
 );

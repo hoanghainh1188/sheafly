@@ -77,6 +77,7 @@ const MODAL_ACTIONS = new Set([
   "save-as",
   "lang-vi",
   "lang-en",
+  "lang-ja",
   "theme-system",
   "theme-light",
   "theme-dark",

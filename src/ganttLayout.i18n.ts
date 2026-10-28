@@ -1,6 +1,7 @@
 import { defineMessages } from "./i18n";
 
 const WEEKDAYS_VI = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_EN = [
   "January", "February", "March", "April", "May", "June",
@@ -20,5 +21,11 @@ export const timescaleMessages = defineMessages(
     weekBand: (week: number) => `Week ${week}`,
     monthShort: (month: number, year: number) => `${MONTHS_EN[month - 1].slice(0, 3)} ${year}`,
     weekday: (day: number) => WEEKDAYS_EN[day] ?? "",
+  },
+  {
+    monthBand: (month: number, year: number) => `${year}年${month}月`,
+    weekBand: (week: number) => `第 ${week} 週`,
+    monthShort: (month: number, year: number) => `${year}/${month}`,
+    weekday: (day: number) => WEEKDAYS_JA[day] ?? "",
   },
 );

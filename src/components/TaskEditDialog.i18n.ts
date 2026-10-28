@@ -27,4 +27,17 @@ export const taskEditDialogMessages = defineMessages(
     interrupts: "Interrupts",
     interruptsNote: "When leveling, this task goes ahead of work in progress ranked lower on the same people.",
   },
+  {
+    title: "タスクの編集",
+    close: "閉じる",
+    name: "タスク名",
+    duration: "期間",
+    start: "開始日",
+    finish: "終了日",
+    percentComplete: "進捗率 (%)",
+    predecessors: "先行タスク",
+    predecessorsPlaceholder: "例: 2, 3SS+1d",
+    interrupts: "割り込み",
+    interruptsNote: "リソース平準化時、同一担当者の優先度の低い進行中タスクより優先して実施されます。",
+  },
 );

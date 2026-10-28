@@ -9,4 +9,8 @@ export const paneSplitterMessages = defineMessages(
     label: "Split between the task sheet and the Gantt",
     hint: "Drag to resize, double-click to reset",
   },
+  {
+    label: "タスクシートとガントチャートの境界",
+    hint: "ドラッグしてサイズ変更、ダブルクリックで初期位置にリセット",
+  },
 );

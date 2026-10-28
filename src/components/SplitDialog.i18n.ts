@@ -32,4 +32,19 @@ export const splitDialogMessages = defineMessages(
     badGap: "The gap must be greater than 0, for example 1 day, 4 hrs, 30 mins",
     badPoint: "The split point must fall between the task's start and finish",
   },
+  {
+    title: "タスクの分割",
+    cancel: "キャンセル",
+    split: "分割",
+    summary: (name: string, start: string, finish: string, duration: string) =>
+      `${name} · ${start} – ${finish} · 期間 ${duration}`,
+    splitAt: "分割位置",
+    splitAtLabel: "分割時点",
+    gap: "休止期間 (稼働時間)",
+    gapLabel: "休止期間",
+    explanation:
+      "期間は変更されません。分割時点以降の作業が休止期間分後ろにずれ、終了日も連動して遅くなります。",
+    badGap: "休止期間は 0 より大きい値を指定してください (例: 1日、4時間、30分)",
+    badPoint: "分割位置はタスクの開始日と終了日の間に設定してください",
+  },
 );

@@ -104,7 +104,7 @@ impl AiError {
         };
         match lang {
             Lang::Vi => vi,
-            Lang::En => en,
+            Lang::En | Lang::Ja => en,
         }
     }
 }

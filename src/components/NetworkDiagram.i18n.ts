@@ -19,4 +19,13 @@ export const networkDiagramMessages = defineMessages(
     empty: "There are no tasks to draw a network diagram.",
     diagram: "Network diagram",
   },
+  {
+    zoomOut: "縮小",
+    zoomReset: "100% に戻す",
+    zoomIn: "拡大",
+    fit: "全体表示",
+    hint: "背景をドラッグしてスクロール · ⌘/Ctrl + スクロールで拡大縮小 · ダブルクリックで編集",
+    empty: "ネットワーク図を描画するタスクがありません。",
+    diagram: "ネットワーク図",
+  },
 );

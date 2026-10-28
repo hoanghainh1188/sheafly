@@ -254,7 +254,8 @@ function viewAction(id: string, ctx: MenuContext): boolean {
       return true;
     case "lang-vi":
     case "lang-en":
-      ctx.changeLang(id === "lang-vi" ? "vi" : "en");
+    case "lang-ja":
+      ctx.changeLang(id === "lang-vi" ? "vi" : id === "lang-ja" ? "ja" : "en");
       return true;
     case "baseline":
       ctx.openBaseline();

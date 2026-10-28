@@ -21,4 +21,14 @@ export const estimateGroupMessages = defineMessages(
     unreadable: "Could not read the amount",
     outside: (amount: string) => `Today's effort lies outside the range (${amount}); the forecast takes the nearest end as the likely value.`,
   },
+  {
+    legend: "見積り",
+    low: "最小工数",
+    high: "最大工数",
+    note: "完了予測のための工数範囲。工数が確実な場合は両方とも空欄にしてください。",
+    needBoth: "最小と最大の両方を入力してください (または両方とも空欄)",
+    backwards: "最小工数が最大工数を上回っています",
+    unreadable: "工数を読み取れませんでした",
+    outside: (amount: string) => `現在の工数が範囲外です (${amount})。予測では近い方の端を最確値として採用します。`,
+  },
 );

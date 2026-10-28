@@ -29,11 +29,12 @@ function Greeting() {
 describe("i18n", () => {
   afterEach(() => setCurrentLang("vi"));
 
-  it("detects Vietnamese only when the system prefers it", () => {
+  it("detects Vietnamese or Japanese when the system prefers it", () => {
     expect(detectLang(["vi-VN", "en-US"])).toBe("vi");
     expect(detectLang(["vi"])).toBe("vi");
     expect(detectLang(["en-US", "vi-VN"])).toBe("en");
-    expect(detectLang(["ja-JP"])).toBe("en");
+    expect(detectLang(["ja-JP"])).toBe("ja");
+    expect(detectLang(["fr-FR"])).toBe("en");
     expect(detectLang([])).toBe("en");
   });
 

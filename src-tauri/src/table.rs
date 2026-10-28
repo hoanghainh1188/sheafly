@@ -41,18 +41,25 @@ impl TableError {
         match (self, lang) {
             (Self::Read(detail), Lang::Vi) => format!("Không đọc được bảng: {detail}"),
             (Self::Read(detail), Lang::En) => format!("Could not read the table: {detail}"),
+            (Self::Read(detail), Lang::Ja) => format!("テーブルを読み込めませんでした: {detail}"),
             (Self::Encoding, Lang::Vi) => {
                 "Tệp CSV không phải UTF-8. Hãy lưu lại dạng \"CSV UTF-8\" rồi nhập.".into()
             }
             (Self::Encoding, Lang::En) => {
                 "The CSV file is not UTF-8. Save it as \"CSV UTF-8\" and import it again.".into()
             }
+            (Self::Encoding, Lang::Ja) => {
+                "CSV ファイルが UTF-8 ではありません。「CSV UTF-8」として保存してから再度インポートしてください。".into()
+            }
             (Self::TooManyRows, Lang::Vi) => "Bảng có tối đa 20.000 dòng".into(),
             (Self::TooManyRows, Lang::En) => "A table can have at most 20,000 rows".into(),
+            (Self::TooManyRows, Lang::Ja) => "テーブルの行数は最大 20,000 行までです".into(),
             (Self::TooManyColumns, Lang::Vi) => "Bảng có tối đa 100 cột".into(),
             (Self::TooManyColumns, Lang::En) => "A table can have at most 100 columns".into(),
+            (Self::TooManyColumns, Lang::Ja) => "テーブルの列数は最大 100 列までです".into(),
             (Self::NoSuchSheet, Lang::Vi) => "Không có trang này trong tệp".into(),
             (Self::NoSuchSheet, Lang::En) => "The file has no such sheet".into(),
+            (Self::NoSuchSheet, Lang::Ja) => "ファイル内に指定されたシートがありません".into(),
         }
     }
 }

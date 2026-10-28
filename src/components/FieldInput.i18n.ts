@@ -9,4 +9,8 @@ export const fieldInputMessages = defineMessages(
     empty: "—",
     notANumber: "This field takes a number, for example 12.5",
   },
+  {
+    empty: "—",
+    notANumber: "このフィールドには数値を入力してください (例: 12.5)",
+  },
 );

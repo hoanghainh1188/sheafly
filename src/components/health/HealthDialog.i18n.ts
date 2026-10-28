@@ -138,6 +138,75 @@ const enNotApplicable: Record<HealthNotApplicable, string> = {
 const viRatings: Record<HealthRating, string> = { good: "Tốt", acceptable: "Chấp nhận được", at_risk: "Rủi ro" };
 const enRatings: Record<HealthRating, string> = { good: "Good", acceptable: "Acceptable", at_risk: "At risk" };
 
+const jaNames = [
+  "ロジック",
+  "先行 (負のラグ)",
+  "ラグ (正のラグ)",
+  "依存関係のタイプ",
+  "固定的な制約",
+  "大きなトータルフロート",
+  "負のトータルフロート",
+  "長い期間",
+  "無効な日付",
+  "リソース",
+  "未達タスク",
+  "クリティカルパス検証",
+  "CPLI",
+  "BEI",
+];
+
+const jaHints = [
+  "先行または後続タスクが不足している未完了タスク (サマリーへのリンクは配下のタスクに算入)",
+  "負のラグを持つ依存関係",
+  "正のラグを持つ依存関係",
+  "終了-開始 (FS) 依存関係の割合",
+  "MSO、MFO、SNLT、FNLT および手動スケジュールのタスク",
+  "トータルフロートが 44 営業日を超えるタスク",
+  "負のフロート、または期限を過ぎて終了するタスク",
+  "基準計画 (なければ現在) の期間が 44 日を超えるタスク",
+  "進捗日より後の実績日、または進捗日より前に計画された残存作業",
+  "期間 1 日以上でリソースもコストも割り当てられていないタスク",
+  "基準計画で期日を迎えているが未完了、または基準計画より遅れて完了したタスク",
+  "最初の未完了クリティカルタスクに 600 日追加し、プロジェクト終了日が同日数遅延するか検証",
+  "(クリティカルパスの長さ + 最終マイルストーンに対するフロート) / クリティカルパスの長さ",
+  "完了タスク数 / 基準計画で期日を迎えたタスク数",
+];
+
+const jaReasons: Record<HealthReason, string> = {
+  no_predecessor: "先行タスクなし",
+  no_successor: "後続タスクなし",
+  no_links: "リンクなし",
+  lead: "負のラグ",
+  lag: "正のラグ",
+  not_finish_to_start: "FS 以外",
+  hard_constraint: "固定的な制約",
+  manual: "手動スケジュール",
+  high_slack: "大きなフロート",
+  negative_slack: "負のフロート",
+  past_deadline: "期限超過",
+  long_duration: "長い期間",
+  actual_after_status: "進捗日より後の実績日",
+  planned_before_status: "進捗日より前の計画",
+  no_resource: "リソース・コストなし",
+  not_finished: "未完了",
+  finished_late: "基準計画より遅延",
+  tested: "検証対象タスク",
+};
+
+const jaNotApplicable: Record<HealthNotApplicable, string> = {
+  no_tasks: "集計対象の未完了タスクがありません",
+  no_links: "未完了タスクへのリンクがありません",
+  no_baseline: "基準計画 0 が設定されていません",
+  no_status_date: "進捗日が設定されていません",
+  no_resources: "プロジェクトにリソースがありません",
+  nothing_due: "基準計画で期日を迎えたタスクがまだありません",
+  no_critical_task: "未完了のクリティカルタスクがありません",
+  no_target: "最終マイルストーンに期限、FNLT、MFO 日付がありません",
+  no_path_left: "クリティカルパスの残存期間がありません",
+};
+
+const jaRatings: Record<HealthRating, string> = { good: "良好", acceptable: "許容範囲", at_risk: "リスクあり" };
+
 export const healthMessages = defineMessages(
   {
     title: "Kiểm tra chất lượng lịch",
@@ -196,5 +265,34 @@ export const healthMessages = defineMessages(
     show: (count: number) => `Show ${count} ${count === 1 ? "task" : "tasks"}`,
     showAria: (count: number, name: string) => `Filter the task sheet to the ${count} tasks of ${name}`,
     close: "Close",
+  },
+  {
+    title: "スケジュール健全性チェック",
+    intro: "DCMA 14 ポイント基準に基づき、バックグラウンドの定期タスクを除くリーフタスクを評価します。",
+    name: (number: number) => jaNames[number - 1] ?? String(number),
+    hint: (number: number) => jaHints[number - 1] ?? "",
+    reason: (reason: HealthReason) => jaReasons[reason],
+    notApplicable: (why: HealthNotApplicable) => jaNotApplicable[why],
+    rating: (rating: HealthRating) => jaRatings[rating],
+    summary: (passed: number, applicable: number) => `該当する ${applicable} 項目中 ${passed} 項目をクリア`,
+    nothingApplies: "該当する項目がまだありません",
+    ratingNote: "Sheafly の評価: DCMA には総合スコアはありません。リソース (10) は参考情報としてのみ表示され、合計には算入されません。",
+    loading: "チェック中…",
+    stale: "現在のプロジェクトに対して再チェック中…",
+    colNumber: "#",
+    colCriterion: "評価基準",
+    colResult: "結果",
+    colLimit: "しきい値",
+    colStatus: "ステータス",
+    pass: "合格",
+    fail: "不合格",
+    info: "情報",
+    notApplicableStatus: "適用外",
+    counted: (count: number, total: number) => `${count} / ${total}`,
+    passedTest: "終了日が連動して移動しました",
+    failedTest: "終了日が連動して移動しませんでした",
+    show: (count: number) => `${count} タスクを表示`,
+    showAria: (count: number, name: string) => `タスクシートを ${name} の ${count} タスクで絞り込み`,
+    close: "閉じる",
   },
 );

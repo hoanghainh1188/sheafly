@@ -1,10 +1,10 @@
-/** The interface languages. Vietnamese is the original; English follows it key for key. */
-export type Lang = "vi" | "en";
+/** The interface languages. Vietnamese is the original; English and Japanese follow key for key. */
+export type Lang = "vi" | "en" | "ja";
 
-export const LANGS: readonly Lang[] = ["vi", "en"];
+export const LANGS: readonly Lang[] = ["vi", "en", "ja"];
 
 export function isLang(value: unknown): value is Lang {
-  return value === "vi" || value === "en";
+  return value === "vi" || value === "en" || value === "ja";
 }
 
 // The language the format helpers (dates, durations, money) read. I18nProvider keeps it in
@@ -20,8 +20,10 @@ export function setCurrentLang(lang: Lang): void {
   current = lang;
 }
 
-/** First launch: Vietnamese when the system prefers it, English otherwise. */
+/** First launch: Vietnamese or Japanese when the system prefers it, English otherwise. */
 export function detectLang(preferred: readonly string[]): Lang {
   const first = (preferred[0] ?? "").toLowerCase();
-  return first === "vi" || first.startsWith("vi-") ? "vi" : "en";
+  if (first === "vi" || first.startsWith("vi-")) return "vi";
+  if (first === "ja" || first.startsWith("ja-")) return "ja";
+  return "en";
 }
