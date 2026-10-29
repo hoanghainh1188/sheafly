@@ -9,6 +9,7 @@
 use serde_json::Value;
 use sheafly_engine::advice::{AdviceStep, EstimateReview, Fixes, StatusReport, Wbs};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
+use sheafly_engine::diff::ProjectDiffReport;
 use sheafly_engine::forecast::Forecast;
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
@@ -35,4 +36,5 @@ fn the_public_functions_keep_their_types() {
     let _: fn(&Value, &Value, &Project, Lang) -> Result<AdviceStep<Wbs>, String> = sheafly_pro::wbs_next;
     let _: fn(&ProjectSummary, &Project, Option<&Forecast>, &str, Lang) -> Result<Value, String> = sheafly_pro::status_request;
     let _: fn(&Value, &Value, &Project, bool, Lang) -> Result<AdviceStep<StatusReport>, String> = sheafly_pro::status_next;
+    let _: fn(&Project, &Project, Lang) -> Result<ProjectDiffReport, String> = sheafly_pro::project_diff;
 }

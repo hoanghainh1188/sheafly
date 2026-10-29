@@ -32,6 +32,7 @@ import type {
   NetworkLayout,
   NetworkOptions,
   PlanPreview,
+  ProjectDiffReport,
   ProjectMetrics,
   Proposal,
   ProposalTrial,
@@ -206,6 +207,16 @@ export function paymentDates(items: PaymentDatesQuery[]): Promise<(PaymentDates 
 /** The cash flow by period (Pro `cashflow`); refused without the Pro modules or license. */
 export function cashFlow(options: CashFlowOptions): Promise<CashFlowReport> {
   return invoke<CashFlowReport>("cash_flow", { options });
+}
+
+/** Compare the active project with another project file (Pro `diff`). */
+export function compareProjectFile(path: string): Promise<ProjectDiffReport> {
+  return invoke<ProjectDiffReport>("compare_project_file", { path });
+}
+
+/** Open file dialog to pick a target project and compare with active project (Pro `diff`). */
+export function pickAndCompareProject(): Promise<ProjectDiffReport | null> {
+  return afterQueued(() => invoke<ProjectDiffReport | null>("pick_and_compare_project"));
 }
 
 export function forecast(iterations: number): Promise<Forecast | null> {

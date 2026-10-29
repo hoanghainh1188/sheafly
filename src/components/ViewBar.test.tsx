@@ -52,8 +52,9 @@ describe("ViewBar", () => {
     renderBar("gantt");
     expect(screen.getByRole("tab", { name: "Ma trận Pro" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Dòng tiền Pro" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "So sánh Pro" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Tải" })).toBeInTheDocument();
-    expect(screen.getAllByTitle("Tính năng Sheafly Pro")).toHaveLength(2);
+    expect(screen.getAllByTitle("Tính năng Sheafly Pro")).toHaveLength(3);
   });
 
   it("moves between tabs with the arrow keys, Home and End", async () => {

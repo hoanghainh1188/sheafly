@@ -11,6 +11,7 @@
 use serde_json::Value;
 use sheafly_engine::advice::{AdviceStep, EstimateReview, Fixes, StatusReport, Wbs};
 use sheafly_engine::cash_flow::{CashFlowOptions, CashFlowReport};
+use sheafly_engine::diff::ProjectDiffReport;
 use sheafly_engine::forecast::Forecast;
 use sheafly_engine::health::HealthReport;
 use sheafly_engine::model::Project;
@@ -150,6 +151,15 @@ pub fn status_next(
     Err(unavailable(lang))
 }
 
+/// The comparison and variance audit between two projects (sheafly-pro#4). The stub has none.
+pub fn project_diff(
+    _baseline: &Project,
+    _current: &Project,
+    lang: Lang,
+) -> Result<ProjectDiffReport, String> {
+    Err(unavailable(lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,5 +195,6 @@ mod tests {
         assert_eq!(wbs_next(&empty, &empty, &doc.project, Lang::Vi), Err(unavailable(Lang::Vi)));
         assert_eq!(status_request(&summary, &doc.project, None, "m", Lang::En), Err(unavailable(Lang::En)));
         assert_eq!(status_next(&empty, &empty, &doc.project, true, Lang::Vi), Err(unavailable(Lang::Vi)));
+        assert_eq!(project_diff(&doc.project, &doc.project, Lang::En), Err(unavailable(Lang::En)));
     }
 }
